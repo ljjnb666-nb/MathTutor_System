@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* 学生端通用卡片：可点击时的手势与过渡（使用标准 Tailwind 类避免 PostCSS 500） */
+.student-card {
+  @apply rounded-xl border border-gray-200 bg-white shadow-sm transition-all duration-200;
+}
+.student-card:hover {
+  @apply shadow-md border-gray-200;
+}
+.student-card:active {
+  @apply shadow-lg;
+}
+
+/* 仅装饰用卡片（不可点击） */
+.student-card-static {
+  @apply rounded-xl border border-gray-200 bg-white shadow-sm;
+}
+
+.loading-spinner {
+  display: inline-block;
+  border-width: 2px;
+  border-style: solid;
+  border-color: currentColor;
+  border-right-color: transparent;
+  border-radius: 9999px;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Recharts 图例/提示框容器 */
+.recharts-default-tooltip {
+  padding: 0.5rem 0.75rem !important;
+  border-radius: 0.5rem !important;
+  border: 1px solid #e5e7eb !important;
+  background: #fff !important;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.08) !important;
+  font-size: 0.875rem !important;
+}
+.recharts-legend-wrapper {
+  padding-top: 0.5rem !important;
+}
+.recharts-legend-item-text {
+  font-size: 0.8125rem !important;
+  color: #374151 !important;
+}

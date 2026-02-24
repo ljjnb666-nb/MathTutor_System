@@ -1,0 +1,38 @@
+# 教师端 + 学生端前端构建，由 Nginx 统一提供静态资源并代理 /api
+# 构建上下文为 MathTutor_System/
+
+# ---------- 阶段 1：教师端 ----------
+FROM node:20-alpine AS builder-teacher
+WORKDIR /build/teacher
+# 限制 Node 内存，避免 1GB 机器 OOM；必须装 devDependencies（含 vite）才能 npm run build
+ENV NODE_OPTIONS=--max-old-space-size=512
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm install --legacy-peer-deps
+COPY frontend/ .
+RUN npm run build
+
+# ---------- 阶段 2：学生端（base /student/） ----------
+FROM node:20-alpine AS builder-student
+WORKDIR /build/student
+ENV NODE_OPTIONS=--max-old-space-size=512
+COPY frontend-student/package.json frontend-student/package-lock.json* ./
+RUN npm install --legacy-peer-deps
+COPY frontend-student/ .
+ENV VITE_BASE_URL=/student/
+RUN npm run build
+
+# ---------- 阶段 3：Nginx 合并部署 ----------
+FROM nginx:alpine
+WORKDIR /usr/share/nginx/html
+
+# 教师端产出放到根
+COPY --from=builder-teacher /build/teacher/dist .
+
+# 学生端产出放到 /student
+RUN mkdir -p student
+COPY --from=builder-student /build/student/dist student/
+
+COPY nginx/nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

@@ -1,0 +1,15 @@
+# Python 虚拟环境
+venv/
+.venv/
+__pycache__/
+
+# 前端依赖
+node_modules/
+
+# 敏感信息和本地数据库
+.env
+*.db
+math_tutor.db
+
+# 其他临时文件
+.DS_Store

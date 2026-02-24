@@ -1,0 +1,58 @@
+# 初中数学备课助手 - Docker 一键部署
+# 使用：在 MathTutor_System 目录下执行 docker compose up -d
+# 教师端 http://localhost/  学生端 http://localhost/student/  后端 API /api
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mathtutor-backend
+    restart: unless-stopped
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-docker-default-secret-key-change-in-production}
+      - DATABASE_URL=sqlite:////app/data/math_tutor.db
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost,http://127.0.0.1}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_PROVIDER=${LLM_PROVIDER:-gemini}
+      - LLM_BASE_URL=${LLM_BASE_URL:-}
+      - LLM_MODEL=${LLM_MODEL:-}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      - DEEPSEEK_MODEL=${DEEPSEEK_MODEL:-deepseek-chat}
+      - DEEPSEEK_EMBED_MODEL=${DEEPSEEK_EMBED_MODEL:-deepseek-embedding-v2}
+      - AI_REQUEST_TIMEOUT=${AI_REQUEST_TIMEOUT:-120}
+      - RAG_TOP_K=${RAG_TOP_K:-3}
+      - ENV=production
+    volumes:
+      - backend_data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - mathtutor
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: mathtutor-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - mathtutor
+
+volumes:
+  backend_data:
+    # 持久化：SQLite 数据库、RAG 向量库（data/math_tutor.db、data/vector_store）
+
+networks:
+  mathtutor:
+    driver: bridge

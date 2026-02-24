@@ -1,0 +1,158 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* 移动端主内容区：轻微渐变背景，与卡片区分 */
+@media (max-width: 767px) {
+  .layout-root {
+    background: linear-gradient(180deg, #f9fafb 0%, #f3f4f6 100%);
+  }
+}
+
+/* 全局加载动画，供登录/恢复状态等使用 */
+.loading-spinner {
+  display: inline-block;
+  border-width: 2px;
+  border-style: solid;
+  border-color: currentColor;
+  border-right-color: transparent;
+  border-radius: 9999px;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 焦点环：键盘导航时更清晰 */
+:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+@layer utilities {
+  /* ========== 打印专用样式 ========== */
+  @media print {
+    /* 1. 纸张与边距 */
+    @page {
+      size: A4 portrait;
+      margin: 20mm; /* 标准试卷边距 */
+    }
+
+    /* 2. 确保背景色打印（知识卡片/徽章等） */
+    * {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* 3. 布局：白底、无外边距 */
+    body,
+    #root {
+      background: white !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    body {
+      font-family: "SimSun", "Songti SC", "STSong", serif; /* 强制宋体，更像试卷 */
+      color: black;
+    }
+
+    /* 4. 隐藏非试卷元素 */
+    .sidebar,
+    .navbar,
+    .layout-toolbar,
+    .LayoutToolbar,
+    .toast-container,
+    .no-print,
+    button {
+      display: none !important;
+    }
+
+    /* 5. 分页控制：防止题目被切成两半 */
+    .question-item,
+    .avoid-break {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    /* 强制分页 */
+    .page-break,
+    .force-break {
+      break-before: page;
+      page-break-before: always;
+    }
+  }
+
+  /* 屏幕预览时的 A4 模拟容器（白底、固定宽度，像真实试卷） */
+  .a4-paper {
+    width: 210mm;
+    min-height: 297mm;
+    padding: 20mm;
+    margin: 0 auto;
+    background: white;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  }
+
+  /* 试卷容器：防止题目在分页处被切断 */
+  .exam-paper-container .avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+/* 移动端：试卷预览纸张自适应宽度与内边距（仅屏幕，打印仍用 A4） */
+@media screen and (max-width: 767px) {
+  .exam-paper-container.a4-paper {
+    width: 100%;
+    max-width: 100%;
+    min-height: auto;
+    padding: 12px 14px;
+    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.08);
+  }
+  .exam-paper-container.a3-paper {
+    width: 100%;
+    max-width: 100%;
+    min-height: auto;
+    padding: 12px 14px;
+    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.08);
+  }
+  .exam-paper-container.a4-paper header h1,
+  .exam-paper-container.a3-paper header h1 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .exam-paper-container.a4-paper header > div,
+  .exam-paper-container.a3-paper header > div {
+    font-size: 0.75rem;
+  }
+}
+
+/* 排课弹窗入场动画 */
+@keyframes schedule-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.schedule-modal-panel {
+  animation: schedule-modal-in 0.2s ease-out;
+}

@@ -1,0 +1,16 @@
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.coverage
+htmlcov
+*.db
+.env
+.env.*
+!.env.example
+data/vector_store/*
+!data/vector_store/.gitkeep
+*.sqlite3
+chroma.sqlite3

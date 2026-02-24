@@ -1,0 +1,12 @@
+# 根目录 .dockerignore：仅用于 docker-compose 构建 web 时的上下文
+backend/
+.git
+.gitignore
+*.md
+!README.md
+node_modules
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.db
+**/dist

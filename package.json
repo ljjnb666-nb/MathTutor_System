@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "katex": "^0.16.28",
+    "qrcode.react": "^4.2.0",
+    "react-hot-toast": "^2.6.0",
+    "react-latex-next": "^3.0.0",
+    "recharts": "^3.7.0"
+  }
+}
