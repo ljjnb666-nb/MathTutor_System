@@ -92,7 +92,7 @@ IS_PRODUCTION = ENV == "production" or not DEBUG
 ALLOW_CLIENT_LLM_CONFIG = (
     settings.allow_client_llm_config
     if settings.allow_client_llm_config is not None
-    else not IS_PRODUCTION
+    else False
 )
 
 if settings.llm_https_proxy:

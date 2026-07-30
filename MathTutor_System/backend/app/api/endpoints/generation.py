@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.api.endpoints.auth import get_current_user
 from app.core.deps import LLMConfig, get_llm_config
+from app.core.llm_config import require_llm_configured
 from app.core.subscription import get_current_subscription, require_feature
 from app.models.base import get_db
 from app.models.user import User
@@ -45,11 +46,7 @@ async def api_generate_weak_point(
     if request.use_knowledge_base:
         sub = get_current_subscription(current_user, db)
         require_feature(sub, "rag", current_user)
-    if not (llm_config.api_key or "").strip():
-        raise HTTPException(
-            status_code=400,
-            detail="未配置 API Key。请在前端设置中填写，或在后端 .env 中配置 LLM_API_KEY。",
-        )
+    require_llm_configured(llm_config)
     knowledge_point = "、".join(weak_points[:8])
     gen_request = GenerateRequest(
         knowledge_point=knowledge_point,
@@ -95,11 +92,7 @@ async def api_generate(
     if request.use_knowledge_base:
         sub = get_current_subscription(current_user, db)
         require_feature(sub, "rag", current_user)
-    if not (llm_config.api_key or "").strip():
-        raise HTTPException(
-            status_code=400,
-            detail="未配置 API Key。请在前端设置中填写，或在后端 .env 中配置 LLM_API_KEY。",
-        )
+    require_llm_configured(llm_config)
     try:
         result, rag_used = await generate_questions_async(request, llm_config, owner_user_id=current_user.id)
         response.headers["X-RAG-Used"] = "true" if rag_used else "false"
@@ -135,11 +128,7 @@ async def api_generate_exam(
     if request.use_knowledge_base:
         sub = get_current_subscription(current_user, db)
         require_feature(sub, "rag", current_user)
-    if not (llm_config.api_key or "").strip():
-        raise HTTPException(
-            status_code=400,
-            detail="未配置 API Key。请在前端设置中填写，或在后端 .env 中配置 LLM_API_KEY。",
-        )
+    require_llm_configured(llm_config)
     try:
         questions, rag_used = await generate_full_exam_paper(request, llm_config, owner_user_id=current_user.id)
         response.headers["X-RAG-Used"] = "true" if rag_used else "false"
@@ -165,11 +154,7 @@ async def api_verify_question(
 ) -> dict:
     """
     棰樼洰鏍″锛氭鏌ュ苟淇鍗曢亾棰樼洰鐨勮绠楅敊璇€侀€昏緫婕忔礊銆佹牸寮忎笌瑙ｆ瀽锛岃繑鍥炰慨姝ｅ悗鐨勯鐩璞°€?    """
-    if not (llm_config.api_key or "").strip():
-        raise HTTPException(
-            status_code=400,
-            detail="未配置 API Key。请在前端设置中填写，或在后端 .env 中配置 LLM_API_KEY。",
-        )
+    require_llm_configured(llm_config)
     try:
         result = await verify_question_async(body, llm_config)
         return result

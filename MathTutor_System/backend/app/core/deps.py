@@ -2,25 +2,13 @@
 FastAPI 依赖：从请求头读取 LLM 配置，无则回退到 .env。
 Key 仅用于内存，不打印日志。
 """
-import os
-from dataclasses import dataclass
-
 from dotenv import load_dotenv
 from fastapi import Header
 
 from app.core.config import ALLOW_CLIENT_LLM_CONFIG
+from app.core.llm_config import LLMConfig, resolve_llm_config
 
 load_dotenv()
-
-
-@dataclass
-class LLMConfig:
-    """LLM 配置：优先请求头，否则 .env。"""
-
-    provider: str
-    api_key: str
-    base_url: str
-    model: str
 
 
 def get_llm_config(
@@ -38,15 +26,11 @@ def get_llm_config(
     x_llm_base_url = x_llm_base_url if isinstance(x_llm_base_url, str) else None
     x_llm_model = x_llm_model if isinstance(x_llm_model, str) else None
 
-    if ALLOW_CLIENT_LLM_CONFIG:
-        provider = (x_llm_provider or os.getenv("LLM_PROVIDER", "gemini")).strip().lower()
-        api_key = x_llm_api_key or os.getenv("LLM_API_KEY", "")
-        base_url = (x_llm_base_url or os.getenv("LLM_BASE_URL", "")).strip()
-        model = (x_llm_model or os.getenv("LLM_MODEL", "")).strip()
-    else:
-        provider = os.getenv("LLM_PROVIDER", "gemini").strip().lower()
-        api_key = os.getenv("LLM_API_KEY", "")
-        base_url = os.getenv("LLM_BASE_URL", "").strip()
-        model = os.getenv("LLM_MODEL", "").strip()
-
-    return LLMConfig(provider=provider, api_key=api_key, base_url=base_url, model=model)
+    return resolve_llm_config(
+        {
+            "x-llm-provider": x_llm_provider,
+            "x-llm-api-key": x_llm_api_key,
+            "x-llm-base-url": x_llm_base_url,
+            "x-llm-model": x_llm_model,
+        }
+    )

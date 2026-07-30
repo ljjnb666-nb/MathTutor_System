@@ -17,22 +17,22 @@ export function getAppSettings() {
 
 export function shouldSendClientLlmHeaders(importMeta = import.meta) {
   const explicit = importMeta?.env?.VITE_ALLOW_CLIENT_LLM_CONFIG
-  if (explicit != null && explicit !== '') {
-    return String(explicit).toLowerCase() === 'true'
-  }
-  return Boolean(importMeta?.env?.DEV)
+  return String(explicit ?? '').toLowerCase() === 'true' && Boolean(importMeta?.env?.DEV)
 }
 
-export function buildClientLlmHeaders(importMeta = import.meta) {
-  if (!shouldSendClientLlmHeaders(importMeta)) return null
-  const settings = getAppSettings()
+export function buildLlmHeadersFromSettings(settings) {
   if (!settings) return null
   const headers = {}
   if (settings.provider) headers['x-llm-provider'] = settings.provider
   if (settings.apiKey) headers['x-llm-api-key'] = settings.apiKey
   if (settings.baseUrl) headers['x-llm-base-url'] = settings.baseUrl
   if (settings.model) headers['x-llm-model'] = settings.model
-  return headers
+  return Object.keys(headers).length ? headers : null
+}
+
+export function buildClientLlmHeaders(importMeta = import.meta) {
+  if (!shouldSendClientLlmHeaders(importMeta)) return null
+  return buildLlmHeadersFromSettings(getAppSettings())
 }
 
 export const apiBaseURL =

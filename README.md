@@ -344,6 +344,33 @@ LLM_MODEL=deepseek-chat
 - **环境变量参考**：所有可用变量及注释见 `backend/.env.example`。RAG 相关（如 `RAG_TOP_K`、知识库路径、Embedding 回退）见该文件中的「本地知识库 RAG」注释。
 - **导入试卷含图**：上传 .docx 时，若本机已安装 **LibreOffice**（无头模式），会先将 Word 转 PDF 再按页渲染成图，由视觉模型识别题目（适合「如图」、几何图等）；转换失败或未安装 LibreOffice 时自动回退为纯文本解析。也可直接上传 .pdf，跳过转换，仅做按页识图或 PDF 文本解析。
 
+## LLM Configuration Security
+
+The system has two explicit LLM configuration modes:
+
+- Local development: set `VITE_ALLOW_CLIENT_LLM_CONFIG=true` in the frontend and `ALLOW_CLIENT_LLM_CONFIG=true` in the backend. The frontend must also be a dev build. Only then may browser-stored Provider, API Key, Base URL, and Model be sent through temporary `x-llm-*` request headers.
+- Production: keep `VITE_ALLOW_CLIENT_LLM_CONFIG=false` and `ALLOW_CLIENT_LLM_CONFIG=false`. The browser will not send API keys, and the backend ignores client-provided keys. Production uses only server environment variables: `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_BASE_URL`, and `LLM_MODEL`.
+
+Production deployments must inject model credentials on the server. Do not put real API keys in the repository, Docker images, frontend environment variables, or browser-visible configuration. The settings page uses `GET /api/llm/status` for non-sensitive status and `POST /api/llm/test` for connectivity tests. These endpoints never return API keys, key prefixes, key suffixes, key length, or Authorization headers.
+
+Local development example:
+
+```env
+VITE_ALLOW_CLIENT_LLM_CONFIG=true
+ALLOW_CLIENT_LLM_CONFIG=true
+```
+
+Production example:
+
+```env
+VITE_ALLOW_CLIENT_LLM_CONFIG=false
+ALLOW_CLIENT_LLM_CONFIG=false
+LLM_PROVIDER=deepseek
+LLM_API_KEY=
+LLM_BASE_URL=https://api.deepseek.com
+LLM_MODEL=deepseek-chat
+```
+
 ## Legacy RAG ownership migration
 
 Legacy RAG documents that do not have `owner_user_id` are intentionally invisible to owner-scoped APIs.
