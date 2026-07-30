@@ -1,6 +1,9 @@
 """Document registry and no-auth ChromaDB operations for the local RAG store."""
+from __future__ import annotations
+
 import json
 import logging
+import threading
 import uuid
 from pathlib import Path
 
@@ -11,6 +14,7 @@ logger = logging.getLogger(__name__)
 COLLECTION_NAME = "math_tutor_knowledge"
 PERSIST_DIR = BASE_DIR / "data" / "vector_store"
 REGISTRY_FILE = PERSIST_DIR / "documents_registry.json"
+_REGISTRY_LOCK = threading.RLock()
 
 
 def get_collection_only():
@@ -32,7 +36,7 @@ def get_collection_only():
         try:
             client = chromadb.PersistentClient(path=path_str)
         except Exception:
-            logger.warning("ChromaDB PersistentClient(path) 回退失败: %s", first_error)
+            logger.warning("ChromaDB PersistentClient(path) fallback failed: %s", first_error)
             raise first_error
     return client.get_or_create_collection(COLLECTION_NAME)
 
@@ -43,28 +47,22 @@ def read_documents_registry(registry_file: Path | None = None) -> list[dict]:
     try:
         if not target.exists():
             return []
-        raw = target.read_text(encoding="utf-8")
-        data = json.loads(raw)
+        data = json.loads(target.read_text(encoding="utf-8"))
         items = data.get("documents")
         return list(items) if isinstance(items, list) else []
     except Exception as exc:
-        logger.debug("读取文档注册表失败: %s", exc)
+        logger.debug("read document registry failed: %s", exc)
         return []
 
 
 def write_documents_registry(items: list[dict], registry_file: Path | None = None) -> None:
     """Atomically write the local document registry."""
     target = registry_file or REGISTRY_FILE
-    try:
+    with _REGISTRY_LOCK:
         target.parent.mkdir(parents=True, exist_ok=True)
-        tmp = target.with_suffix(".tmp")
-        tmp.write_text(
-            json.dumps({"documents": items}, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+        tmp = target.with_name(f"{target.name}.{uuid.uuid4().hex}.tmp")
+        tmp.write_text(json.dumps({"documents": items}, ensure_ascii=False, indent=2), encoding="utf-8")
         tmp.replace(target)
-    except Exception as exc:
-        logger.warning("写入文档注册表失败: %s", exc)
 
 
 def registry_add(
@@ -79,79 +77,77 @@ def registry_add(
     created_at: str = "",
 ) -> str:
     """Add or replace one document entry in the registry."""
-    items = read_documents_registry()
-    source_key = (source or "").strip()
-    doc_id = (document_id or "").strip() or str(uuid.uuid4())
-    if owner_user_id is None:
-        items = [item for item in items if (item.get("source") or "").strip() != source_key]
-    else:
-        items = [
-            item
-            for item in items
-            if not (
-                int(item.get("owner_user_id") or -1) == int(owner_user_id)
-                and (item.get("source") or "").strip() == source_key
+    with _REGISTRY_LOCK:
+        items = read_documents_registry()
+        source_key = (source or "").strip()
+        doc_id = (document_id or "").strip() or str(uuid.uuid4())
+        if owner_user_id is None:
+            items = [item for item in items if (item.get("source") or "").strip() != source_key]
+        else:
+            items = [
+                item
+                for item in items
+                if not (
+                    (item.get("source") or "").strip() == source_key
+                    and item.get("owner_user_id") in (None, "", 0, owner_user_id)
+                )
+            ]
+        clean_points = sorted(set(k.strip() for k in (knowledge_points or []) if (k or "").strip()))
+        if owner_user_id is None:
+            items.append({"source": source_key, "chunk_count": chunk_count, "knowledge_points": clean_points})
+        else:
+            items.append(
+                {
+                    "document_id": doc_id,
+                    "owner_user_id": int(owner_user_id),
+                    "source": source_key,
+                    "knowledge_point": knowledge_point,
+                    "chunk_type": chunk_type,
+                    "created_at": created_at,
+                    "chunk_count": chunk_count,
+                    "knowledge_points": clean_points,
+                }
             )
-        ]
-    items.append(
-        (
-            {
-                "document_id": doc_id,
-                "owner_user_id": owner_user_id,
-                "source": source_key,
-                "knowledge_point": knowledge_point,
-                "chunk_type": chunk_type,
-                "created_at": created_at,
-                "chunk_count": chunk_count,
-                "knowledge_points": sorted(set(k for k in (knowledge_points or []) if (k or "").strip())),
-            }
-            if owner_user_id is not None
-            else {
-                "source": source_key,
-                "chunk_count": chunk_count,
-                "knowledge_points": sorted(set(k for k in (knowledge_points or []) if (k or "").strip())),
-            }
-        )
-    )
-    write_documents_registry(items)
-    return doc_id
+        write_documents_registry(items)
+        return doc_id
 
 
 def registry_remove(source: str, *, owner_user_id: int | None = None, document_id: str | None = None) -> None:
-    """Remove one source from the registry."""
+    """Remove one source or document id from the registry."""
     key = (source or "").strip()
     doc_id = (document_id or "").strip()
     if not key and not doc_id:
         return
-    items = []
-    for item in read_documents_registry():
-        item_owner = item.get("owner_user_id")
-        item_source = (item.get("source") or "").strip()
-        item_doc_id = (item.get("document_id") or "").strip()
-        matches_owner = owner_user_id is None or int(item_owner or -1) == int(owner_user_id)
-        matches_source = bool(key) and item_source == key
-        matches_doc_id = bool(doc_id) and item_doc_id == doc_id
-        if matches_owner and (matches_doc_id or matches_source):
-            continue
-        items.append(item)
-    write_documents_registry(items)
+    with _REGISTRY_LOCK:
+        items = []
+        for item in read_documents_registry():
+            item_owner = item.get("owner_user_id")
+            item_source = (item.get("source") or "").strip()
+            item_doc_id = (item.get("document_id") or "").strip()
+            matches_owner = owner_user_id is None or int(item_owner or -1) == int(owner_user_id)
+            matches_source = bool(key) and item_source == key
+            matches_doc_id = bool(doc_id) and item_doc_id == doc_id
+            if matches_owner and (matches_doc_id or matches_source):
+                continue
+            items.append(item)
+        write_documents_registry(items)
 
 
 def rag_list_documents_from_registry() -> list[dict]:
-    """
-    Read the local JSON registry only. This avoids ChromaDB access for fast,
-    stable document lists.
-    """
     return read_documents_registry()
 
 
 def rag_list_documents(owner_user_id: int) -> list[dict]:
-    """List only documents explicitly owned by one teacher."""
-    return [
-        item
-        for item in read_documents_registry()
-        if int(item.get("owner_user_id") or -1) == int(owner_user_id)
-    ]
+    return [item for item in read_documents_registry() if int(item.get("owner_user_id") or -1) == int(owner_user_id)]
+
+
+def _owned_where(owner_user_id: int, document_id: str | None = None, source: str | None = None) -> dict:
+    clauses: list[dict] = [{"owner_user_id": int(owner_user_id)}]
+    if document_id:
+        clauses.append({"document_id": document_id})
+    if source:
+        clauses.append({"source": source})
+    return clauses[0] if len(clauses) == 1 else {"$and": clauses}
 
 
 def rag_get_chunks(owner_user_id: int, document_id: str) -> list[str]:
@@ -161,10 +157,7 @@ def rag_get_chunks(owner_user_id: int, document_id: str) -> list[str]:
         return []
     try:
         coll = get_collection_only()
-        data = coll.get(
-            where={"document_id": doc_id},
-            include=["documents", "metadatas"],
-        )
+        data = coll.get(where=_owned_where(owner_user_id, document_id=doc_id), include=["documents", "metadatas"])
         docs = data.get("documents") or []
         metadatas = data.get("metadatas") or []
         indexed = []
@@ -176,7 +169,7 @@ def rag_get_chunks(owner_user_id: int, document_id: str) -> list[str]:
         indexed.sort(key=lambda item: (item[0], item[1]))
         return [text for _, text in indexed if text]
     except Exception as exc:
-        logger.debug("rag_get_chunks: %s", exc)
+        logger.debug("rag_get_chunks failed: %s", exc)
         return []
 
 
@@ -187,7 +180,7 @@ def rag_delete_document(owner_user_id: int, document_id: str) -> int:
         return 0
     try:
         coll = get_collection_only()
-        data = coll.get(where={"document_id": doc_id}, include=["metadatas"])
+        data = coll.get(where=_owned_where(owner_user_id, document_id=doc_id), include=["metadatas"])
         ids = data.get("ids") or []
         metadatas = data.get("metadatas") or []
         owned_ids = [
@@ -204,11 +197,20 @@ def rag_delete_document(owner_user_id: int, document_id: str) -> int:
         raise
 
 
+def rag_delete_owned_by_source(owner_user_id: int, source: str) -> int:
+    source_key = (source or "").strip()
+    if not source_key:
+        return 0
+    coll = get_collection_only()
+    data = coll.get(where=_owned_where(owner_user_id, source=source_key), include=["metadatas"])
+    ids = data.get("ids") or []
+    if ids:
+        coll.delete(ids=ids)
+    return len(ids)
+
+
 def rag_list_documents_no_auth() -> list[dict]:
-    """
-    List documents in ChromaDB without initializing the RAG service or API key.
-    Return [] on ChromaDB path/init failures to avoid endpoint 500s.
-    """
+    """Legacy no-auth list for tests and migration tooling only."""
     try:
         coll = get_collection_only()
         data = coll.get(include=["metadatas"])
@@ -216,7 +218,7 @@ def rag_list_documents_no_auth() -> list[dict]:
         by_source: dict[str, tuple[int, set[str]]] = {}
         for metadata in metadatas:
             meta = metadata or {}
-            source = str(meta.get("source") or "未知").strip() or "未知"
+            source = str(meta.get("source") or "unknown").strip() or "unknown"
             knowledge_point = str(meta.get("knowledge_point") or "").strip()
             if source not in by_source:
                 by_source[source] = (0, set())
@@ -229,20 +231,17 @@ def rag_list_documents_no_auth() -> list[dict]:
             for name, (count, knowledge_points) in by_source.items()
         ]
     except BaseException as exc:
-        logger.warning("rag_list_documents_no_auth 失败（返回空列表）: %s", exc)
+        logger.warning("rag_list_documents_no_auth failed: %s", exc)
         return []
 
 
 def rag_get_chunks_by_source_no_auth(source: str) -> list[str]:
-    """Get source chunks ordered by chunk_index without initializing embeddings."""
+    """Legacy no-auth source preview for tests and migration tooling only."""
     if not (source and str(source).strip()):
         return []
     try:
         coll = get_collection_only()
-        data = coll.get(
-            where={"source": source.strip()},
-            include=["documents", "metadatas"],
-        )
+        data = coll.get(where={"source": source.strip()}, include=["documents", "metadatas"])
         docs = data.get("documents") or []
         metadatas = data.get("metadatas") or []
         indexed = [
@@ -252,12 +251,12 @@ def rag_get_chunks_by_source_no_auth(source: str) -> list[str]:
         indexed.sort(key=lambda item: (item[0], item[1]))
         return [text for _, text in indexed if text]
     except Exception as exc:
-        logger.debug("rag_get_chunks_by_source_no_auth: %s", exc)
+        logger.debug("rag_get_chunks_by_source_no_auth failed: %s", exc)
         return []
 
 
 def rag_delete_by_source_no_auth(source: str) -> int:
-    """Delete all chunks for a source without initializing embeddings."""
+    """Legacy no-auth delete by source. Do not expose through user APIs."""
     if not (source and str(source).strip()):
         return 0
     try:
@@ -267,8 +266,7 @@ def rag_delete_by_source_no_auth(source: str) -> int:
         if ids:
             coll.delete(ids=ids)
             registry_remove(source.strip())
-            logger.info("RAG 已按来源删除: %s, 共 %d 块", source, len(ids))
         return len(ids)
     except Exception as exc:
-        logger.warning("RAG delete_by_source 异常: %s", exc)
+        logger.warning("RAG delete_by_source failed: %s", exc)
         raise

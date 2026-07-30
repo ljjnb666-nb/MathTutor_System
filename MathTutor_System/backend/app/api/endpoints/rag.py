@@ -1,6 +1,9 @@
 """Owner-scoped RAG document APIs."""
+from __future__ import annotations
+
 import asyncio
 import logging
+import os
 import time
 import uuid
 from urllib.parse import unquote
@@ -14,7 +17,7 @@ from app.core.deps import LLMConfig, get_llm_config
 from app.core.subscription import get_current_subscription, require_feature
 from app.models.base import get_db
 from app.models.user import User
-from app.services.file_parser import parse_file, parse_file_from_bytes
+from app.services.file_parser import parse_file_from_bytes
 from app.services.rag_service import get_rag_service
 
 logger = logging.getLogger(__name__)
@@ -23,6 +26,13 @@ router = APIRouter()
 _upload_status: dict[str, dict] = {}
 _STATUS_EXPIRE_SEC = 600
 _MAX_STATUS_ENTRIES = 100
+MAX_RAG_UPLOAD_BYTES = 12 * 1024 * 1024
+MAX_RAG_FILENAME_LENGTH = 180
+ALLOWED_RAG_MIME_TYPES = {
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/octet-stream",
+}
 
 
 def _require_rag(current_user: User, db: Session) -> None:
@@ -36,6 +46,33 @@ def _prune_upload_status() -> None:
     by_time = sorted(_upload_status.items(), key=lambda item: item[1].get("created_at") or 0)
     for task_id, _ in by_time[: len(_upload_status) - _MAX_STATUS_ENTRIES]:
         _upload_status.pop(task_id, None)
+
+
+def _validate_rag_filename(filename: str) -> str:
+    clean = (filename or "").strip()
+    if not clean:
+        raise HTTPException(status_code=400, detail="Missing filename")
+    if len(clean) > MAX_RAG_FILENAME_LENGTH:
+        raise HTTPException(status_code=400, detail="Filename is too long")
+    if clean != os.path.basename(clean) or "/" in clean or "\\" in clean:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    lower = clean.lower()
+    if not (lower.endswith(".pdf") or lower.endswith(".docx")):
+        raise HTTPException(status_code=400, detail="Only .pdf and .docx are supported")
+    return clean
+
+
+async def _read_validated_rag_upload(file: UploadFile) -> tuple[str, bytes]:
+    filename = _validate_rag_filename(file.filename or "")
+    content_type = (file.content_type or "").split(";")[0].strip().lower()
+    if content_type and content_type not in ALLOWED_RAG_MIME_TYPES:
+        raise HTTPException(status_code=400, detail="Unsupported file type")
+    file_bytes = await file.read()
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="File is empty")
+    if len(file_bytes) > MAX_RAG_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File is too large")
+    return filename, file_bytes
 
 
 @router.get("/documents")
@@ -87,29 +124,25 @@ async def rag_delete_document(
 async def rag_upload(
     file: UploadFile = File(...),
     knowledge_point: str = Form(""),
-    chunk_type: str = Form("题目"),
+    chunk_type: str = Form("question"),
     llm_config: LLMConfig = Depends(get_llm_config),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     _require_rag(current_user, db)
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="Missing filename")
-    name_lower = file.filename.lower()
-    if not name_lower.endswith(".pdf") and not name_lower.endswith(".docx"):
-        raise HTTPException(status_code=400, detail="Only .pdf and .docx are supported")
+    filename, file_bytes = await _read_validated_rag_upload(file)
     try:
-        text = await parse_file(file)
+        text = parse_file_from_bytes(file_bytes, filename)
         if not text.strip():
             raise HTTPException(status_code=400, detail="Parsed document is empty")
         document_id = get_rag_service(llm_config=llm_config).add_document(
             text,
-            file.filename,
+            filename,
             owner_user_id=current_user.id,
             knowledge_point=(knowledge_point or "").strip(),
-            chunk_type=(chunk_type or "题目").strip() or "题目",
+            chunk_type=(chunk_type or "question").strip() or "question",
         )
-        return {"message": "Knowledge base updated", "filename": file.filename, "document_id": document_id}
+        return {"message": "Knowledge base updated", "filename": filename, "document_id": document_id}
     except HTTPException:
         raise
     except ValueError as exc:
@@ -176,35 +209,28 @@ async def _run_upload_task(
         _upload_status[task_id].update(
             {"status": "done", "message": "Knowledge base updated", "filename": filename, "document_id": document_id}
         )
-    except Exception as exc:
+    except Exception:
         logger.exception("RAG async upload failed: %s", filename)
-        _upload_status[task_id].update({"status": "failed", "error": str(exc)[:200], "filename": filename})
+        _upload_status[task_id].update({"status": "failed", "error": "Upload failed", "filename": filename})
 
 
 @router.post("/upload/async")
 async def rag_upload_async(
     file: UploadFile = File(...),
     knowledge_point: str = Form(""),
-    chunk_type: str = Form("题目"),
+    chunk_type: str = Form("question"),
     llm_config: LLMConfig = Depends(get_llm_config),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     _require_rag(current_user, db)
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="Missing filename")
-    name_lower = file.filename.lower()
-    if not name_lower.endswith(".pdf") and not name_lower.endswith(".docx"):
-        raise HTTPException(status_code=400, detail="Only .pdf and .docx are supported")
-    file_bytes = await file.read()
-    if not file_bytes:
-        raise HTTPException(status_code=400, detail="File is empty")
+    filename, file_bytes = await _read_validated_rag_upload(file)
     task_id = str(uuid.uuid4())
     _upload_status[task_id] = {
         "owner_user_id": current_user.id,
         "status": "pending",
         "message": "Queued",
-        "filename": file.filename,
+        "filename": filename,
         "created_at": time.time(),
     }
     _prune_upload_status()
@@ -212,9 +238,9 @@ async def rag_upload_async(
         _run_upload_task(
             task_id,
             file_bytes,
-            file.filename,
+            filename,
             (knowledge_point or "").strip(),
-            (chunk_type or "题目").strip() or "题目",
+            (chunk_type or "question").strip() or "question",
             llm_config.provider,
             llm_config.api_key,
             llm_config.base_url,

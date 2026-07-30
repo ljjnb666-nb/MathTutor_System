@@ -1,6 +1,7 @@
 """Controlled LangGraph workflow for the read-only Teacher Agent."""
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from typing import TypedDict
 
@@ -12,14 +13,14 @@ from app.core.deps import LLMConfig
 from app.models.agent_run import AgentRun
 from app.models.student import Student
 from app.models.user import User
-from app.schemas.agent_dto import (
-    AgentToolCallLog,
-    TeacherAgentPlan,
-    TeacherAgentPlanStep,
-    TeacherAgentRunCreate,
-    TeacherIntent,
+from app.schemas.agent_dto import TeacherAgentPlan, TeacherAgentRunCreate, TeacherIntent
+from app.services.agent_tool_registry import (
+    MAX_TOOL_CALLS_PER_RUN,
+    available_read_tools,
+    execute_tool,
+    validate_candidate_tools,
 )
-from app.services.agent_tool_registry import MAX_TOOL_CALLS_PER_RUN, execute_tool
+from app.services.teacher_agent_planner import LLMTeacherAgentPlanner, TeacherAgentPlanner
 
 
 class AgentState(TypedDict, total=False):
@@ -28,10 +29,11 @@ class AgentState(TypedDict, total=False):
     request: TeacherAgentRunCreate
     user: User
     llm_config: LLMConfig
+    planner: TeacherAgentPlanner
     intent: TeacherIntent
     selected_tools: list[dict]
     tool_results: dict
-    tool_logs: list[AgentToolCallLog]
+    tool_logs: list
     plan: TeacherAgentPlan
     missing_fields: list[dict]
     warnings: list[str]
@@ -73,13 +75,23 @@ def run_teacher_agent(
     user: User,
     request: TeacherAgentRunCreate,
     llm_config: LLMConfig,
+    planner: TeacherAgentPlanner | None = None,
 ) -> AgentRun:
     row = create_agent_run(db, user, request)
     graph = _build_graph()
     try:
         row.status = "running"
         db.commit()
-        state = graph.invoke({"run_id": row.id, "db": db, "request": request, "user": user, "llm_config": llm_config})
+        state = graph.invoke(
+            {
+                "run_id": row.id,
+                "db": db,
+                "request": request,
+                "user": user,
+                "llm_config": llm_config,
+                "planner": planner or LLMTeacherAgentPlanner(),
+            }
+        )
         row = db.get(AgentRun, row.id)
         if state.get("error_code"):
             _persist_failed(db, row, state["error_code"], state.get("error_message") or "Agent failed")
@@ -101,17 +113,17 @@ def _build_graph():
     workflow.add_node("validate_request", _validate_request)
     workflow.add_node("extract_structured_intent", _extract_structured_intent)
     workflow.add_node("resolve_student_context", _resolve_student_context)
-    workflow.add_node("select_allowed_read_tools", _select_allowed_read_tools)
+    workflow.add_node("validate_candidate_tools", _validate_candidate_tools)
     workflow.add_node("execute_read_tools", _execute_read_tools)
     workflow.add_node("compose_structured_plan", _compose_structured_plan)
     workflow.add_node("validate_plan", _validate_plan)
     workflow.add_edge(START, "validate_request")
-    workflow.add_edge("validate_request", "extract_structured_intent")
-    workflow.add_edge("extract_structured_intent", "resolve_student_context")
-    workflow.add_edge("resolve_student_context", "select_allowed_read_tools")
-    workflow.add_edge("select_allowed_read_tools", "execute_read_tools")
+    workflow.add_conditional_edges("validate_request", _continue_or_end, {"continue": "extract_structured_intent", "end": END})
+    workflow.add_conditional_edges("extract_structured_intent", _continue_or_end, {"continue": "resolve_student_context", "end": END})
+    workflow.add_conditional_edges("resolve_student_context", _continue_or_end, {"continue": "validate_candidate_tools", "end": END})
+    workflow.add_conditional_edges("validate_candidate_tools", _continue_or_end, {"continue": "execute_read_tools", "end": END})
     workflow.add_edge("execute_read_tools", "compose_structured_plan")
-    workflow.add_edge("compose_structured_plan", "validate_plan")
+    workflow.add_conditional_edges("compose_structured_plan", _continue_or_end, {"continue": "validate_plan", "end": END})
     workflow.add_edge("validate_plan", END)
     return workflow.compile()
 
@@ -124,32 +136,18 @@ def _validate_request(state: AgentState) -> AgentState:
 
 
 def _extract_structured_intent(state: AgentState) -> AgentState:
-    req = state["request"]
-    goal = req.goal.lower()
-    intent_type = "general_teaching"
-    if any(word in goal for word in ["review", "复习", "錯", "错题"]):
-        intent_type = "review_plan"
-    elif any(word in goal for word in ["practice", "练习"]):
-        intent_type = "practice_plan"
-    elif any(word in goal for word in ["exam", "试卷", "考试"]):
-        intent_type = "exam_preparation_plan"
-    elif any(word in goal for word in ["analysis", "分析", "薄弱"]):
-        intent_type = "student_analysis"
-    elif any(word in goal for word in ["lesson", "备课", "导入课"]):
-        intent_type = "lesson_preparation"
-    needs_student = req.student_id is not None or any(word in goal for word in ["student", "学生", "错题", "薄弱"])
-    knowledge_points = [req.knowledge_point.strip()] if req.knowledge_point and req.knowledge_point.strip() else []
-    if "函数" in req.goal and "函数" not in knowledge_points:
-        knowledge_points.append("函数")
-    if "勾股" in req.goal and "勾股定理" not in knowledge_points:
-        knowledge_points.append("勾股定理")
-    state["intent"] = TeacherIntent(
-        intent_type=intent_type,
-        knowledge_points=knowledge_points,
-        requested_outputs=["teaching_plan"],
-        requires_student_context=needs_student,
-        requires_rag=req.use_knowledge_base,
-    )
+    try:
+        intent = _run_async(
+            state["planner"].extract_intent(
+                state["request"],
+                available_read_tools(),
+                state["llm_config"],
+            )
+        )
+        state["intent"] = _sanitize_intent(intent, state["request"])
+    except Exception as exc:
+        state["error_code"] = "intent_extraction_failed"
+        state["error_message"] = _sanitize_text(str(exc), 300)
     return state
 
 
@@ -168,7 +166,7 @@ def _resolve_student_context(state: AgentState) -> AgentState:
     elif intent.requires_student_context:
         matches = []
         for row in db.query(Student).filter(Student.user_id == user.id).all():
-            if row.name and row.name in req.goal:
+            if row.name and (row.name in req.goal or row.name == intent.student_name):
                 matches.append(row)
         if len(matches) == 1:
             req.student_id = matches[0].id
@@ -176,43 +174,25 @@ def _resolve_student_context(state: AgentState) -> AgentState:
             missing.append({"field": "student_id", "message": "Multiple students match. Please choose one."})
         else:
             missing.append({"field": "student_id", "message": "Please choose a student for student-specific analysis."})
-    state["missing_fields"] = missing
+    missing.extend(intent.missing_fields or [])
+    state["missing_fields"] = _unique_missing(missing)
     return state
 
 
-def _select_allowed_read_tools(state: AgentState) -> AgentState:
-    req = state["request"]
+def _validate_candidate_tools(state: AgentState) -> AgentState:
     if state.get("missing_fields") or state.get("error_code"):
         state["selected_tools"] = []
         return state
-    tools = [{"name": "list_owned_students", "args": {}}]
-    if req.student_id is not None:
-        args = {"student_id": req.student_id, "knowledge_point": req.knowledge_point}
-        tools.extend(
-            [
-                {"name": "get_owned_student_profile", "args": args},
-                {"name": "get_student_weak_points", "args": args},
-                {"name": "get_student_recent_mistakes", "args": args},
-                {"name": "get_student_mastery", "args": args},
-                {"name": "get_student_trend", "args": args},
-            ]
-        )
-    tools.append({"name": "get_teacher_schedule", "args": {}})
-    if req.use_knowledge_base:
-        tools.append(
-            {
-                "name": "search_owned_rag",
-                "args": {"query": req.goal, "knowledge_point": req.knowledge_point},
-            }
-        )
-    tools.append({"name": "summarize_available_context", "args": {}})
-    state["selected_tools"] = tools[:MAX_TOOL_CALLS_PER_RUN]
+    req = state["request"]
+    intent = state["intent"]
+    names = validate_candidate_tools(intent.candidate_tools, requires_rag=bool(intent.requires_rag or req.use_knowledge_base))
+    state["selected_tools"] = [{"name": name, "args": _args_for_tool(name, req, intent)} for name in names[:MAX_TOOL_CALLS_PER_RUN]]
     return state
 
 
 def _execute_read_tools(state: AgentState) -> AgentState:
     db = _db_from_state(state)
-    logs: list[AgentToolCallLog] = []
+    logs = []
     results = {}
     for item in state.get("selected_tools") or []:
         log, result = execute_tool(db, state["user"], item["name"], item.get("args") or {}, state["llm_config"])
@@ -231,54 +211,26 @@ def _compose_structured_plan(state: AgentState) -> AgentState:
     warnings = [READ_ONLY_WARNING]
     if req.use_knowledge_base and "search_owned_rag" not in results:
         warnings.append("Knowledge base was requested but no owned RAG context was available or allowed.")
-    if any(word in req.goal for word in ["发布", "删除", "购买", "支付", "扣费", "保存试卷"]):
+    if _looks_like_write_goal(req.goal):
         warnings.append("Requested write or payment action was not executed. This version only drafts a future plan.")
-    weak = (results.get("get_student_weak_points") or {}).get("weak_points") or []
-    mistakes_count = (results.get("get_student_recent_mistakes") or {}).get("count") or 0
-    steps = [
-        TeacherAgentPlanStep(
-            step_id="1",
-            title="Clarify objective",
-            description=f"Plan around: {req.goal}",
-            basis="Teacher request",
-            future_action="Confirm concrete teaching objective before any future write workflow.",
-        ),
-        TeacherAgentPlanStep(
-            step_id="2",
-            title="Use available evidence",
-            description=f"Use weak points {weak[:5]} and {mistakes_count} recent mistakes as planning evidence.",
-            basis="Owned student data and read-only summaries",
-            future_action="Generate draft materials in a future confirmed workflow.",
-        ),
-        TeacherAgentPlanStep(
-            step_id="3",
-            title="Draft teaching flow",
-            description="Start with diagnosis, explain key misconception, practice two graduated examples, then assign review suggestions.",
-            basis="Read-only agent synthesis",
-            future_action="Teacher reviews and decides whether to create actual questions or assignments later.",
-        ),
-    ]
-    state["warnings"] = warnings
-    state["plan"] = TeacherAgentPlan(
-        title="Read-only teaching plan",
-        summary="A structured plan was generated without modifying business data.",
-        intent_type=intent.intent_type,
-        resolved_context={
-            "student_id": req.student_id,
-            "knowledge_point": req.knowledge_point,
-            "use_knowledge_base": req.use_knowledge_base,
-        },
-        evidence_summary={
-            "weak_points": weak[:10],
-            "recent_mistake_count": mistakes_count,
-            "rag_sources": (results.get("search_owned_rag") or {}).get("sources", []),
-        },
-        steps=steps,
-        expected_outputs=["teaching_plan"],
-        missing_fields=state.get("missing_fields") or [],
-        warnings=warnings,
-        safety_mode="read_only",
-    )
+    try:
+        plan = _run_async(
+            state["planner"].compose_plan(
+                req,
+                intent,
+                _sanitize_tool_results(results),
+                state["llm_config"],
+            )
+        )
+        plan.warnings = _dedupe([*(plan.warnings or []), *warnings])
+        plan.safety_mode = "read_only"
+        for step in plan.steps:
+            step.requires_confirmation = False
+        state["warnings"] = plan.warnings
+        state["plan"] = plan
+    except Exception as exc:
+        state["error_code"] = "plan_composition_failed"
+        state["error_message"] = _sanitize_text(str(exc), 300)
     return state
 
 
@@ -291,10 +243,18 @@ def _validate_plan(state: AgentState) -> AgentState:
         state["error_message"] = "Plan was not generated."
         return state
     for log in state.get("tool_logs") or []:
-        if log.risk_level != "LOW":
+        if log.risk_level != "LOW" or log.error_code in {"tool_not_allowed", "risk_not_allowed"}:
             state["error_code"] = "unsafe_tool"
             state["error_message"] = "Only LOW risk tools are allowed."
             return state
+    if plan.safety_mode != "read_only" or any(step.requires_confirmation for step in plan.steps):
+        state["error_code"] = "unsafe_plan"
+        state["error_message"] = "Plan failed read-only safety validation."
+        return state
+    plan_text = str(plan.model_dump()).lower()
+    if any(term in plan_text for term in ["created exam", "saved question", "deleted", "charged", "paid", "published"]):
+        state["error_code"] = "unsafe_plan"
+        state["error_message"] = "Plan contains a completed write action."
     return state
 
 
@@ -342,6 +302,64 @@ def _context_snapshot(state: AgentState) -> dict:
     }
 
 
+def _continue_or_end(state: AgentState) -> str:
+    if state.get("error_code") or state.get("missing_fields"):
+        return "end"
+    return "continue"
+
+
+def _sanitize_intent(intent: TeacherIntent, req: TeacherAgentRunCreate) -> TeacherIntent:
+    data = intent.model_dump()
+    data.pop("user_id", None)
+    data.pop("owner_user_id", None)
+    if req.knowledge_point and req.knowledge_point not in data.get("knowledge_points", []):
+        data["knowledge_points"] = [*data.get("knowledge_points", []), req.knowledge_point]
+    if req.use_knowledge_base:
+        data["requires_rag"] = True
+    return TeacherIntent.model_validate(data)
+
+
+def _args_for_tool(name: str, req: TeacherAgentRunCreate, intent: TeacherIntent) -> dict:
+    kp = req.knowledge_point or (intent.knowledge_points[0] if intent.knowledge_points else None)
+    args: dict = {}
+    if name in {
+        "get_owned_student_profile",
+        "get_student_weak_points",
+        "get_student_recent_mistakes",
+        "get_student_mastery",
+        "get_student_trend",
+    }:
+        args["student_id"] = req.student_id
+        args["knowledge_point"] = kp
+    if name == "get_student_trend":
+        args["weeks"] = 8
+    if name == "search_owned_rag":
+        args["query"] = req.goal
+        args["knowledge_point"] = kp
+    return {key: value for key, value in args.items() if value is not None}
+
+
+def _sanitize_tool_results(results: dict) -> dict:
+    cleaned = {}
+    for name, value in (results or {}).items():
+        cleaned[name] = _sanitize_value(value)
+    return cleaned
+
+
+def _sanitize_value(value):
+    if isinstance(value, str):
+        return _sanitize_text(value, 1000)
+    if isinstance(value, list):
+        return [_sanitize_value(item) for item in value[:20]]
+    if isinstance(value, dict):
+        return {
+            key: _sanitize_value(val)
+            for key, val in value.items()
+            if key not in {"api_key", "authorization", "hashed_password", "login_code"}
+        }
+    return value
+
+
 def _sanitize_text(value: str, max_len: int) -> str:
     blocked = ["x-llm-api-key", "authorization", "api_key", "hashed_password", "login_code"]
     cleaned = value or ""
@@ -350,6 +368,37 @@ def _sanitize_text(value: str, max_len: int) -> str:
     return cleaned[:max_len]
 
 
+def _dedupe(items: list[str]) -> list[str]:
+    out = []
+    for item in items:
+        if item and item not in out:
+            out.append(item)
+    return out
+
+
+def _unique_missing(items: list[dict]) -> list[dict]:
+    seen = set()
+    out = []
+    for item in items:
+        field = item.get("field")
+        if field and field not in seen:
+            seen.add(field)
+            out.append(item)
+    return out
+
+
+def _looks_like_write_goal(goal: str) -> bool:
+    lowered = (goal or "").lower()
+    return any(word in lowered for word in ["publish", "delete", "pay", "charge", "save", "发布", "删除", "购买", "支付", "扣费", "保存试卷"])
+
+
+def _run_async(coro):
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    raise RuntimeError("Teacher Agent synchronous runner cannot execute inside an active event loop.")
+
+
 def _db_from_state(state: AgentState) -> Session:
-    # The synchronous endpoint owns the DB session lifetime; LangGraph only passes it through.
     return state["db"]  # type: ignore[index]

@@ -7,7 +7,6 @@ from typing import Callable
 
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.core.config import RAG_TOP_K
@@ -18,6 +17,7 @@ from app.models.schedule import Schedule
 from app.models.student import Student
 from app.models.user import User
 from app.schemas.agent_dto import AgentToolCallLog
+from app.services.student_portal_service import get_student_trend as get_student_trend_summary
 from app.services.topic_service import split_topics
 
 MAX_TOOL_CALLS_PER_RUN = 8
@@ -27,6 +27,7 @@ class ToolArgs(BaseModel):
     student_id: int | None = None
     knowledge_point: str | None = Field(None, max_length=128)
     query: str | None = Field(None, max_length=500)
+    weeks: int | None = Field(None, ge=1, le=12)
 
 
 @dataclass(frozen=True)
@@ -111,16 +112,9 @@ def get_student_mastery(db: Session, user: User, args: ToolArgs, llm_config: LLM
 
 def get_student_trend(db: Session, user: User, args: ToolArgs, llm_config: LLMConfig) -> dict:
     if args.student_id is None:
-        return {"new_mistakes": 0, "mastered": 0}
+        return {"weeks": []}
     _owned_student(db, user.id, args.student_id)
-    return {
-        "new_mistakes": db.query(func.count(MistakeRecord.id)).filter(MistakeRecord.student_id == args.student_id).scalar() or 0,
-        "mastered": db.query(func.count(MistakeRecord.id)).filter(
-            MistakeRecord.student_id == args.student_id,
-            MistakeRecord.status == "mastered",
-        ).scalar()
-        or 0,
-    }
+    return get_student_trend_summary(db, args.student_id, args.weeks or 8)
 
 
 def get_teacher_schedule(db: Session, user: User, args: ToolArgs, llm_config: LLMConfig) -> dict:
@@ -185,6 +179,29 @@ FORBIDDEN_TOOL_NAMES = {
     "execute_sql",
     "write_file",
 }
+
+
+def available_read_tools() -> list[ToolDefinition]:
+    return [tool for tool in TOOL_REGISTRY.values() if tool.risk_level == "LOW"]
+
+
+def validate_candidate_tools(candidate_tools: list[str], *, requires_rag: bool = False) -> list[str]:
+    allowed: list[str] = []
+    for name in candidate_tools or []:
+        cleaned = str(name or "").strip()
+        if not cleaned or cleaned in allowed:
+            continue
+        if cleaned in FORBIDDEN_TOOL_NAMES:
+            continue
+        tool = TOOL_REGISTRY.get(cleaned)
+        if tool is None or tool.risk_level != "LOW":
+            continue
+        allowed.append(cleaned)
+        if len(allowed) >= MAX_TOOL_CALLS_PER_RUN:
+            break
+    if requires_rag and "search_owned_rag" not in allowed and len(allowed) < MAX_TOOL_CALLS_PER_RUN:
+        allowed.append("search_owned_rag")
+    return allowed[:MAX_TOOL_CALLS_PER_RUN]
 
 
 def execute_tool(db: Session, user: User, name: str, raw_args: dict, llm_config: LLMConfig) -> tuple[AgentToolCallLog, dict | None]:

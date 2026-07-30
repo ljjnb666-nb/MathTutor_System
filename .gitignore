@@ -5,6 +5,7 @@ __pycache__/
 
 # 前端依赖
 node_modules/
+.playwright-cli/
 
 # 敏感信息和本地数据库
 .env

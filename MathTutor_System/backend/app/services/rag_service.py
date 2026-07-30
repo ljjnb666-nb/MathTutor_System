@@ -12,6 +12,7 @@ from app.services.rag_document_store import (
     PERSIST_DIR,
     rag_delete_by_source_no_auth,
     rag_delete_document,
+    rag_delete_owned_by_source,
     rag_get_chunks,
     rag_get_chunks_by_source_no_auth,
     rag_list_documents,
@@ -80,23 +81,20 @@ class RAGService:
             logger.warning("RAG: no valid chunks after filtering source=%s", source)
             return None
 
+        old_document_ids = []
         if owner_user_id is not None:
-            for item in rag_list_documents(owner_user_id):
-                if (item.get("source") or "").strip() == source:
-                    self.delete_document(owner_user_id, item.get("document_id") or "")
+            old_document_ids = [
+                item.get("document_id") or ""
+                for item in rag_list_documents(owner_user_id)
+                if (item.get("source") or "").strip() == source
+            ]
         else:
             self.delete_by_source(source)
 
         if not doc_id:
-            doc_id = _registry_add(
-                source,
-                len(chunks),
-                [kp] if kp else [],
-                owner_user_id=owner_user_id,
-                knowledge_point=kp,
-                chunk_type=ct,
-                created_at=datetime.now(UTC).isoformat(),
-            )
+            import uuid
+
+            doc_id = str(uuid.uuid4())
         base = dict(metadata or {})
         base.update(
             {
@@ -110,9 +108,32 @@ class RAGService:
         if owner_user_id is not None:
             base["owner_user_id"] = int(owner_user_id)
         metadatas = [{**base, "chunk_index": index} for index in range(len(chunks))]
-        self.vector_store.add_texts(texts=chunks, metadatas=metadatas)
-        if owner_user_id is None:
-            _registry_add(source, len(chunks), [kp] if kp else [])
+        ids = [f"{doc_id}:{index}" for index in range(len(chunks))]
+        try:
+            self.vector_store.add_texts(texts=chunks, metadatas=metadatas, ids=ids)
+            if owner_user_id is not None:
+                _registry_add(
+                    source,
+                    len(chunks),
+                    [kp] if kp else [],
+                    owner_user_id=owner_user_id,
+                    document_id=doc_id,
+                    knowledge_point=kp,
+                    chunk_type=ct,
+                    created_at=datetime.now(UTC).isoformat(),
+                )
+                for old_id in old_document_ids:
+                    if old_id and old_id != doc_id:
+                        try:
+                            self.delete_document(owner_user_id, old_id)
+                        except Exception as exc:
+                            logger.warning("RAG: old document cleanup failed source=%s old_document_id=%s: %s", source, old_id, exc)
+            else:
+                _registry_add(source, len(chunks), [kp] if kp else [])
+        except Exception:
+            if owner_user_id is not None:
+                self._delete_document_chunks_only(owner_user_id, doc_id)
+            raise
         logger.info("RAG: wrote %d chunks source=%s owner=%s", len(chunks), source, owner_user_id)
         return doc_id
 
@@ -157,14 +178,15 @@ class RAGService:
         try:
             k_fetch = min(HYBRID_CANDIDATES, n_results * 4)
             keyword_query = kp or query
+            base_filter = _owner_filter(owner_user_id, kp)
             if kp:
                 docs_and_scores = self.vector_store.similarity_search_with_score(
                     query,
                     k=k_fetch,
-                    filter={"knowledge_point": kp},
+                    filter=base_filter,
                 )
             else:
-                docs_and_scores = self.vector_store.similarity_search_with_score(query, k=k_fetch)
+                docs_and_scores = self.vector_store.similarity_search_with_score(query, k=k_fetch, filter=base_filter)
             if docs_and_scores and keyword_query.strip():
                 reranked = _rrf_rerank(
                     [(doc, index) for index, (doc, _) in enumerate(docs_and_scores)],
@@ -177,7 +199,12 @@ class RAGService:
                 add_docs([doc for doc, _ in docs_and_scores][:n_results])
 
             if kp and len(out) < n_results:
-                for doc in self.vector_store.similarity_search(query, k=min(RELAXED_SEARCH_K, n_results * 4)):
+                relaxed_filter = _owner_filter(owner_user_id, None)
+                for doc in self.vector_store.similarity_search(
+                    query,
+                    k=min(RELAXED_SEARCH_K, n_results * 4),
+                    filter=relaxed_filter,
+                ):
                     if len(out) >= n_results:
                         break
                     if not is_owned(doc) or not doc.page_content or doc.page_content in seen:
@@ -273,6 +300,26 @@ class RAGService:
     def delete_document(self, owner_user_id: int, document_id: str) -> int:
         return rag_delete_document(owner_user_id, document_id)
 
+    def delete_owned_by_source(self, owner_user_id: int, source: str) -> int:
+        return rag_delete_owned_by_source(owner_user_id, source)
+
+    def _delete_document_chunks_only(self, owner_user_id: int, document_id: str) -> int:
+        try:
+            coll = getattr(self.vector_store, "_collection", None)
+            if coll is None:
+                return 0
+            data = coll.get(
+                where={"$and": [{"owner_user_id": int(owner_user_id)}, {"document_id": document_id}]},
+                include=["metadatas"],
+            )
+            ids = data.get("ids") or []
+            if ids:
+                coll.delete(ids=ids)
+            return len(ids)
+        except Exception as exc:
+            logger.warning("RAG temporary document cleanup failed: %s", exc)
+            return 0
+
     def delete_by_source(self, source: str) -> int:
         if not (source and str(source).strip()):
             return 0
@@ -291,6 +338,18 @@ class RAGService:
 
 
 _rag_service: RAGService | None = None
+
+
+def _owner_filter(owner_user_id: int | None, knowledge_point: str | None) -> dict | None:
+    clauses = []
+    if owner_user_id is not None:
+        clauses.append({"owner_user_id": int(owner_user_id)})
+    kp = (knowledge_point or "").strip()
+    if kp:
+        clauses.append({"knowledge_point": kp})
+    if not clauses:
+        return None
+    return clauses[0] if len(clauses) == 1 else {"$and": clauses}
 
 
 def get_rag_service(llm_config: LLMConfig | None = None) -> RAGService:

@@ -1,5 +1,4 @@
 # MathTutor System - 初中数学备课助手
-
 基于 **FastAPI + React** 的数学出题与题库管理系统，支持按知识点、难度、题型一键生成题目，并可将题目保存到本地题库。**需登录后使用**，区分管理员/教师（User）与学生档案（Student），学生数据按登录用户隔离。
 
 ## 功能概览
@@ -344,3 +343,20 @@ LLM_MODEL=deepseek-chat
 - **功能拓展**：侧栏采用分组结构（出题与内容 / 学情与练习 / 系统管理），新增菜单时在 `frontend/src/components/Sidebar.jsx` 的 `navGroups` 对应分组下增加一项并在 `App.jsx` 添加路由即可。
 - **环境变量参考**：所有可用变量及注释见 `backend/.env.example`。RAG 相关（如 `RAG_TOP_K`、知识库路径、Embedding 回退）见该文件中的「本地知识库 RAG」注释。
 - **导入试卷含图**：上传 .docx 时，若本机已安装 **LibreOffice**（无头模式），会先将 Word 转 PDF 再按页渲染成图，由视觉模型识别题目（适合「如图」、几何图等）；转换失败或未安装 LibreOffice 时自动回退为纯文本解析。也可直接上传 .pdf，跳过转换，仅做按页识图或 PDF 文本解析。
+
+## Legacy RAG ownership migration
+
+Legacy RAG documents that do not have `owner_user_id` are intentionally invisible to owner-scoped APIs.
+To assign them to a specific teacher, run the explicit migration script from `MathTutor_System/backend`.
+The script defaults to dry-run and must be given exactly one target identity with `--username` or `--user-id`.
+
+```bash
+cd MathTutor_System/backend
+python scripts/assign_legacy_rag_documents.py --username teacher_name
+python scripts/assign_legacy_rag_documents.py --username teacher_name --apply
+```
+
+The dry-run output lists ownerless registry records and the Chroma chunk counts that would be updated.
+The apply mode backfills `document_id`, `owner_user_id`, `created_at`, `knowledge_point`, `chunk_type`, and chunk indexes where needed.
+It updates Chroma metadata before replacing the JSON registry. If any stage fails, old chunks are not deleted and the script can be run again.
+The script is not run at application startup and never assigns legacy documents to the first user automatically.
