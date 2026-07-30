@@ -251,8 +251,7 @@ def _validate_plan(state: AgentState) -> AgentState:
         state["error_code"] = "unsafe_plan"
         state["error_message"] = "Plan failed read-only safety validation."
         return state
-    plan_text = str(plan.model_dump()).lower()
-    if any(term in plan_text for term in ["created exam", "saved question", "deleted", "charged", "paid", "published"]):
+    if contains_completed_write_claim(plan):
         state["error_code"] = "unsafe_plan"
         state["error_message"] = "Plan contains a completed write action."
     return state
@@ -402,3 +401,52 @@ def _run_async(coro):
 
 def _db_from_state(state: AgentState) -> Session:
     return state["db"]  # type: ignore[index]
+
+
+def contains_completed_write_claim(plan: TeacherAgentPlan) -> bool:
+    """Detect explicit claims that a write action has already completed."""
+    text = " ".join(_plan_text_fields(plan)).lower()
+    completed_markers = [
+        "created",
+        "created exam",
+        "exam has been created",
+        "saved",
+        "saved question",
+        "question has been saved",
+        "deleted",
+        "has been deleted",
+        "deleted successfully",
+        "published",
+        "has been published",
+        "published homework",
+        "charged",
+        "has been charged",
+        "paid",
+        "has been paid",
+        "payment completed",
+        "sent",
+        "has been sent",
+        "sent to students",
+        "updated",
+        "has been updated",
+        "updated student",
+        "\u5df2\u521b\u5efa",
+        "\u5df2\u751f\u6210\u5e76\u4fdd\u5b58",
+        "\u5df2\u4fdd\u5b58",
+        "\u5df2\u5220\u9664",
+        "\u5df2\u53d1\u5e03",
+        "\u5df2\u53d1\u9001",
+        "\u5df2\u4fee\u6539",
+        "\u5df2\u66f4\u65b0",
+        "\u5df2\u652f\u4ed8",
+        "\u5df2\u6263\u8d39",
+        "\u5df2\u8d2d\u4e70",
+    ]
+    return any(term in text for term in completed_markers)
+
+
+def _plan_text_fields(plan: TeacherAgentPlan) -> list[str]:
+    fields = [plan.title, plan.summary, " ".join(plan.expected_outputs or []), " ".join(plan.warnings or [])]
+    for step in plan.steps:
+        fields.extend([step.title, step.description, step.basis])
+    return [str(item or "") for item in fields]

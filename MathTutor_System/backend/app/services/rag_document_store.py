@@ -89,7 +89,7 @@ def registry_add(
                 for item in items
                 if not (
                     (item.get("source") or "").strip() == source_key
-                    and item.get("owner_user_id") in (None, "", 0, owner_user_id)
+                    and int(item.get("owner_user_id") or -1) == int(owner_user_id)
                 )
             ]
         clean_points = sorted(set(k.strip() for k in (knowledge_points or []) if (k or "").strip()))

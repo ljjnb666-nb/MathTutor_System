@@ -53,46 +53,121 @@ def ownerless_chroma_chunks(source: str) -> tuple[list[str], list[dict], list[st
     return out_ids, out_meta, out_docs
 
 
+def _new_chunk_payload(item: dict, user: User, source: str, metadatas: list[dict], docs: list[str]) -> tuple[str, list[str], list[dict]]:
+    document_id = str(uuid.uuid4())
+    created_at = item.get("created_at") or datetime.now(UTC).isoformat()
+    new_ids = [f"{document_id}:{index}" for index in range(len(docs))]
+    new_metadatas = []
+    for index, meta in enumerate(metadatas):
+        next_meta = dict(meta)
+        next_meta.update(
+            {
+                "document_id": document_id,
+                "owner_user_id": int(user.id),
+                "source": source,
+                "created_at": created_at,
+                "chunk_index": next_meta.get("chunk_index", index),
+                "knowledge_point": next_meta.get("knowledge_point") or item.get("knowledge_point") or "",
+                "chunk_type": next_meta.get("chunk_type") or item.get("chunk_type") or next_meta.get("type") or "legacy",
+            }
+        )
+        new_metadatas.append(next_meta)
+    return document_id, new_ids, new_metadatas
+
+
+def _cleanup_new_chunks(coll, ids: list[str]) -> None:
+    if not ids:
+        return
+    try:
+        coll.delete(ids=ids)
+    except Exception:
+        pass
+
+
+def _owned_document_exists(source: str, owner_user_id: int) -> bool:
+    return any(
+        (item.get("source") or "").strip() == source and int(item.get("owner_user_id") or -1) == int(owner_user_id)
+        for item in store.read_documents_registry()
+    )
+
+
+def _write_migrated_registry_entry(
+    *,
+    legacy_entry: dict,
+    source: str,
+    owner_user_id: int,
+    document_id: str,
+    chunk_count: int,
+    created_at: str,
+) -> None:
+    """Replace only ownerless registry entries for this source with the owned document."""
+    source_key = (source or "").strip()
+    items = []
+    for item in store.read_documents_registry():
+        item_source = (item.get("source") or "").strip()
+        item_owner = item.get("owner_user_id")
+        is_ownerless_source = item_source == source_key and item_owner in (None, "", 0)
+        is_same_owned_doc = (
+            item_source == source_key
+            and int(item_owner or -1) == int(owner_user_id)
+            and (item.get("document_id") or "").strip() == document_id
+        )
+        if is_ownerless_source or is_same_owned_doc:
+            continue
+        items.append(item)
+    items.append(
+        {
+            "document_id": document_id,
+            "owner_user_id": int(owner_user_id),
+            "source": source_key,
+            "knowledge_point": legacy_entry.get("knowledge_point") or "",
+            "chunk_type": legacy_entry.get("chunk_type") or "legacy",
+            "created_at": created_at,
+            "chunk_count": chunk_count,
+            "knowledge_points": legacy_entry.get("knowledge_points") or [],
+        }
+    )
+    store.write_documents_registry(items)
+
+
 def assign_legacy_rag_documents(db, *, username: str | None = None, user_id: int | None = None, dry_run: bool = True) -> dict:
     user = find_target_user(db, username=username, user_id=user_id)
     registry_entries = ownerless_registry_entries()
     plan = []
+    warnings: list[dict] = []
+    migrated = 0
     for item in registry_entries:
         source = (item.get("source") or "").strip()
-        ids, metadatas, docs = ownerless_chroma_chunks(source)
-        plan.append({"source": source, "registry_entry": item, "chunk_count": len(ids)})
-        if dry_run or not ids:
+        if _owned_document_exists(source, user.id):
             continue
-        document_id = (item.get("document_id") or "").strip() or str(uuid.uuid4())
-        created_at = item.get("created_at") or datetime.now(UTC).isoformat()
-        new_metadatas = []
-        for index, meta in enumerate(metadatas):
-            next_meta = dict(meta)
-            next_meta.update(
-                {
-                    "document_id": document_id,
-                    "owner_user_id": int(user.id),
-                    "source": source,
-                    "created_at": created_at,
-                    "chunk_index": next_meta.get("chunk_index", index),
-                    "knowledge_point": next_meta.get("knowledge_point") or item.get("knowledge_point") or "",
-                    "chunk_type": next_meta.get("chunk_type") or item.get("chunk_type") or next_meta.get("type") or "legacy",
-                }
-            )
-            new_metadatas.append(next_meta)
+        legacy_ids, metadatas, docs = ownerless_chroma_chunks(source)
+        plan.append({"source": source, "registry_entry": item, "chunk_count": len(legacy_ids)})
+        if dry_run or not legacy_ids:
+            continue
         coll = store.get_collection_only()
-        coll.update(ids=ids, metadatas=new_metadatas)
-        store.registry_add(
-            source,
-            len(ids),
-            item.get("knowledge_points") or [],
-            owner_user_id=user.id,
-            document_id=document_id,
-            knowledge_point=item.get("knowledge_point") or "",
-            chunk_type=item.get("chunk_type") or "legacy",
-            created_at=created_at,
-        )
-    return {"dry_run": dry_run, "target_user_id": user.id, "documents": plan}
+        document_id, new_ids, new_metadatas = _new_chunk_payload(item, user, source, metadatas, docs)
+        try:
+            coll.add(ids=new_ids, documents=docs, metadatas=new_metadatas)
+            verify = coll.get(where={"document_id": document_id}, include=["metadatas"])
+            if len(verify.get("ids") or []) != len(legacy_ids):
+                raise LegacyMigrationError(f"Copied chunk count mismatch for {source}.")
+            _write_migrated_registry_entry(
+                legacy_entry=item,
+                source=source,
+                owner_user_id=user.id,
+                document_id=document_id,
+                chunk_count=len(new_ids),
+                created_at=new_metadatas[0].get("created_at") if new_metadatas else datetime.now(UTC).isoformat(),
+            )
+        except Exception:
+            _cleanup_new_chunks(coll, new_ids)
+            raise
+        try:
+            coll.delete(ids=legacy_ids)
+        except Exception as exc:
+            warnings.append({"source": source, "legacy_chunk_ids": legacy_ids, "message": f"Legacy cleanup failed: {exc}"})
+        migrated += 1
+    return {"dry_run": dry_run, "target_user_id": user.id, "documents": plan, "migrated": migrated, "warnings": warnings}
 
 
 def main() -> int:

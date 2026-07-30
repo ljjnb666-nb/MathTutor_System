@@ -3,11 +3,15 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import TeacherAgent from './TeacherAgent'
 
+const studentContext = vi.hoisted(() => ({
+  refreshStudents: vi.fn(),
+}))
+
 vi.mock('../contexts/StudentContext', () => ({
   useStudent: () => ({
     students: [{ id: 1, name: '张同学' }],
     currentStudent: null,
-    refreshStudents: vi.fn(),
+    refreshStudents: studentContext.refreshStudents,
   }),
 }))
 
@@ -44,6 +48,7 @@ beforeEach(() => {
   api.getTeacherAgentRun.mockReset()
   api.getTeacherAgentRuns.mockReset()
   api.getTeacherAgentRuns.mockResolvedValue({ data: [] })
+  studentContext.refreshStudents.mockReset()
 })
 
 afterEach(() => {
@@ -89,6 +94,33 @@ describe('TeacherAgent', () => {
     expect(screen.getByText('请选择学生')).toBeInTheDocument()
   })
 
+  it('resubmits with selected student after needs_input', async () => {
+    api.createTeacherAgentRun
+      .mockResolvedValueOnce({
+        data: {
+          id: 2,
+          status: 'needs_input',
+          goal: '分析当前学生',
+          created_at: new Date().toISOString(),
+          missing_fields_json: [{ field: 'student_id', message: '请选择学生' }],
+          warnings_json: [],
+        },
+      })
+      .mockResolvedValueOnce({ data: completedRun() })
+    const { container } = render(<TeacherAgent />)
+
+    await userEvent.type(screen.getByLabelText('教学目标'), '分析当前学生')
+    const button = screen.getByRole('button', { name: /生成教学计划/ })
+    await userEvent.click(button)
+    expect(await screen.findByText('请选择学生')).toBeInTheDocument()
+
+    await userEvent.selectOptions(container.querySelector('select'), '1')
+    await userEvent.click(button)
+
+    await waitFor(() => expect(api.createTeacherAgentRun).toHaveBeenCalledTimes(2))
+    expect(api.createTeacherAgentRun.mock.calls[1][0]).toMatchObject({ student_id: 1 })
+  })
+
   it('shows failed safety error and prevents double submit while loading', async () => {
     let resolve
     api.createTeacherAgentRun.mockReturnValue(new Promise((res) => { resolve = res }))
@@ -102,6 +134,20 @@ describe('TeacherAgent', () => {
     resolve({ data: { id: 3, status: 'failed', goal: '删除试卷', created_at: new Date().toISOString(), error_message: '只读模式拒绝写操作' } })
     expect(await screen.findByText('只读模式拒绝写操作')).toBeInTheDocument()
     expect(api.createTeacherAgentRun).toHaveBeenCalledTimes(1)
+  })
+
+  it('restores submit state and avoids duplicate history on network error', async () => {
+    api.createTeacherAgentRun.mockRejectedValue(new Error('network timeout'))
+    render(<TeacherAgent />)
+
+    await userEvent.type(screen.getByLabelText('教学目标'), '规划复习课')
+    const button = screen.getByRole('button', { name: /生成教学计划/ })
+    await userEvent.click(button)
+
+    expect(await screen.findByText('network timeout')).toBeInTheDocument()
+    expect(button).not.toBeDisabled()
+    expect(api.createTeacherAgentRun).toHaveBeenCalledTimes(1)
+    expect(api.getTeacherAgentRuns).toHaveBeenCalledTimes(1)
   })
 
   it('only shows history records returned by API and does not leak internal prompt', async () => {

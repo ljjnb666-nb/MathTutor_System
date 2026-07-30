@@ -12,7 +12,7 @@ from app.models.subscription import Subscription
 from app.models.user import User
 from app.schemas.agent_dto import TeacherAgentPlan, TeacherAgentPlanStep, TeacherAgentRunCreate, TeacherIntent
 from app.services.agent_tool_registry import execute_tool
-from app.services.teacher_agent_service import get_agent_run_or_404, run_teacher_agent
+from app.services.teacher_agent_service import contains_completed_write_claim, get_agent_run_or_404, run_teacher_agent
 
 
 class DeterministicFakePlanner:
@@ -64,6 +64,33 @@ class DeterministicFakePlanner:
             expected_outputs=["teaching_plan"],
             safety_mode="read_only",
         )
+
+
+def make_plan(summary: str, *, future_action: str | None = None) -> TeacherAgentPlan:
+    return TeacherAgentPlan(
+        title="Read-only plan",
+        summary=summary,
+        intent_type="lesson_preparation",
+        resolved_context={},
+        evidence_summary={},
+        steps=[
+            TeacherAgentPlanStep(
+                step_id="1",
+                title="Plan",
+                description="Draft a future plan.",
+                basis="Teacher goal",
+                future_action=future_action,
+            )
+        ],
+        expected_outputs=["teaching_plan"],
+        safety_mode="read_only",
+    )
+
+
+class UnsafeCompletedWritePlanner(DeterministicFakePlanner):
+    async def compose_plan(self, request, intent, tool_summaries, llm_config):
+        self.compose_calls += 1
+        return make_plan("Exam has been created.")
 
 
 def make_db():
@@ -275,3 +302,32 @@ def test_plan_failure_marks_run_failed():
 
     assert run.status == "failed"
     assert run.error_code == "plan_composition_failed"
+
+
+def test_completed_write_claim_detection_rejects_english_and_chinese():
+    assert contains_completed_write_claim(make_plan("Exam has been created."))
+    assert contains_completed_write_claim(make_plan("\u8bd5\u5377\u5df2\u521b\u5efa"))
+
+
+def test_completed_write_claim_detection_allows_future_actions():
+    assert not contains_completed_write_claim(make_plan("\u8001\u5e08\u786e\u8ba4\u540e\u53ef\u521b\u5efa\u8bd5\u5377"))
+    assert not contains_completed_write_claim(make_plan("\u4e0b\u4e00\u9636\u6bb5\u53ef\u4ee5\u53d1\u5e03\u4f5c\u4e1a"))
+    assert not contains_completed_write_claim(
+        make_plan("Draft only.", future_action="\u8001\u5e08\u786e\u8ba4\u540e\u53ef\u521b\u5efa\u8bd5\u5377")
+    )
+
+
+def test_completed_write_claim_marks_agent_run_failed():
+    db = make_db()
+    user = seed_user(db, 1, "teacher-a")
+
+    run = run_teacher_agent(
+        db,
+        user,
+        TeacherAgentRunCreate(goal="Draft a lesson plan"),
+        LLMConfig(provider="fake", api_key="", base_url="", model=""),
+        planner=UnsafeCompletedWritePlanner(),
+    )
+
+    assert run.status == "failed"
+    assert run.error_code == "unsafe_plan"

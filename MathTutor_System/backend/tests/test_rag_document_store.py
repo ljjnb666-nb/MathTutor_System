@@ -43,6 +43,93 @@ def test_registry_add_replaces_existing_source(monkeypatch, request):
     ]
 
 
+def test_owned_upload_same_source_preserves_ownerless_legacy(monkeypatch, request):
+    registry = _fresh_registry("registry_add_preserves_legacy.json", request)
+    monkeypatch.setattr(store, "REGISTRY_FILE", registry)
+    store.write_documents_registry([{"source": "legacy.pdf", "chunk_count": 2, "knowledge_points": ["legacy"]}])
+
+    store.registry_add("legacy.pdf", 1, ["owned"], owner_user_id=1, document_id="owned-1")
+
+    items = store.read_documents_registry()
+    assert items == [
+        {"source": "legacy.pdf", "chunk_count": 2, "knowledge_points": ["legacy"]},
+        {
+            "document_id": "owned-1",
+            "owner_user_id": 1,
+            "source": "legacy.pdf",
+            "knowledge_point": "",
+            "chunk_type": "",
+            "created_at": "",
+            "chunk_count": 1,
+            "knowledge_points": ["owned"],
+        },
+    ]
+
+
+def test_owned_upload_same_source_does_not_affect_other_teacher(monkeypatch, request):
+    registry = _fresh_registry("registry_add_preserves_other_teacher.json", request)
+    monkeypatch.setattr(store, "REGISTRY_FILE", registry)
+    store.write_documents_registry(
+        [
+            {"source": "legacy.pdf", "chunk_count": 2, "knowledge_points": ["legacy"]},
+            {
+                "document_id": "teacher-b",
+                "owner_user_id": 2,
+                "source": "legacy.pdf",
+                "knowledge_point": "",
+                "chunk_type": "",
+                "created_at": "",
+                "chunk_count": 1,
+                "knowledge_points": ["b"],
+            },
+        ]
+    )
+
+    store.registry_add("legacy.pdf", 1, ["a"], owner_user_id=1, document_id="teacher-a")
+
+    items = store.read_documents_registry()
+    assert [item.get("document_id") for item in items] == [None, "teacher-b", "teacher-a"]
+    assert [item.get("owner_user_id") for item in items] == [None, 2, 1]
+
+
+def test_owned_reupload_replaces_only_same_teacher_record(monkeypatch, request):
+    registry = _fresh_registry("registry_add_replaces_same_teacher_only.json", request)
+    monkeypatch.setattr(store, "REGISTRY_FILE", registry)
+    store.write_documents_registry(
+        [
+            {"source": "legacy.pdf", "chunk_count": 2, "knowledge_points": ["legacy"]},
+            {
+                "document_id": "teacher-a-old",
+                "owner_user_id": 1,
+                "source": "legacy.pdf",
+                "knowledge_point": "",
+                "chunk_type": "",
+                "created_at": "",
+                "chunk_count": 1,
+                "knowledge_points": ["old"],
+            },
+            {
+                "document_id": "teacher-b",
+                "owner_user_id": 2,
+                "source": "legacy.pdf",
+                "knowledge_point": "",
+                "chunk_type": "",
+                "created_at": "",
+                "chunk_count": 1,
+                "knowledge_points": ["b"],
+            },
+        ]
+    )
+
+    store.registry_add("legacy.pdf", 3, ["new"], owner_user_id=1, document_id="teacher-a-new")
+
+    items = store.read_documents_registry()
+    assert [item.get("document_id") for item in items] == [None, "teacher-b", "teacher-a-new"]
+    assert items[0]["knowledge_points"] == ["legacy"]
+    assert items[1]["knowledge_points"] == ["b"]
+    assert items[2]["knowledge_points"] == ["new"]
+
+
 def test_registry_remove_ignores_blank_source(monkeypatch, request):
     registry = _fresh_registry("registry_remove.json", request)
     monkeypatch.setattr(store, "REGISTRY_FILE", registry)

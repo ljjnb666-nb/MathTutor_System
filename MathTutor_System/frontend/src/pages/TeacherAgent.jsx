@@ -71,7 +71,7 @@ export default function TeacherAgent() {
       setRun(res.data)
       await loadHistory()
     } catch (err) {
-      setError(err.response?.data?.detail || '生成教学计划失败')
+      setError(err.response?.data?.detail || err.message || '生成教学计划失败')
     } finally {
       setLoading(false)
     }
