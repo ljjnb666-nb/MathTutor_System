@@ -10,6 +10,7 @@ import {
   getBaseUrlForProvider,
   getApiVersionForProvider,
 } from '../constants/ai-providers'
+import { testLlmApiKey } from '../services/toolsApi'
 
 export default function SettingsModal({ open, onClose }) {
   const [providerValue, setProviderValue] = useState('deepseek')
@@ -20,6 +21,8 @@ export default function SettingsModal({ open, onClose }) {
   const [apiVersion, setApiVersion] = useState('')
   const [showThinking, setShowThinking] = useState(false)
   const [showApiKey, setShowApiKey] = useState(false)
+  const [testStatus, setTestStatus] = useState(null)
+  const [testingKey, setTestingKey] = useState(false)
 
   const provider = getProviderByValue(providerValue)
   const displayModel = customModel.trim() || model
@@ -35,6 +38,7 @@ export default function SettingsModal({ open, onClose }) {
     setBaseUrl(getBaseUrlForProvider(p.value))
     setApiVersion(getApiVersionForProvider(p.value))
     setShowThinking(Boolean(stored.showThinking))
+    setTestStatus(null)
   }, [open])
 
   // 手机端打开时禁止背景滚动，关闭时恢复
@@ -55,6 +59,7 @@ export default function SettingsModal({ open, onClose }) {
     setModel(p.models?.[0]?.value ?? '')
     setCustomModel('')
     setApiKey(getApiKeyForProvider(v))
+    setTestStatus(null)
   }
 
   const handleAutoFillBaseUrl = () => {
@@ -63,6 +68,27 @@ export default function SettingsModal({ open, onClose }) {
 
   const handleAutoFillApiVersion = () => {
     setApiVersion(provider.apiVersion ?? '')
+  }
+
+  const handleTestApiKey = async () => {
+    setTestingKey(true)
+    setTestStatus(null)
+    try {
+      const result = await testLlmApiKey({
+        provider: providerValue,
+        apiKey,
+        baseUrl: baseUrl.trim(),
+        model: displayModel,
+      })
+      setTestStatus(result)
+    } catch (err) {
+      setTestStatus({
+        ok: false,
+        message: err.response?.data?.detail || err.response?.data?.message || err.message || '测试失败',
+      })
+    } finally {
+      setTestingKey(false)
+    }
   }
 
   const handleSave = () => {
@@ -217,6 +243,30 @@ export default function SettingsModal({ open, onClose }) {
                 )}
               </button>
             </div>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={handleTestApiKey}
+              disabled={testingKey || !apiKey.trim() || !displayModel.trim()}
+              className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 min-h-[44px] text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400"
+            >
+              {testingKey ? '测试中...' : '测试 API Key'}
+            </button>
+            {testStatus && (
+              <p
+                className={`rounded-lg border px-3 py-2 text-xs ${
+                  testStatus.ok
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : 'border-rose-200 bg-rose-50 text-rose-700'
+                }`}
+              >
+                {testStatus.ok
+                  ? `可用：${testStatus.provider || providerValue} / ${testStatus.model || displayModel}，${testStatus.latency_ms ?? 0}ms`
+                  : `不可用：${testStatus.message || '请检查 API Key、Base URL 和模型名称'}`}
+              </p>
+            )}
           </div>
 
           {/* Base URL + 自动填充（手机端上下排列） */}

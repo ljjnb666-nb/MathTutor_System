@@ -46,3 +46,7 @@ def test_anonymous_teacher_agent_practice_artifact_requires_auth():
     assert client.post("/api/teacher-agent/actions/1/confirm", json={}).status_code == 401
     assert client.post("/api/teacher-agent/actions/1/cancel").status_code == 401
     assert client.get("/api/teacher-agent/actions/1").status_code == 401
+
+
+def test_anonymous_llm_key_test_requires_auth():
+    assert client.post("/api/tools/test-llm-key").status_code == 401
