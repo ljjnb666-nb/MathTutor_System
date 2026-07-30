@@ -35,6 +35,7 @@ const navGroups = [
     items: [
       { to: '/smart-gen', icon: Home, label: '智能出题' },
       { to: '/chat', icon: MessageCircle, label: 'AI 对话' },
+      { to: '/teacher-agent', icon: Sparkles, label: 'AI 教师助手' },
       { to: '/question-bank', icon: BookOpen, label: '题库管理' },
       { to: '/knowledge-base', icon: Database, label: '知识库管理' },
       { to: '/exams/import', icon: FileUp, label: '导入试卷' },

@@ -7,7 +7,7 @@ from app.services.topic_service import split_topics
 
 def get_weak_points_for_student(db: Session, student_id: int, user_id: int) -> list[str]:
     student = db.get(Student, student_id)
-    if student is None or (student.user_id is not None and student.user_id != user_id):
+    if student is None or student.user_id != user_id:
         return []
 
     mistakes = (

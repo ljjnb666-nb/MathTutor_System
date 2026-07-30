@@ -16,6 +16,10 @@ def _default_database_url() -> str:
 
 
 class AppSettings(BaseSettings):
+    env: str = Field(default="development", alias="ENV")
+    debug: bool = Field(default=True, alias="DEBUG")
+    allow_client_llm_config: bool | None = Field(default=None, alias="ALLOW_CLIENT_LLM_CONFIG")
+
     database_url: str = Field(default_factory=_default_database_url, alias="DATABASE_URL")
 
     llm_api_key: str = Field(default="", alias="LLM_API_KEY")
@@ -81,6 +85,15 @@ class AppSettings(BaseSettings):
 
 
 settings = AppSettings()
+
+ENV = settings.env.strip().lower()
+DEBUG = settings.debug
+IS_PRODUCTION = ENV == "production" or not DEBUG
+ALLOW_CLIENT_LLM_CONFIG = (
+    settings.allow_client_llm_config
+    if settings.allow_client_llm_config is not None
+    else not IS_PRODUCTION
+)
 
 if settings.llm_https_proxy:
     os.environ.setdefault("HTTPS_PROXY", settings.llm_https_proxy.strip())

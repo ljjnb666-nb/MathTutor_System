@@ -22,6 +22,7 @@ const KnowledgeGraph = lazy(() => import('./pages/KnowledgeGraph'))
 const Reports = lazy(() => import('./pages/Reports'))
 const KnowledgeBase = lazy(() => import('./pages/KnowledgeBase'))
 const AIChat = lazy(() => import('./pages/AIChat'))
+const TeacherAgent = lazy(() => import('./pages/TeacherAgent'))
 const AdminUserPage = lazy(() => import('./pages/AdminUserPage'))
 const SchedulePage = lazy(() => import('./pages/SchedulePage'))
 const HomeworkProgress = lazy(() => import('./pages/HomeworkProgress'))
@@ -65,6 +66,7 @@ function App() {
             <Route index element={<Dashboard />} />
             <Route path="smart-gen" element={<SmartGen />} />
             <Route path="chat" element={<AIChat />} />
+            <Route path="teacher-agent" element={<TeacherAgent />} />
             <Route path="question-bank" element={<QuestionBank />} />
             <Route path="knowledge-base" element={<KnowledgeBase />} />
             <Route path="mistake-book" element={<MistakeBook />} />

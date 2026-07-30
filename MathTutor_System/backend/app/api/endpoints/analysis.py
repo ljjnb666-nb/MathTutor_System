@@ -31,7 +31,7 @@ async def get_student_mastery(
     """
     try:
         student = db.get(Student, student_id)
-        if student is None or (student.user_id is not None and student.user_id != current_user.id):
+        if student is None or student.user_id != current_user.id:
             raise HTTPException(status_code=404, detail="学生不存在")
 
         pending_mistakes = (
@@ -159,7 +159,7 @@ async def get_student_trend(
     """
     try:
         student = db.get(Student, student_id)
-        if student is None or (student.user_id is not None and student.user_id != current_user.id):
+        if student is None or student.user_id != current_user.id:
             raise HTTPException(status_code=404, detail="学生不存在")
 
         today = date.today()

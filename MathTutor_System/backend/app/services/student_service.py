@@ -13,7 +13,7 @@ from app.schemas.student_dto import StudentCreate, StudentTagsUpdate, StudentUpd
 def get_student_or_404(db: Session, student_id: int, current_user: User) -> Student:
     """Return a student owned by the current user or raise 404."""
     row = db.get(Student, student_id)
-    if row is None or (row.user_id is not None and row.user_id != current_user.id):
+    if row is None or row.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="学生不存在")
     return row
 

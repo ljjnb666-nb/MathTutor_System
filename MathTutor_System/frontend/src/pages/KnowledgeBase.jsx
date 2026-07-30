@@ -17,9 +17,10 @@ export default function KnowledgeBase() {
   const [loading, setLoading] = useState(true)
   const [listFetched, setListFetched] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [deletingSource, setDeletingSource] = useState(null)
+  const [deletingDocumentId, setDeletingDocumentId] = useState(null)
   const [dragOver, setDragOver] = useState(false)
   const [previewSource, setPreviewSource] = useState(null)
+  const [previewDocumentId, setPreviewDocumentId] = useState(null)
   const [previewChunks, setPreviewChunks] = useState([])
   const [previewLoading, setPreviewLoading] = useState(false)
   const [uploadKnowledgePoint, setUploadKnowledgePoint] = useState('')
@@ -119,41 +120,53 @@ export default function KnowledgeBase() {
     [handleFileSelect]
   )
 
-  const handlePreview = useCallback(async (source) => {
-    if (!source) return
-    setPreviewSource(source)
+  const handlePreview = useCallback(async (documentId, displayName) => {
+    if (!documentId) {
+      toast.error('该文档需要迁移后才能管理')
+      return
+    }
+    setPreviewDocumentId(documentId)
+    setPreviewSource(displayName || documentId)
     setPreviewChunks([])
     setPreviewLoading(true)
     try {
-      const res = await getRagDocumentChunks(source)
+      const res = await getRagDocumentChunks(documentId)
       setPreviewChunks(Array.isArray(res?.chunks) ? res.chunks : [])
     } catch (err) {
       const msg = err.response?.data?.detail ?? err.message
       toast.error('加载预览失败：' + (typeof msg === 'string' ? msg : '未知错误'))
       setPreviewSource(null)
+      setPreviewDocumentId(null)
     } finally {
       setPreviewLoading(false)
     }
   }, [])
 
   const handleDelete = useCallback(
-    async (source) => {
-      if (!source || deletingSource) return
-      if (!window.confirm(`确定从知识库中删除「${source}」？删除后智能出题将不再检索该文档内容。`)) return
-      setDeletingSource(source)
+    async (documentId, displayName) => {
+      if (!documentId || deletingDocumentId) {
+        if (!documentId) toast.error('该文档需要迁移后才能管理')
+        return
+      }
+      const name = displayName || documentId
+      if (!window.confirm(`确定从知识库中删除「${name}」？删除后智能出题将不再检索该文档内容。`)) return
+      setDeletingDocumentId(documentId)
       try {
-        const res = await deleteRagDocument(source)
+        const res = await deleteRagDocument(documentId)
         toast.success(`已删除 ${res?.chunk_count ?? 0} 个文本块`)
         fetchList()
-        if (previewSource === source) setPreviewSource(null)
+        if (previewDocumentId === documentId) {
+          setPreviewSource(null)
+          setPreviewDocumentId(null)
+        }
       } catch (err) {
         const msg = err.response?.data?.detail ?? err.message
         toast.error(typeof msg === 'string' ? msg : '删除失败')
       } finally {
-        setDeletingSource(null)
+        setDeletingDocumentId(null)
       }
     },
-    [deletingSource, fetchList, previewSource]
+    [deletingDocumentId, fetchList, previewDocumentId]
   )
 
   return (
@@ -276,9 +289,12 @@ export default function KnowledgeBase() {
           </div>
         ) : (
           <ul className="space-y-3">
-            {documents.map((doc) => (
+            {documents.map((doc) => {
+              const documentId = String(doc.document_id || '').trim()
+              const isManageable = Boolean(documentId)
+              return (
               <li
-                key={doc.source}
+                key={documentId || doc.source}
                 className="pro-glass-card flex items-center justify-between gap-4 rounded-2xl p-4 transition-all"
               >
                 <div className="flex min-w-0 flex-1 items-center gap-3.5">
@@ -293,13 +309,17 @@ export default function KnowledgeBase() {
                         考点: {doc.knowledge_points.join(' · ')}
                       </p>
                     )}
+                    {!isManageable && (
+                      <p className="mt-1 text-[11px] font-bold text-amber-600">该文档需要迁移后才能管理</p>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => handlePreview(doc.source)}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+                    onClick={() => handlePreview(documentId, doc.source)}
+                    disabled={!isManageable}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 transition-colors shadow-2xs"
                     title="预览向量切片"
                   >
                     <Eye className="h-3.5 w-3.5 text-indigo-600" />
@@ -307,12 +327,12 @@ export default function KnowledgeBase() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDelete(doc.source)}
-                    disabled={deletingSource === doc.source}
+                    onClick={() => handleDelete(documentId, doc.source)}
+                    disabled={!isManageable || deletingDocumentId === documentId}
                     className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-100 disabled:opacity-50 transition-colors"
                     title="移出知识库"
                   >
-                    {deletingSource === doc.source ? (
+                    {deletingDocumentId === documentId ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : (
                       <Trash2 className="h-3.5 w-3.5" />
@@ -321,7 +341,7 @@ export default function KnowledgeBase() {
                   </button>
                 </div>
               </li>
-            ))}
+            )})}
           </ul>
         )}
       </section>
@@ -340,7 +360,10 @@ export default function KnowledgeBase() {
               </h2>
               <button
                 type="button"
-                onClick={() => setPreviewSource(null)}
+                onClick={() => {
+                  setPreviewSource(null)
+                  setPreviewDocumentId(null)
+                }}
                 className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
                 aria-label="关闭预览"
               >

@@ -25,7 +25,7 @@ def _require_own_student(row: Student | None, current_user: User) -> Student:
     """若学生不存在或不属于当前用户，则 404。"""
     if row is None:
         raise HTTPException(status_code=404, detail="学生不存在")
-    if row.user_id is not None and row.user_id != current_user.id:
+    if row.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="学生不存在")
     return row
 
@@ -36,7 +36,7 @@ def _require_own_mistake(record: MistakeRecord | None, current_user: User) -> Mi
         raise HTTPException(status_code=404, detail="错题记录不存在")
     if record.student is None:
         raise HTTPException(status_code=404, detail="错题记录不存在")
-    if record.student.user_id is not None and record.student.user_id != current_user.id:
+    if record.student.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="错题记录不存在")
     return record
 

@@ -1,5 +1,5 @@
 """Business logic for the student-facing portal."""
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
@@ -129,7 +129,7 @@ def master_student_mistake(db: Session, student_id: int, mistake_id: int) -> Mis
     row = get_student_mistake(db, student_id, mistake_id)
     row.status = "mastered"
     if getattr(row, "mastered_at", None) is None:
-        row.mastered_at = datetime.utcnow()
+        row.mastered_at = datetime.now(UTC).replace(tzinfo=None)
     db.commit()
     db.refresh(row)
     return row

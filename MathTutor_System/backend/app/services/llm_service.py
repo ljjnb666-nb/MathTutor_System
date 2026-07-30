@@ -257,6 +257,7 @@ async def generate_analysis_for_questions_async(
 async def generate_questions_async(
     request: GenerateRequest,
     llm_config: Any,
+    owner_user_id: int | None = None,
 ) -> list[QuestionItem]:
     """
     根据请求与 llm_config 生成题目。
@@ -273,7 +274,12 @@ async def generate_questions_async(
         try:
             from app.services.rag_service import get_rag_service
             rag = get_rag_service(llm_config=llm_config)
-            knowledge_base_context = rag.search_context_for_generation((request.knowledge_point or "").strip(), n_results=RAG_TOP_K)
+            if owner_user_id is not None:
+                knowledge_base_context = rag.search_context_for_generation_owned(
+                    owner_user_id, (request.knowledge_point or "").strip(), n_results=RAG_TOP_K
+                )
+            else:
+                knowledge_base_context = rag.search_context_for_generation((request.knowledge_point or "").strip(), n_results=RAG_TOP_K)
         except Exception as e:
             logger.warning("RAG 检索失败，将不注入知识库上下文: %s", e)
 
@@ -378,6 +384,7 @@ async def generate_questions_async(
 async def generate_full_exam_paper(
     params: ExamGenerateRequest,
     llm_config: Any,
+    owner_user_id: int | None = None,
 ) -> list[QuestionItem]:
     """
     生成完整试卷：8 选择 + 8 填空 + 12 解答，分 4 个并发任务执行，单块失败不拖垮整体。
@@ -392,7 +399,12 @@ async def generate_full_exam_paper(
         try:
             from app.services.rag_service import get_rag_service
             rag = get_rag_service(llm_config=llm_config)
-            knowledge_base_context = rag.search_context_for_generation(knowledge_point, n_results=RAG_TOP_K)
+            if owner_user_id is not None:
+                knowledge_base_context = rag.search_context_for_generation_owned(
+                    owner_user_id, knowledge_point, n_results=RAG_TOP_K
+                )
+            else:
+                knowledge_base_context = rag.search_context_for_generation(knowledge_point, n_results=RAG_TOP_K)
         except Exception as e:
             logger.warning("试卷 RAG 检索失败，将不注入知识库上下文: %s", e)
     rag_used = bool(knowledge_base_context and knowledge_base_context.strip())

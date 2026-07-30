@@ -39,7 +39,7 @@ def get_exam_or_404(db: Session, exam_id: int, current_user: User) -> Exam:
 
 def get_owned_student_or_404(db: Session, student_id: int, current_user: User) -> Student:
     student = db.get(Student, student_id)
-    if student is None or (student.user_id is not None and student.user_id != current_user.id):
+    if student is None or student.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="学生不存在")
     return student
 

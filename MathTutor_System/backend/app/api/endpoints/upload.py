@@ -10,8 +10,10 @@ from io import BytesIO
 from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
 from pypdf import PdfReader
 
+from app.api.endpoints.auth import get_current_user
 from app.core.config import DEEPSEEK_BASE_URL, DEEPSEEK_MODEL
 from app.core.deps import LLMConfig, get_llm_config
+from app.models.user import User
 from app.services.docx_to_pdf import convert_docx_to_pdf
 from app.services.pdf_to_images import pdf_pages_to_images
 from app.services.llm_service import generate_analysis_for_questions_async
@@ -25,6 +27,25 @@ from app.services.word_parser import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+MAX_UPLOAD_BYTES = 12 * 1024 * 1024
+ALLOWED_MIME_TYPES = {
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/octet-stream",
+}
+
+
+def _validate_exam_upload(file: UploadFile, content: bytes) -> str:
+    filename = (file.filename or "").strip().lower()
+    if not filename.endswith(".docx") and not filename.endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only .docx and .pdf files are supported")
+    if file.content_type and file.content_type not in ALLOWED_MIME_TYPES:
+        raise HTTPException(status_code=400, detail="Unsupported file type")
+    if not content:
+        raise HTTPException(status_code=400, detail="File is empty")
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File is too large")
+    return filename
 
 
 def _extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
@@ -42,6 +63,7 @@ def _extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
 async def parse_word_exam(
     file: UploadFile = File(...),
     llm_config: LLMConfig = Depends(get_llm_config),
+    current_user: User = Depends(get_current_user),
 ):
     """
     上传 .docx 或 .pdf 试卷，解析为题目 JSON 数组。
@@ -50,16 +72,8 @@ async def parse_word_exam(
     使用前端「设置」中的 API Key 与 Base URL。
     返回 { "questions": [...] }。
     """
-    filename = (file.filename or "").strip().lower()
-    if not filename.endswith(".docx") and not filename.endswith(".pdf"):
-        raise HTTPException(
-            status_code=400,
-            detail="仅支持 .docx 或 .pdf 格式",
-        )
-
     content = await file.read()
-    if not content:
-        raise HTTPException(status_code=400, detail="文件为空")
+    filename = _validate_exam_upload(file, content)
 
     api_key = (llm_config.api_key or "").strip()
     base_url = llm_config.base_url or DEEPSEEK_BASE_URL
@@ -148,6 +162,7 @@ async def parse_word_exam(
 async def generate_analysis(
     body: dict = Body(..., description="含 questions 数组，每题含 content/options/answer 等"),
     llm_config: LLMConfig = Depends(get_llm_config),
+    current_user: User = Depends(get_current_user),
 ):
     """
     为导入的试卷题目批量生成解析（analysis）。

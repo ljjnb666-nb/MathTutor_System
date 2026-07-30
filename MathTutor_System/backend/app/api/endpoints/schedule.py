@@ -31,7 +31,7 @@ def _require_own_student(student_id: int, current_user: User, db: Session) -> St
     student = db.get(Student, student_id)
     if student is None:
         raise HTTPException(status_code=404, detail="学生不存在")
-    if student.user_id is not None and student.user_id != current_user.id:
+    if student.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="学生不存在")
     return student
 

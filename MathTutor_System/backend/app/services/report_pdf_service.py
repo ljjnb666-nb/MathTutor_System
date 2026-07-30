@@ -39,7 +39,7 @@ GREY_HEADER_BG = colors.HexColor("#eceff1")
 def require_own_student(row: Student | None, current_user: User) -> Student:
     if row is None:
         raise HTTPException(status_code=404, detail="学生不存在")
-    if row.user_id is not None and row.user_id != current_user.id:
+    if row.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="学生不存在")
     return row
 

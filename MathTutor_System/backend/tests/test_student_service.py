@@ -83,6 +83,22 @@ def test_get_student_or_404_rejects_other_users_student():
         raise AssertionError("expected HTTPException")
 
 
+def test_get_student_or_404_rejects_ownerless_student():
+    db = make_db()
+    user = seed_user_with_plan(db, user_id=1, username="teacher1")
+    student = Student(user_id=None, name="Legacy", grade="8", class_name="1", tags=[])
+    db.add(student)
+    db.commit()
+    db.refresh(student)
+
+    try:
+        get_student_or_404(db, student.id, user)
+    except HTTPException as exc:
+        assert exc.status_code == 404
+    else:
+        raise AssertionError("expected HTTPException")
+
+
 def test_create_student_for_user_rejects_duplicate_login_code():
     db = make_db()
     user = seed_user_with_plan(db, user_id=1, username="teacher1")
