@@ -13,9 +13,14 @@ function buildLlmConfigHeaders(config) {
 }
 
 export function testLlmApiKey(config) {
+  const body = {
+    provider: config.provider || '',
+    api_key: config.apiKey || '',
+    base_url: config.baseUrl || '',
+    model: config.model || '',
+  }
   return api
-    .post('/api/tools/test-llm-key', {}, {
-      headers: buildLlmConfigHeaders(config),
+    .post('/api/tools/test-llm-key', body, {
       skipStoredLlmHeaders: true,
       timeout: LLM_KEY_TEST_TIMEOUT,
     })

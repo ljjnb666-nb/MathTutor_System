@@ -36,6 +36,13 @@ class LLMKeyTestResponse(BaseModel):
     message: str
 
 
+class LLMKeyTestRequest(BaseModel):
+    provider: str = Field(default="")
+    api_key: str = Field(default="")
+    base_url: str = Field(default="")
+    model: str = Field(default="")
+
+
 def _sanitize_pptx_filename(name: str) -> str:
     """只保留安全字符，并确保以 .pptx 结尾。"""
     if not name or not name.strip():
@@ -53,10 +60,16 @@ class BuildPPTRequest(BaseModel):
 
 @router.post("/test-llm-key", response_model=LLMKeyTestResponse)
 async def api_test_llm_key(
-    llm_config: LLMConfig = Depends(get_llm_config),
+    body: LLMKeyTestRequest,
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Run a minimal authenticated LLM request without storing or returning the API key."""
+    llm_config = LLMConfig(
+        provider=body.provider.strip(),
+        api_key=body.api_key.strip(),
+        base_url=body.base_url.strip(),
+        model=body.model.strip(),
+    )
     return await test_llm_api_key(llm_config)
 
 

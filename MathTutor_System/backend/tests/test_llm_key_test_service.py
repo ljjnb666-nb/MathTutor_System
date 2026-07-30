@@ -68,6 +68,22 @@ async def test_deepseek_key_test_uses_models_endpoint_checker():
 
 
 @pytest.mark.asyncio
+async def test_deepseek_key_test_accepts_v1_base_url():
+    called = {}
+
+    async def fake_deepseek_checker(api_key, base_url):
+        called["base_url"] = base_url
+
+    result = await run_llm_key_test(
+        LLMConfig(provider="deepseek", api_key="deepseek-key", base_url="https://api.deepseek.com/v1", model="deepseek-v4-flash"),
+        deepseek_checker=fake_deepseek_checker,
+    )
+
+    assert result["ok"] is True
+    assert called["base_url"] == "https://api.deepseek.com/v1"
+
+
+@pytest.mark.asyncio
 async def test_deepseek_key_test_redacts_checker_error():
     async def fake_deepseek_checker(api_key, base_url):
         raise ValueError(f"invalid token {api_key}")

@@ -26,8 +26,10 @@ def _sanitize_error(message: str, api_key: str) -> str:
 
 
 async def _check_deepseek_models_endpoint(api_key: str, base_url: str) -> None:
-    root = (base_url or DEFAULT_DEEPSEEK_BASE_URL).rstrip("/") + "/"
-    url = urljoin(root, "models")
+    root = (base_url or DEFAULT_DEEPSEEK_BASE_URL).rstrip("/")
+    if root.endswith("/v1"):
+        root = root[:-3]
+    url = urljoin(root + "/", "models")
     async with httpx.AsyncClient(timeout=15.0, trust_env=True) as client:
         response = await client.get(url, headers={"Authorization": f"Bearer {api_key}"})
     if response.status_code in (401, 403):
