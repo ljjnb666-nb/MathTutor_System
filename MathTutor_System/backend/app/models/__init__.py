@@ -3,6 +3,7 @@
 
 from app.models.chat_session import ChatMessage, ChatSession  # noqa: F401
 from app.models.agent_run import AgentRun  # noqa: F401
+from app.models.agent_artifact import AgentAction, AgentArtifact  # noqa: F401
 from app.models.exam import Exam  # noqa: F401
 from app.models.mistake import MistakeRecord  # noqa: F401
 from app.models.order import Order  # noqa: F401
