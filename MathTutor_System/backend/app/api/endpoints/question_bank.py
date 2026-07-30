@@ -16,6 +16,7 @@ from app.models.question_bank import QuestionBank
 from app.models.student import Student
 from app.models.user import User
 from app.schemas.question_bank_dto import BankCollectRequest, BankCollectResponse, BankItemRead
+from app.services.question_bank_service import item_from_collect_request, save_questions_to_bank
 
 logger = logging.getLogger(__name__)
 
@@ -98,23 +99,7 @@ def collect_question(
             )
             return BankCollectResponse(data=item, created=False)
 
-        tags_value = body.tags if isinstance(body.tags, list) else []
-        images_value = body.images if isinstance(body.images, list) else []
-        row = QuestionBank(
-            student_id=body.student_id,
-            content=body.content,
-            options=body.options if isinstance(body.options, list) else [],
-            answer=body.answer,
-            analysis=body.analysis or "",
-            question_type=body.question_type,
-            difficulty=body.difficulty,
-            knowledge_point=body.knowledge_point,
-            source=body.source,
-            tags=tags_value,
-            images=images_value,
-            content_hash=ch,
-        )
-        db.add(row)
+        row = save_questions_to_bank(db, current_user, [item_from_collect_request(body)], dedupe=False)[0]
         db.commit()
         db.refresh(row)
         item = BankItemRead(

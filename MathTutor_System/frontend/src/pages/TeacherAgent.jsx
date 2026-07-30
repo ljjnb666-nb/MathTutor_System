@@ -1,17 +1,19 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Bot, CheckCircle2, Circle, Loader2, ShieldCheck, AlertTriangle } from 'lucide-react'
-import { createTeacherAgentRun, getTeacherAgentRun, getTeacherAgentRuns } from '../services/teacherAgentApi'
+import { useEffect, useState } from 'react'
+import { AlertTriangle, Bot, CheckCircle2, Circle, Loader2, ShieldCheck } from 'lucide-react'
+import PracticeDraftPanel from '../components/teacher-agent/PracticeDraftPanel'
+import {
+  cancelPracticeAction,
+  confirmPracticeAction,
+  createPracticeDraft,
+  createTeacherAgentRun,
+  getTeacherAgentRun,
+  getTeacherAgentRuns,
+  preparePracticeSave,
+  updatePracticeArtifact,
+} from '../services/teacherAgentApi'
 import { useStudent } from '../contexts/StudentContext'
 
-const STEPS = [
-  '理解教学目标',
-  '读取学生信息',
-  '分析薄弱知识点',
-  '读取近期错题',
-  '检索知识库',
-  '生成计划',
-  '完成',
-]
+const STEPS = ['理解教学目标', '读取学生信息', '分析薄弱知识点', '读取近期错题', '检索知识库', '生成计划', '完成']
 
 function statusLabel(status) {
   return {
@@ -30,9 +32,14 @@ export default function TeacherAgent() {
   const [knowledgePoint, setKnowledgePoint] = useState('')
   const [useKnowledgeBase, setUseKnowledgeBase] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [practiceLoading, setPracticeLoading] = useState(false)
   const [run, setRun] = useState(null)
   const [history, setHistory] = useState([])
+  const [artifact, setArtifact] = useState(null)
+  const [action, setAction] = useState(null)
+  const [confirmation, setConfirmation] = useState(null)
   const [error, setError] = useState('')
+  const [practiceError, setPracticeError] = useState('')
 
   useEffect(() => {
     refreshStudents()
@@ -59,7 +66,11 @@ export default function TeacherAgent() {
     if (!canSubmit) return
     setLoading(true)
     setError('')
+    setPracticeError('')
     setRun(null)
+    setArtifact(null)
+    setAction(null)
+    setConfirmation(null)
     try {
       const payload = {
         goal: goal.trim(),
@@ -82,8 +93,99 @@ export default function TeacherAgent() {
       const res = await getTeacherAgentRun(id)
       setRun(res.data)
       setError('')
+      setPracticeError('')
+      setArtifact(null)
+      setAction(null)
+      setConfirmation(null)
     } catch {
       setError('无法读取该运行记录')
+    }
+  }
+
+  async function handleGeneratePractice(config) {
+    if (!run?.id) return
+    setPracticeLoading(true)
+    setPracticeError('')
+    setAction(null)
+    setConfirmation(null)
+    try {
+      const payload = {
+        ...config,
+        student_id: studentId ? Number(studentId) : null,
+        use_student_context: Boolean(studentId) && config.use_student_context,
+      }
+      const res = await createPracticeDraft(run.id, payload)
+      setArtifact(res.data)
+    } catch (err) {
+      setPracticeError(readError(err, '生成练习题草稿失败'))
+    } finally {
+      setPracticeLoading(false)
+    }
+  }
+
+  async function handleUpdatePractice(payload) {
+    setPracticeLoading(true)
+    setPracticeError('')
+    try {
+      const res = await updatePracticeArtifact(artifact.id, payload)
+      setArtifact(res.data)
+      setAction(null)
+      setConfirmation(null)
+      return res.data
+    } catch (err) {
+      const status = err.response?.status
+      setPracticeError(status === 409 ? '该草稿已被更新，请刷新后重试。' : readError(err, '保存编辑失败'))
+      return null
+    } finally {
+      setPracticeLoading(false)
+    }
+  }
+
+  async function handlePrepareSave() {
+    setPracticeLoading(true)
+    setPracticeError('')
+    try {
+      const res = await preparePracticeSave(artifact.id)
+      setAction(res.data.action)
+      setConfirmation(res.data.confirmation_summary)
+    } catch (err) {
+      setPracticeError(readError(err, '准备保存失败'))
+    } finally {
+      setPracticeLoading(false)
+    }
+  }
+
+  async function handleConfirmSave() {
+    if (!action) return
+    setPracticeLoading(true)
+    setPracticeError('')
+    try {
+      const res = await confirmPracticeAction(action.id, {
+        idempotency_key: action.idempotency_key,
+        expected_artifact_version: action.expected_artifact_version,
+      })
+      setAction(res.data)
+      if (res.data.status === 'completed') {
+        setArtifact((prev) => prev ? { ...prev, status: 'saved', confirmed_at: res.data.completed_at } : prev)
+      }
+    } catch (err) {
+      setPracticeError(readError(err, '确认保存失败'))
+    } finally {
+      setPracticeLoading(false)
+    }
+  }
+
+  async function handleCancelAction() {
+    if (!action) return
+    setPracticeLoading(true)
+    setPracticeError('')
+    try {
+      const res = await cancelPracticeAction(action.id)
+      setAction(res.data)
+    } catch (err) {
+      setPracticeError(readError(err, '取消 Action 失败'))
+    } finally {
+      setPracticeLoading(false)
     }
   }
 
@@ -105,7 +207,7 @@ export default function TeacherAgent() {
           </div>
           <div className="inline-flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
             <ShieldCheck className="h-4 w-4" />
-            当前为只读规划模式
+            模型只生成草稿，正式保存需要教师确认
           </div>
         </header>
 
@@ -121,48 +223,28 @@ export default function TeacherAgent() {
                 onChange={(e) => setGoal(e.target.value)}
                 rows={5}
                 className="mt-2 w-full resize-none rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                placeholder="根据张同学最近的错题，为他规划一节一次函数复习课。"
+                placeholder="根据学生近期错题，规划一次函数复习课。"
               />
               <div className="mt-4 grid gap-3 md:grid-cols-3">
                 <label className="text-sm font-medium text-slate-700">
                   当前学生
-                  <select
-                    value={studentId}
-                    onChange={(e) => setStudentId(e.target.value)}
-                    className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                  >
+                  <select value={studentId} onChange={(e) => setStudentId(e.target.value)} className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm">
                     <option value="">不指定学生</option>
                     {students.map((student) => (
-                      <option key={student.id} value={student.id}>
-                        {student.name}
-                      </option>
+                      <option key={student.id} value={student.id}>{student.name}</option>
                     ))}
                   </select>
                 </label>
                 <label className="text-sm font-medium text-slate-700">
                   知识点
-                  <input
-                    value={knowledgePoint}
-                    onChange={(e) => setKnowledgePoint(e.target.value)}
-                    className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                    placeholder="例如：勾股定理"
-                  />
+                  <input value={knowledgePoint} onChange={(e) => setKnowledgePoint(e.target.value)} className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="例如：勾股定理" />
                 </label>
                 <label className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={useKnowledgeBase}
-                    onChange={(e) => setUseKnowledgeBase(e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300"
-                  />
+                  <input type="checkbox" checked={useKnowledgeBase} onChange={(e) => setUseKnowledgeBase(e.target.checked)} className="h-4 w-4 rounded border-slate-300" />
                   使用我的知识库
                 </label>
               </div>
-              <button
-                type="submit"
-                disabled={!canSubmit}
-                className="mt-4 inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
-              >
+              <button type="submit" disabled={!canSubmit} className="mt-4 inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4" />}
                 生成教学计划
               </button>
@@ -187,6 +269,19 @@ export default function TeacherAgent() {
             {run?.status === 'failed' && <StateNotice tone="error" text={run.error_message || '运行失败'} />}
             {run?.status === 'needs_input' && <MissingFields fields={missingFields} />}
             {plan && <PlanResult plan={plan} warnings={warnings} />}
+            <PracticeDraftPanel
+              run={run}
+              artifact={artifact}
+              action={action}
+              loading={practiceLoading}
+              error={practiceError}
+              confirmation={confirmation}
+              onGenerate={handleGeneratePractice}
+              onUpdate={handleUpdatePractice}
+              onPrepare={handlePrepareSave}
+              onConfirm={handleConfirmSave}
+              onCancelAction={handleCancelAction}
+            />
           </main>
 
           <aside className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -194,12 +289,7 @@ export default function TeacherAgent() {
             <div className="mt-3 space-y-2">
               {history.length === 0 && <p className="text-sm text-slate-500">暂无运行记录</p>}
               {history.map((item) => (
-                <button
-                  type="button"
-                  key={item.id}
-                  onClick={() => openHistory(item.id)}
-                  className="w-full rounded-md border border-slate-200 px-3 py-2 text-left hover:border-indigo-300 hover:bg-indigo-50"
-                >
+                <button type="button" key={item.id} onClick={() => openHistory(item.id)} className="w-full rounded-md border border-slate-200 px-3 py-2 text-left hover:border-indigo-300 hover:bg-indigo-50">
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-sm font-semibold text-slate-800">{item.goal}</span>
                     <span className="shrink-0 text-xs text-slate-500">{statusLabel(item.status)}</span>
@@ -229,9 +319,7 @@ function MissingFields({ fields }) {
     <section className="rounded-lg border border-amber-200 bg-amber-50 p-4">
       <h2 className="text-sm font-bold text-amber-900">需要补充信息</h2>
       <ul className="mt-2 space-y-1 text-sm text-amber-800">
-        {fields.map((field, index) => (
-          <li key={`${field.field}-${index}`}>{field.message || field.field}</li>
-        ))}
+        {fields.map((field, index) => <li key={`${field.field}-${index}`}>{field.message || field.field}</li>)}
       </ul>
     </section>
   )
@@ -253,7 +341,7 @@ function PlanResult({ plan, warnings }) {
         <SummaryItem label="近期错题数" value={String(plan.evidence_summary?.recent_mistake_count ?? 0)} />
       </div>
       <div className="mt-4 space-y-3">
-        {plan.steps.map((step) => (
+        {(plan.steps || []).map((step) => (
           <div key={step.step_id} className="rounded-md border border-slate-200 p-3">
             <h3 className="text-sm font-bold text-slate-900">{step.step_id}. {step.title}</h3>
             <p className="mt-1 text-sm text-slate-700">{step.description}</p>
@@ -277,4 +365,11 @@ function SummaryItem({ label, value }) {
       <div className="mt-1 text-sm font-semibold text-slate-800">{value}</div>
     </div>
   )
+}
+
+function readError(err, fallback) {
+  const detail = err.response?.data?.detail
+  if (typeof detail === 'string') return detail
+  if (detail?.message) return detail.message
+  return err.message || fallback
 }

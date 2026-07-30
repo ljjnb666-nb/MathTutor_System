@@ -11,3 +11,31 @@ export function getTeacherAgentRuns(limit = 20) {
 export function getTeacherAgentRun(runId) {
   return api.get(`/api/teacher-agent/runs/${runId}`)
 }
+
+export function createPracticeDraft(runId, payload) {
+  return api.post(`/api/teacher-agent/runs/${runId}/artifacts/practice-set`, payload)
+}
+
+export function getPracticeArtifact(artifactId) {
+  return api.get(`/api/teacher-agent/artifacts/${artifactId}`)
+}
+
+export function updatePracticeArtifact(artifactId, payload) {
+  return api.patch(`/api/teacher-agent/artifacts/${artifactId}`, payload)
+}
+
+export function preparePracticeSave(artifactId) {
+  return api.post(`/api/teacher-agent/artifacts/${artifactId}/prepare-save`)
+}
+
+export function confirmPracticeAction(actionId, payload) {
+  return api.post(`/api/teacher-agent/actions/${actionId}/confirm`, payload)
+}
+
+export function cancelPracticeAction(actionId) {
+  return api.post(`/api/teacher-agent/actions/${actionId}/cancel`)
+}
+
+export function getPracticeAction(actionId) {
+  return api.get(`/api/teacher-agent/actions/${actionId}`)
+}
