@@ -1,7 +1,7 @@
 import pytest
 
 from app.core.deps import LLMConfig
-from app.services.llm_key_test_service import TEST_PROMPT, test_llm_api_key as run_llm_key_test
+from app.services.llm_key_test_service import TEST_PROMPT, _deepseek_model_urls, test_llm_api_key as run_llm_key_test
 
 
 @pytest.mark.asyncio
@@ -81,6 +81,17 @@ async def test_deepseek_key_test_accepts_v1_base_url():
 
     assert result["ok"] is True
     assert called["base_url"] == "https://api.deepseek.com/v1"
+
+
+def test_deepseek_model_urls_accepts_common_base_url_forms():
+    assert _deepseek_model_urls("api.deepseek.com") == [
+        "https://api.deepseek.com/models",
+        "https://api.deepseek.com/v1/models",
+    ]
+    assert _deepseek_model_urls("https://api.deepseek.com/v1") == [
+        "https://api.deepseek.com/v1/models",
+        "https://api.deepseek.com/models",
+    ]
 
 
 @pytest.mark.asyncio
