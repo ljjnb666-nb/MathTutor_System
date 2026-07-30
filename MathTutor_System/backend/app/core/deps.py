@@ -6,7 +6,9 @@ import os
 from dataclasses import dataclass
 
 from dotenv import load_dotenv
-from fastapi import Header
+from fastapi import Header, HTTPException
+
+from app.core.config import ALLOW_CLIENT_LLM_CONFIG
 
 load_dotenv()
 
@@ -31,6 +33,12 @@ def get_llm_config(
     从 Header 读取 LLM 配置；若未传则使用 .env 默认值。
     不记录 api_key 到日志。
     """
+    client_override_used = any(
+        value is not None for value in (x_llm_provider, x_llm_api_key, x_llm_base_url, x_llm_model)
+    )
+    if client_override_used and not ALLOW_CLIENT_LLM_CONFIG:
+        raise HTTPException(status_code=403, detail="Client-side LLM configuration is disabled.")
+
     provider = (x_llm_provider or os.getenv("LLM_PROVIDER", "gemini")).strip().lower()
     api_key = x_llm_api_key or os.getenv("LLM_API_KEY", "")
     base_url = (x_llm_base_url or os.getenv("LLM_BASE_URL", "")).strip()

@@ -1,6 +1,7 @@
 """Document registry and no-auth ChromaDB operations for the local RAG store."""
 import json
 import logging
+import uuid
 from pathlib import Path
 
 from app.core.config import BASE_DIR
@@ -66,27 +67,73 @@ def write_documents_registry(items: list[dict], registry_file: Path | None = Non
         logger.warning("写入文档注册表失败: %s", exc)
 
 
-def registry_add(source: str, chunk_count: int, knowledge_points: list[str]) -> None:
+def registry_add(
+    source: str,
+    chunk_count: int,
+    knowledge_points: list[str],
+    *,
+    owner_user_id: int | None = None,
+    document_id: str | None = None,
+    knowledge_point: str = "",
+    chunk_type: str = "",
+    created_at: str = "",
+) -> str:
     """Add or replace one document entry in the registry."""
     items = read_documents_registry()
     source_key = (source or "").strip()
-    items = [item for item in items if (item.get("source") or "").strip() != source_key]
+    doc_id = (document_id or "").strip() or str(uuid.uuid4())
+    if owner_user_id is None:
+        items = [item for item in items if (item.get("source") or "").strip() != source_key]
+    else:
+        items = [
+            item
+            for item in items
+            if not (
+                int(item.get("owner_user_id") or -1) == int(owner_user_id)
+                and (item.get("source") or "").strip() == source_key
+            )
+        ]
     items.append(
-        {
-            "source": source_key,
-            "chunk_count": chunk_count,
-            "knowledge_points": sorted(set(k for k in (knowledge_points or []) if (k or "").strip())),
-        }
+        (
+            {
+                "document_id": doc_id,
+                "owner_user_id": owner_user_id,
+                "source": source_key,
+                "knowledge_point": knowledge_point,
+                "chunk_type": chunk_type,
+                "created_at": created_at,
+                "chunk_count": chunk_count,
+                "knowledge_points": sorted(set(k for k in (knowledge_points or []) if (k or "").strip())),
+            }
+            if owner_user_id is not None
+            else {
+                "source": source_key,
+                "chunk_count": chunk_count,
+                "knowledge_points": sorted(set(k for k in (knowledge_points or []) if (k or "").strip())),
+            }
+        )
     )
     write_documents_registry(items)
+    return doc_id
 
 
-def registry_remove(source: str) -> None:
+def registry_remove(source: str, *, owner_user_id: int | None = None, document_id: str | None = None) -> None:
     """Remove one source from the registry."""
     key = (source or "").strip()
-    if not key:
+    doc_id = (document_id or "").strip()
+    if not key and not doc_id:
         return
-    items = [item for item in read_documents_registry() if (item.get("source") or "").strip() != key]
+    items = []
+    for item in read_documents_registry():
+        item_owner = item.get("owner_user_id")
+        item_source = (item.get("source") or "").strip()
+        item_doc_id = (item.get("document_id") or "").strip()
+        matches_owner = owner_user_id is None or int(item_owner or -1) == int(owner_user_id)
+        matches_source = bool(key) and item_source == key
+        matches_doc_id = bool(doc_id) and item_doc_id == doc_id
+        if matches_owner and (matches_doc_id or matches_source):
+            continue
+        items.append(item)
     write_documents_registry(items)
 
 
@@ -96,6 +143,65 @@ def rag_list_documents_from_registry() -> list[dict]:
     stable document lists.
     """
     return read_documents_registry()
+
+
+def rag_list_documents(owner_user_id: int) -> list[dict]:
+    """List only documents explicitly owned by one teacher."""
+    return [
+        item
+        for item in read_documents_registry()
+        if int(item.get("owner_user_id") or -1) == int(owner_user_id)
+    ]
+
+
+def rag_get_chunks(owner_user_id: int, document_id: str) -> list[str]:
+    """Get chunks for one owned document by document_id."""
+    doc_id = (document_id or "").strip()
+    if not doc_id:
+        return []
+    try:
+        coll = get_collection_only()
+        data = coll.get(
+            where={"document_id": doc_id},
+            include=["documents", "metadatas"],
+        )
+        docs = data.get("documents") or []
+        metadatas = data.get("metadatas") or []
+        indexed = []
+        for metadata, doc in zip(metadatas, docs):
+            meta = metadata or {}
+            if int(meta.get("owner_user_id") or -1) != int(owner_user_id):
+                continue
+            indexed.append((meta.get("chunk_index", 999999), str(doc).strip() if doc else ""))
+        indexed.sort(key=lambda item: (item[0], item[1]))
+        return [text for _, text in indexed if text]
+    except Exception as exc:
+        logger.debug("rag_get_chunks: %s", exc)
+        return []
+
+
+def rag_delete_document(owner_user_id: int, document_id: str) -> int:
+    """Delete one owned document by document_id."""
+    doc_id = (document_id or "").strip()
+    if not doc_id:
+        return 0
+    try:
+        coll = get_collection_only()
+        data = coll.get(where={"document_id": doc_id}, include=["metadatas"])
+        ids = data.get("ids") or []
+        metadatas = data.get("metadatas") or []
+        owned_ids = [
+            row_id
+            for row_id, metadata in zip(ids, metadatas)
+            if int((metadata or {}).get("owner_user_id") or -1) == int(owner_user_id)
+        ]
+        if owned_ids:
+            coll.delete(ids=owned_ids)
+            registry_remove("", owner_user_id=owner_user_id, document_id=doc_id)
+        return len(owned_ids)
+    except Exception as exc:
+        logger.warning("RAG delete_document failed: %s", exc)
+        raise
 
 
 def rag_list_documents_no_auth() -> list[dict]:

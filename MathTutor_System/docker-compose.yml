@@ -10,7 +10,7 @@ services:
     container_name: mathtutor-backend
     restart: unless-stopped
     environment:
-      - SECRET_KEY=${SECRET_KEY:-docker-default-secret-key-change-in-production}
+      - SECRET_KEY=${SECRET_KEY:?Set SECRET_KEY to a non-default production value}
       - DATABASE_URL=sqlite:////app/data/math_tutor.db
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost,http://127.0.0.1}
       - LLM_API_KEY=${LLM_API_KEY:-}

@@ -62,7 +62,7 @@ async def api_generate_weak_point(
         use_knowledge_base=request.use_knowledge_base,
     )
     try:
-        result, rag_used = await generate_questions_async(gen_request, llm_config)
+        result, rag_used = await generate_questions_async(gen_request, llm_config, owner_user_id=current_user.id)
         response.headers["X-RAG-Used"] = "true" if rag_used else "false"
         if isinstance(result, dict):
             return result
@@ -101,7 +101,7 @@ async def api_generate(
             detail="未配置 API Key。请在前端设置中填写，或在后端 .env 中配置 LLM_API_KEY。",
         )
     try:
-        result, rag_used = await generate_questions_async(request, llm_config)
+        result, rag_used = await generate_questions_async(request, llm_config, owner_user_id=current_user.id)
         response.headers["X-RAG-Used"] = "true" if rag_used else "false"
         if isinstance(result, dict):
             return result
@@ -141,7 +141,7 @@ async def api_generate_exam(
             detail="未配置 API Key。请在前端设置中填写，或在后端 .env 中配置 LLM_API_KEY。",
         )
     try:
-        questions, rag_used = await generate_full_exam_paper(request, llm_config)
+        questions, rag_used = await generate_full_exam_paper(request, llm_config, owner_user_id=current_user.id)
         response.headers["X-RAG-Used"] = "true" if rag_used else "false"
         return questions
     except ValueError as e:
@@ -161,6 +161,7 @@ async def api_generate_exam(
 async def api_verify_question(
     body: dict = Body(..., description="寰呮牎瀵圭殑棰樼洰瀵硅薄 (content, options, answer, analysis 绛?"),
     llm_config: LLMConfig = Depends(get_llm_config),
+    current_user: User = Depends(get_current_user),
 ) -> dict:
     """
     棰樼洰鏍″锛氭鏌ュ苟淇鍗曢亾棰樼洰鐨勮绠楅敊璇€侀€昏緫婕忔礊銆佹牸寮忎笌瑙ｆ瀽锛岃繑鍥炰慨姝ｅ悗鐨勯鐩璞°€?    """
