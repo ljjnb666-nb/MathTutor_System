@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 PracticeDifficulty = Literal["easy", "medium", "hard", "mixed", "L1", "L2", "L3", "L4", "L5"]
+PracticeQuestionDifficulty = Literal["easy", "medium", "hard", "L1", "L2", "L3", "L4", "L5"]
 PracticeQuestionType = Literal["choice", "fill", "solution", "true_false", "选择", "填空", "解答", "判断"]
 
 
@@ -41,7 +42,7 @@ class PracticeQuestionDraft(BaseModel):
     answer: str = Field(..., min_length=1, max_length=2000)
     explanation: str = Field(..., min_length=1, max_length=3000)
     knowledge_points: list[str] = Field(..., min_length=1, max_length=12)
-    difficulty: PracticeDifficulty
+    difficulty: PracticeQuestionDifficulty
     score: float = Field(..., gt=0, le=100)
     source_basis: list[str] = Field(default_factory=list, max_length=8)
 

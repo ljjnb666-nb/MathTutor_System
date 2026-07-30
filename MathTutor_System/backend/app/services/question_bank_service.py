@@ -13,6 +13,18 @@ from app.models.student import Student
 from app.models.user import User
 from app.schemas.question_bank_dto import BankCollectRequest
 
+QUESTION_TYPE_TO_BANK = {
+    "choice": "选择",
+    "fill": "填空",
+    "solution": "解答",
+    "true_false": "判断",
+}
+DIFFICULTY_TO_BANK = {
+    "easy": "L2",
+    "medium": "L3",
+    "hard": "L4",
+}
+
 
 @dataclass
 class SaveQuestionToBankItem:
@@ -66,6 +78,65 @@ def validate_bank_item(item: SaveQuestionToBankItem) -> None:
         raise HTTPException(status_code=400, detail="Question type cannot be empty")
     if not item.difficulty.strip():
         raise HTTPException(status_code=400, detail="Difficulty cannot be empty")
+    if item.difficulty.strip() == "mixed":
+        raise HTTPException(status_code=400, detail="Single question difficulty cannot be mixed")
+    if _normalize_question_type(item.question_type) in {"choice", "选择"}:
+        _normalize_choice_answer(item.options, item.answer)
+
+
+def _normalize_question_type(value: str) -> str:
+    text = (value or "").strip()
+    return QUESTION_TYPE_TO_BANK.get(text, text)
+
+
+def _normalize_difficulty(value: str) -> str:
+    text = (value or "").strip()
+    return DIFFICULTY_TO_BANK.get(text, text)
+
+
+def _option_label(index: int) -> str:
+    return chr(ord("A") + index)
+
+
+def _strip_label(value: str) -> str:
+    text = (value or "").strip()
+    if len(text) >= 2 and text[0].upper() in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" and text[1] in {".", ":", "：", "、"}:
+        return text[2:].strip()
+    return text
+
+
+def _normalize_choice_answer(options: list[str], answer: str) -> str:
+    opts = [str(opt or "").strip() for opt in options or []]
+    ans = (answer or "").strip()
+    labels = [_option_label(i) for i in range(len(opts))]
+    upper = ans.upper().rstrip(".:：、").strip()
+    if upper in labels:
+        return upper
+    for index, opt in enumerate(opts):
+        if ans == opt or _strip_label(ans) == _strip_label(opt):
+            return _option_label(index)
+    raise HTTPException(status_code=400, detail="Choice answer does not match available options")
+
+
+def normalize_bank_item(item: SaveQuestionToBankItem) -> SaveQuestionToBankItem:
+    question_type = _normalize_question_type(item.question_type)
+    difficulty = _normalize_difficulty(item.difficulty)
+    answer = item.answer.strip()
+    if question_type == "选择":
+        answer = _normalize_choice_answer(item.options, answer)
+    return SaveQuestionToBankItem(
+        content=item.content,
+        options=item.options,
+        answer=answer,
+        analysis=item.analysis,
+        question_type=question_type,
+        difficulty=difficulty,
+        knowledge_point=item.knowledge_point,
+        source=item.source,
+        student_id=item.student_id,
+        tags=item.tags,
+        images=item.images,
+    )
 
 
 def item_from_collect_request(body: BankCollectRequest) -> SaveQuestionToBankItem:
@@ -93,17 +164,19 @@ def save_questions_to_bank(
 ) -> list[QuestionBank]:
     if current_user.role not in {"teacher", "admin"}:
         raise HTTPException(status_code=403, detail="Teacher role required")
-    for item in questions:
+    normalized_questions = [normalize_bank_item(item) for item in questions]
+    for item in normalized_questions:
         require_student_owned_if_set(db, item.student_id, current_user)
         validate_bank_item(item)
 
     rows: list[QuestionBank] = []
-    for item in questions:
+    for item in normalized_questions:
         ch = content_hash(item.content, item.answer)
         if dedupe:
             existing = (
                 db.query(QuestionBank)
                 .filter(
+                    QuestionBank.owner_user_id == current_user.id,
                     QuestionBank.content_hash == ch,
                     (QuestionBank.student_id == item.student_id)
                     if item.student_id is not None
@@ -115,6 +188,7 @@ def save_questions_to_bank(
                 rows.append(existing)
                 continue
         row = QuestionBank(
+            owner_user_id=current_user.id,
             student_id=item.student_id,
             content=item.content.strip(),
             options=item.options if isinstance(item.options, list) else [],

@@ -30,6 +30,12 @@ class AgentAction(Base):
     __tablename__ = "agent_actions"
     __table_args__ = (
         UniqueConstraint("user_id", "action_type", "idempotency_key", name="uq_agent_actions_user_action_idempotency"),
+        UniqueConstraint(
+            "artifact_id",
+            "action_type",
+            "expected_artifact_version",
+            name="uq_agent_actions_artifact_action_version",
+        ),
     )
 
     id = pk_column()

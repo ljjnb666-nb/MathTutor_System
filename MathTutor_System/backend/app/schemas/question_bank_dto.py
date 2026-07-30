@@ -25,6 +25,7 @@ class BankCollectRequest(BaseModel):
 class BankItemRead(BaseModel):
     """题库条目响应"""
     id: int
+    owner_user_id: int | None = None
     student_id: int | None = None
     content: str
     options: list[str]

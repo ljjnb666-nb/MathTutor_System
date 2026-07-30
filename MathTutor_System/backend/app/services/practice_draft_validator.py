@@ -7,7 +7,18 @@ from difflib import SequenceMatcher
 from app.schemas.practice_draft_dto import PracticeDraftCreate, PracticeSetDraft
 
 ALLOWED_TYPES = {"choice", "fill", "solution", "true_false", "选择", "填空", "解答", "判断"}
-ALLOWED_DIFFICULTIES = {"easy", "medium", "hard", "mixed", "L1", "L2", "L3", "L4", "L5"}
+ALLOWED_DIFFICULTIES = {"easy", "medium", "hard", "L1", "L2", "L3", "L4", "L5"}
+ALLOWED_SOURCE_BASIS = {
+    "teacher_goal",
+    "agent_run_intent",
+    "student_profile",
+    "weak_point",
+    "recent_mistake",
+    "mastery",
+    "learning_trend",
+    "owned_knowledge_base",
+    "teacher_edit",
+}
 BAD_TEXT_MARKERS = {
     "api_key",
     "authorization",
@@ -37,6 +48,14 @@ def validate_practice_draft(draft: PracticeSetDraft, request: PracticeDraftCreat
         errors.append({"code": "question_count_mismatch", "message": "Question count does not match request."})
     if draft.safety_mode != "draft_only":
         errors.append({"code": "unsafe_safety_mode", "message": "Practice draft must remain draft_only."})
+    available_sources = {"teacher_goal", "agent_run_intent", "teacher_edit"}
+    if request:
+        if request.student_id is not None:
+            available_sources.add("student_profile")
+        if request.student_id is not None and request.use_student_context:
+            available_sources.update({"weak_point", "recent_mistake", "mastery", "learning_trend"})
+        if request.use_knowledge_base:
+            available_sources.add("owned_knowledge_base")
 
     ids = [q.client_question_id for q in questions]
     for qid, count in Counter(ids).items():
@@ -59,6 +78,11 @@ def validate_practice_draft(draft: PracticeSetDraft, request: PracticeDraftCreat
             errors.append({"code": "invalid_question_type", "path": prefix, "message": "Question type is not allowed."})
         if question.difficulty not in ALLOWED_DIFFICULTIES:
             errors.append({"code": "invalid_difficulty", "path": prefix, "message": "Difficulty is not allowed."})
+        for source in question.source_basis:
+            if source not in ALLOWED_SOURCE_BASIS:
+                errors.append({"code": "invalid_source_basis", "path": prefix, "message": f"Source basis is not allowed: {source}"})
+            elif source not in available_sources:
+                errors.append({"code": "unavailable_source_basis", "path": prefix, "message": f"Source basis was not available: {source}"})
         if question.score <= 0:
             errors.append({"code": "invalid_score", "path": prefix, "message": "Score must be greater than zero."})
         if not question.knowledge_points:
@@ -76,7 +100,9 @@ def validate_practice_draft(draft: PracticeSetDraft, request: PracticeDraftCreat
                 errors.append({"code": "invalid_choice_option_count", "path": prefix, "message": "Choice questions need 2-6 options."})
             if len(set(opts)) != len(opts):
                 errors.append({"code": "duplicate_choice_options", "path": prefix, "message": "Choice options cannot repeat."})
-            if question.answer.strip() not in opts and question.answer.strip().upper() not in {"A", "B", "C", "D", "E", "F"}:
+            labels = {chr(ord("A") + i) for i in range(len(opts))}
+            normalized_answer = question.answer.strip().upper().rstrip(".:：、").strip()
+            if question.answer.strip() not in opts and normalized_answer not in labels:
                 errors.append({"code": "invalid_choice_answer", "path": prefix, "message": "Choice answer must match an option or valid option label."})
         if question.question_type in {"fill", "填空"} and question.answer.strip() in INVALID_FILL_ANSWERS:
             errors.append({"code": "invalid_fill_answer", "path": prefix, "message": "Fill answer is not specific."})

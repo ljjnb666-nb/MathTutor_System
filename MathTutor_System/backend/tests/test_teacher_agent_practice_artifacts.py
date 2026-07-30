@@ -172,8 +172,27 @@ async def test_prepare_save_then_confirm_creates_questions_and_records_ids():
     assert completed.result_json["question_count"] == 5
     assert len(completed.result_json["question_ids"]) == 5
     assert db.query(QuestionBank).count() == 5
+    assert {row.owner_user_id for row in db.query(QuestionBank).all()} == {user.id}
+    assert {row.question_type for row in db.query(QuestionBank).all()} == {"选择"}
+    assert {row.difficulty for row in db.query(QuestionBank).all()} == {"L3"}
     db.refresh(artifact)
     assert artifact.status == "saved"
+
+
+@pytest.mark.asyncio
+async def test_prepare_same_artifact_version_reuses_single_action():
+    db = make_db()
+    user = seed_user(db)
+    run = seed_completed_run(db, user)
+    artifact = await make_artifact(db, user, run, count=1)
+
+    first, first_summary = prepare_practice_save(db, user, artifact.id)
+    second, second_summary = prepare_practice_save(db, user, artifact.id)
+
+    assert first.id == second.id
+    assert first.idempotency_key == second.idempotency_key
+    assert first_summary == second_summary
+    assert db.query(AgentAction).count() == 1
 
 
 @pytest.mark.asyncio
@@ -220,10 +239,10 @@ async def test_cancelled_and_stale_actions_cannot_confirm():
         confirm_action(db, user, action.id, PracticeDraftConfirm(idempotency_key=action.idempotency_key, expected_artifact_version=1))
     assert cancelled.value.status_code == 409
 
-    action2, _ = prepare_practice_save(db, user, artifact.id)
     content = PracticeSetDraft.model_validate(artifact.content_json)
-    content.questions[0].stem = "Changed after prepare save."
+    content.questions[0].stem = "Changed after cancelled prepare save."
     update_practice_artifact(db, user, artifact.id, PracticeDraftUpdate(expected_version=1, content=content))
+    action2, _ = prepare_practice_save(db, user, artifact.id)
     with pytest.raises(HTTPException) as stale:
         confirm_action(db, user, action2.id, PracticeDraftConfirm(idempotency_key=action2.idempotency_key, expected_artifact_version=1))
     assert stale.value.status_code == 409

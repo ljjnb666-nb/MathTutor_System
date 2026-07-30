@@ -86,7 +86,7 @@ class DeterministicFakePracticeDraftGenerator:
                     knowledge_points=[kps[i % len(kps)]],
                     difficulty=request.difficulty if request.difficulty != "mixed" else "medium",
                     score=10,
-                    source_basis=["teacher_goal", "owned_context"],
+                    source_basis=["teacher_goal", "agent_run_intent"],
                 )
             )
         return PracticeSetDraft(

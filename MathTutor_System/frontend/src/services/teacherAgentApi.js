@@ -12,12 +12,20 @@ export function getTeacherAgentRun(runId) {
   return api.get(`/api/teacher-agent/runs/${runId}`)
 }
 
+export function getTeacherAgentRunArtifacts(runId, artifactType = 'practice_set') {
+  return api.get(`/api/teacher-agent/runs/${runId}/artifacts`, { params: { artifact_type: artifactType } })
+}
+
 export function createPracticeDraft(runId, payload) {
   return api.post(`/api/teacher-agent/runs/${runId}/artifacts/practice-set`, payload)
 }
 
 export function getPracticeArtifact(artifactId) {
   return api.get(`/api/teacher-agent/artifacts/${artifactId}`)
+}
+
+export function getPracticeArtifactActions(artifactId) {
+  return api.get(`/api/teacher-agent/artifacts/${artifactId}/actions`)
 }
 
 export function updatePracticeArtifact(artifactId, payload) {
