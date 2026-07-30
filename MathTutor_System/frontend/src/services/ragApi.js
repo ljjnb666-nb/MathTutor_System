@@ -46,10 +46,10 @@ export function listRagDocuments() {
   return api.get('/api/rag/documents').then((res) => res.data)
 }
 
-export function getRagDocumentChunks(source) {
-  return api.get('/api/rag/documents/chunks', { params: { source } }).then((res) => res.data)
+export function getRagDocumentChunks(documentId) {
+  return api.get('/api/rag/documents/chunks', { params: { document_id: documentId } }).then((res) => res.data)
 }
 
-export function deleteRagDocument(source) {
-  return api.delete('/api/rag/documents/' + encodeURIComponent(source)).then((res) => res.data)
+export function deleteRagDocument(documentId) {
+  return api.delete('/api/rag/documents/' + encodeURIComponent(documentId)).then((res) => res.data)
 }

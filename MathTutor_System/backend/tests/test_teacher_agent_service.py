@@ -87,10 +87,14 @@ def make_plan(summary: str, *, future_action: str | None = None) -> TeacherAgent
     )
 
 
-class UnsafeCompletedWritePlanner(DeterministicFakePlanner):
+class SummaryPlanner(DeterministicFakePlanner):
+    def __init__(self, summary: str):
+        super().__init__()
+        self.summary = summary
+
     async def compose_plan(self, request, intent, tool_summaries, llm_config):
         self.compose_calls += 1
-        return make_plan("Exam has been created.")
+        return make_plan(self.summary)
 
 
 def make_db():
@@ -305,13 +309,40 @@ def test_plan_failure_marks_run_failed():
 
 
 def test_completed_write_claim_detection_rejects_english_and_chinese():
-    assert contains_completed_write_claim(make_plan("Exam has been created."))
-    assert contains_completed_write_claim(make_plan("\u8bd5\u5377\u5df2\u521b\u5efa"))
+    rejected = [
+        "I have created the exam.",
+        "The assistant created the exam for you.",
+        "The system has saved the questions.",
+        "The homework has been published successfully.",
+        "I have deleted the student.",
+        "Payment has been completed.",
+        "I have sent the assignment to the class.",
+        "\u6211\u5df2\u4e3a\u4f60\u521b\u5efa\u8bd5\u5377",
+        "\u7cfb\u7edf\u5df2\u4fdd\u5b58\u9898\u76ee",
+        "\u5df2\u4e3a\u8be5\u73ed\u53d1\u5e03\u4f5c\u4e1a",
+        "\u5b66\u751f\u5df2\u88ab\u5220\u9664",
+        "\u5df2\u5b8c\u6210\u652f\u4ed8",
+        "\u5df2\u4ece\u8d26\u6237\u6263\u8d39",
+        "\u6211\u5df2\u53d1\u9001\u901a\u77e5",
+        "\u8bd5\u5377\u5df2\u521b\u5efa",
+    ]
+    for summary in rejected:
+        assert contains_completed_write_claim(make_plan(summary)), summary
 
 
 def test_completed_write_claim_detection_allows_future_actions():
-    assert not contains_completed_write_claim(make_plan("\u8001\u5e08\u786e\u8ba4\u540e\u53ef\u521b\u5efa\u8bd5\u5377"))
-    assert not contains_completed_write_claim(make_plan("\u4e0b\u4e00\u9636\u6bb5\u53ef\u4ee5\u53d1\u5e03\u4f5c\u4e1a"))
+    allowed = [
+        "Review the exam I created last week.",
+        "Analyze the updated report.",
+        "Use the questions the teacher saved.",
+        "The teacher sent this file yesterday.",
+        "\u8001\u5e08\u786e\u8ba4\u540e\u53ef\u521b\u5efa\u8bd5\u5377",
+        "\u4e0b\u4e00\u9636\u6bb5\u53ef\u4ee5\u53d1\u5e03\u4f5c\u4e1a",
+        "\u5206\u6790\u8001\u5e08\u4e4b\u524d\u5df2\u521b\u5efa\u7684\u8bd5\u5377",
+        "\u67e5\u770b\u5b66\u751f\u6628\u5929\u66f4\u65b0\u7684\u6570\u636e",
+    ]
+    for summary in allowed:
+        assert not contains_completed_write_claim(make_plan(summary)), summary
     assert not contains_completed_write_claim(
         make_plan("Draft only.", future_action="\u8001\u5e08\u786e\u8ba4\u540e\u53ef\u521b\u5efa\u8bd5\u5377")
     )
@@ -326,8 +357,23 @@ def test_completed_write_claim_marks_agent_run_failed():
         user,
         TeacherAgentRunCreate(goal="Draft a lesson plan"),
         LLMConfig(provider="fake", api_key="", base_url="", model=""),
-        planner=UnsafeCompletedWritePlanner(),
+        planner=SummaryPlanner("I have created the exam."),
     )
 
     assert run.status == "failed"
     assert run.error_code == "unsafe_plan"
+
+
+def test_historical_write_wording_allows_agent_run_completed():
+    db = make_db()
+    user = seed_user(db, 1, "teacher-a")
+
+    run = run_teacher_agent(
+        db,
+        user,
+        TeacherAgentRunCreate(goal="Review the exam I created last week."),
+        LLMConfig(provider="fake", api_key="", base_url="", model=""),
+        planner=SummaryPlanner("Review the exam I created last week."),
+    )
+
+    assert run.status == "completed"

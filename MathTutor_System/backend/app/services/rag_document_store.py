@@ -17,6 +17,10 @@ REGISTRY_FILE = PERSIST_DIR / "documents_registry.json"
 _REGISTRY_LOCK = threading.RLock()
 
 
+class DocumentRegistryError(RuntimeError):
+    pass
+
+
 def get_collection_only():
     """Get the Chroma collection without initializing embeddings."""
     import chromadb
@@ -41,7 +45,7 @@ def get_collection_only():
     return client.get_or_create_collection(COLLECTION_NAME)
 
 
-def read_documents_registry(registry_file: Path | None = None) -> list[dict]:
+def read_documents_registry(registry_file: Path | None = None, *, strict: bool = False) -> list[dict]:
     """Read the local document registry without touching ChromaDB."""
     target = registry_file or REGISTRY_FILE
     try:
@@ -51,6 +55,8 @@ def read_documents_registry(registry_file: Path | None = None) -> list[dict]:
         items = data.get("documents")
         return list(items) if isinstance(items, list) else []
     except Exception as exc:
+        if strict:
+            raise DocumentRegistryError("Document registry is unavailable.") from exc
         logger.debug("read document registry failed: %s", exc)
         return []
 
@@ -138,7 +144,7 @@ def rag_list_documents_from_registry() -> list[dict]:
 
 
 def rag_list_documents(owner_user_id: int) -> list[dict]:
-    return [item for item in read_documents_registry() if int(item.get("owner_user_id") or -1) == int(owner_user_id)]
+    return [item for item in read_documents_registry(strict=True) if int(item.get("owner_user_id") or -1) == int(owner_user_id)]
 
 
 def _owned_where(owner_user_id: int, document_id: str | None = None, source: str | None = None) -> dict:

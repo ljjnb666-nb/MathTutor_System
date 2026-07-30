@@ -15,6 +15,26 @@ export function getAppSettings() {
   }
 }
 
+export function shouldSendClientLlmHeaders(importMeta = import.meta) {
+  const explicit = importMeta?.env?.VITE_ALLOW_CLIENT_LLM_CONFIG
+  if (explicit != null && explicit !== '') {
+    return String(explicit).toLowerCase() === 'true'
+  }
+  return Boolean(importMeta?.env?.DEV)
+}
+
+export function buildClientLlmHeaders(importMeta = import.meta) {
+  if (!shouldSendClientLlmHeaders(importMeta)) return null
+  const settings = getAppSettings()
+  if (!settings) return null
+  const headers = {}
+  if (settings.provider) headers['x-llm-provider'] = settings.provider
+  if (settings.apiKey) headers['x-llm-api-key'] = settings.apiKey
+  if (settings.baseUrl) headers['x-llm-base-url'] = settings.baseUrl
+  if (settings.model) headers['x-llm-model'] = settings.model
+  return headers
+}
+
 export const apiBaseURL =
   typeof import.meta !== 'undefined' && import.meta.env?.DEV
     ? ''
@@ -23,16 +43,7 @@ export const apiBaseURL =
 const api = createApiClient(axios, {
   importMeta: import.meta,
   tokenStorageKey: AUTH_TOKEN_KEY,
-  getExtraHeaders: () => {
-    const settings = getAppSettings()
-    if (!settings) return null
-    const headers = {}
-    if (settings.provider) headers['x-llm-provider'] = settings.provider
-    if (settings.apiKey) headers['x-llm-api-key'] = settings.apiKey
-    if (settings.baseUrl) headers['x-llm-base-url'] = settings.baseUrl
-    if (settings.model) headers['x-llm-model'] = settings.model
-    return headers
-  },
+  getExtraHeaders: buildClientLlmHeaders,
   onUnauthorized: () => {
     if (typeof sessionStorage !== 'undefined' && typeof window !== 'undefined' && window.location.pathname !== '/login') {
       sessionStorage.setItem(SESSION_EXPIRED_KEY, '1')
@@ -50,13 +61,9 @@ const api = createApiClient(axios, {
 
 export function buildAuthHeaders() {
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem(AUTH_TOKEN_KEY) : null
-  const settings = getAppSettings()
   const headers = { 'Content-Type': 'application/json' }
   if (token) headers.Authorization = `Bearer ${token}`
-  if (settings?.provider) headers['x-llm-provider'] = settings.provider
-  if (settings?.apiKey) headers['x-llm-api-key'] = settings.apiKey
-  if (settings?.baseUrl) headers['x-llm-base-url'] = settings.baseUrl
-  if (settings?.model) headers['x-llm-model'] = settings.model
+  Object.assign(headers, buildClientLlmHeaders() || {})
   return headers
 }
 

@@ -18,6 +18,12 @@ from app.core.subscription import get_current_subscription, require_feature
 from app.models.base import get_db
 from app.models.user import User
 from app.services.file_parser import parse_file_from_bytes
+from app.services.rag_document_store import (
+    DocumentRegistryError,
+    rag_delete_document as store_delete_document,
+    rag_get_chunks,
+    rag_list_documents as store_list_documents,
+)
 from app.services.rag_service import get_rag_service
 
 logger = logging.getLogger(__name__)
@@ -82,10 +88,13 @@ def rag_list_documents(
 ):
     _require_rag(current_user, db)
     try:
-        return {"documents": get_rag_service().list_owned_documents(current_user.id)}
+        return {"documents": store_list_documents(current_user.id)}
+    except DocumentRegistryError as exc:
+        logger.warning("RAG registry list failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Document registry is unavailable")
     except Exception as exc:
         logger.warning("RAG list failed: %s", exc)
-        return {"documents": []}
+        raise HTTPException(status_code=500, detail="Document list failed")
 
 
 @router.get("/documents/chunks")
@@ -98,7 +107,7 @@ async def rag_get_document_chunks(
     doc_id = unquote(document_id or "").strip()
     if not doc_id:
         raise HTTPException(status_code=400, detail="Missing document_id")
-    chunks = get_rag_service().get_owned_chunks(current_user.id, doc_id)
+    chunks = rag_get_chunks(current_user.id, doc_id)
     if not chunks:
         raise HTTPException(status_code=404, detail="Document not found")
     return {"document_id": doc_id, "chunks": chunks}
@@ -114,7 +123,7 @@ async def rag_delete_document(
     doc_id = unquote(source or "").strip()
     if not doc_id:
         raise HTTPException(status_code=400, detail="Missing document_id")
-    deleted = get_rag_service().delete_document(current_user.id, doc_id)
+    deleted = store_delete_document(current_user.id, doc_id)
     if deleted <= 0:
         raise HTTPException(status_code=404, detail="Document not found")
     return {"message": "Deleted", "document_id": doc_id, "chunk_count": deleted}

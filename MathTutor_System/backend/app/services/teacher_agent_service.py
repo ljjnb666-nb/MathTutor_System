@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from datetime import UTC, datetime
 from typing import TypedDict
 
@@ -406,43 +407,22 @@ def _db_from_state(state: AgentState) -> Session:
 def contains_completed_write_claim(plan: TeacherAgentPlan) -> bool:
     """Detect explicit claims that a write action has already completed."""
     text = " ".join(_plan_text_fields(plan)).lower()
-    completed_markers = [
-        "created",
-        "created exam",
-        "exam has been created",
-        "saved",
-        "saved question",
-        "question has been saved",
-        "deleted",
-        "has been deleted",
-        "deleted successfully",
-        "published",
-        "has been published",
-        "published homework",
-        "charged",
-        "has been charged",
-        "paid",
-        "has been paid",
-        "payment completed",
-        "sent",
-        "has been sent",
-        "sent to students",
-        "updated",
-        "has been updated",
-        "updated student",
-        "\u5df2\u521b\u5efa",
-        "\u5df2\u751f\u6210\u5e76\u4fdd\u5b58",
-        "\u5df2\u4fdd\u5b58",
-        "\u5df2\u5220\u9664",
-        "\u5df2\u53d1\u5e03",
-        "\u5df2\u53d1\u9001",
-        "\u5df2\u4fee\u6539",
-        "\u5df2\u66f4\u65b0",
-        "\u5df2\u652f\u4ed8",
-        "\u5df2\u6263\u8d39",
-        "\u5df2\u8d2d\u4e70",
+    english_patterns = [
+        r"\b(?:i|we)\s+have\s+(?:just\s+)?(?:created|saved|deleted|published|charged|paid|sent|updated)\b",
+        r"\b(?:assistant|agent|system)\s+(?:has\s+)?(?:created|saved|deleted|published|charged|paid|sent|updated)\b",
+        r"\b(?:the\s+)?(?:assistant|agent|system)\s+created\b.+\bfor\s+you\b",
+        r"\b(?:exam|questions?|student|homework|assignment|notice|report|payment)\s+has\s+been\s+(?:created|saved|deleted|published|charged|paid|sent|updated|completed)\b",
+        r"\bpayment\s+has\s+been\s+completed\b",
+        r"\b(?:deleted|published|saved|sent|updated)\s+successfully\b",
     ]
-    return any(term in text for term in completed_markers)
+    chinese_patterns = [
+        r"(?:\u6211|\u7cfb\u7edf|\u52a9\u624b|agent|ai)\s*(?:\u5df2|\u5df2\u7ecf)\s*(?:\u4e3a\u4f60|\u4e3a\u60a8|\u4e3a\u8be5\u73ed)?\s*(?:\u521b\u5efa|\u751f\u6210\u5e76\u4fdd\u5b58|\u4fdd\u5b58|\u5220\u9664|\u53d1\u5e03|\u53d1\u9001|\u4fee\u6539|\u66f4\u65b0|\u652f\u4ed8|\u6263\u8d39|\u8d2d\u4e70)",
+        r"(?:\u5df2|\u5df2\u7ecf)\s*\u4e3a(?:\u4f60|\u60a8|\u8be5\u73ed|.{0,12})\s*(?:\u521b\u5efa|\u751f\u6210\u5e76\u4fdd\u5b58|\u4fdd\u5b58|\u5220\u9664|\u53d1\u5e03|\u53d1\u9001|\u4fee\u6539|\u66f4\u65b0|\u6263\u8d39|\u8d2d\u4e70)",
+        r"(?:\u8bd5\u5377|\u9898\u76ee|\u4f5c\u4e1a|\u901a\u77e5|\u5b66\u751f|\u6570\u636e|\u62a5\u544a)\s*(?:\u5df2|\u5df2\u7ecf)\s*(?:\u88ab)?\s*(?:\u521b\u5efa|\u751f\u6210\u5e76\u4fdd\u5b58|\u4fdd\u5b58|\u5220\u9664|\u53d1\u5e03|\u53d1\u9001|\u4fee\u6539|\u66f4\u65b0)",
+        r"(?:\u5df2|\u5df2\u7ecf)\s*\u5b8c\u6210\s*(?:\u652f\u4ed8|\u6263\u8d39|\u8d2d\u4e70)",
+        r"(?:\u5df2|\u5df2\u7ecf)\s*\u4ece.{0,12}\u6263\u8d39",
+    ]
+    return any(re.search(pattern, text) for pattern in english_patterns + chinese_patterns)
 
 
 def _plan_text_fields(plan: TeacherAgentPlan) -> list[str]:
