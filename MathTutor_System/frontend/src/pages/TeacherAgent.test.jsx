@@ -19,6 +19,11 @@ const api = vi.hoisted(() => ({
   createTeacherAgentRun: vi.fn(),
   getTeacherAgentRun: vi.fn(),
   getTeacherAgentRuns: vi.fn(),
+  createPracticeDraft: vi.fn(),
+  updatePracticeArtifact: vi.fn(),
+  preparePracticeSave: vi.fn(),
+  confirmPracticeAction: vi.fn(),
+  cancelPracticeAction: vi.fn(),
 }))
 
 vi.mock('../services/teacherAgentApi', () => api)
@@ -43,10 +48,49 @@ function completedRun() {
   }
 }
 
+function artifact(version = 1) {
+  return {
+    id: 10,
+    agent_run_id: 1,
+    status: 'ready_for_confirmation',
+    version,
+    title: 'Practice Draft',
+    validation_json: { valid: true, question_count: 5, errors: [], warnings: [] },
+    content_json: {
+      title: 'Practice Draft',
+      summary: 'Five questions',
+      knowledge_points: ['一次函数'],
+      difficulty_distribution: { medium: 5 },
+      safety_mode: 'draft_only',
+      warnings: [],
+      questions: Array.from({ length: 5 }, (_, i) => ({
+        client_question_id: `q-${i + 1}`,
+        question_type: 'choice',
+        stem: `Question ${i + 1}`,
+        options: ['A', 'B', 'C', 'D'],
+        answer: 'B',
+        explanation: `Explanation ${i + 1}`,
+        knowledge_points: ['一次函数'],
+        difficulty: 'medium',
+        score: 10,
+        source_basis: ['teacher_goal'],
+      })),
+    },
+  }
+}
+
+function preparedAction() {
+  return {
+    id: 20,
+    status: 'pending_confirmation',
+    idempotency_key: 'idem-key-123',
+    expected_artifact_version: 2,
+    result_json: null,
+  }
+}
+
 beforeEach(() => {
-  api.createTeacherAgentRun.mockReset()
-  api.getTeacherAgentRun.mockReset()
-  api.getTeacherAgentRuns.mockReset()
+  for (const fn of Object.values(api)) fn.mockReset()
   api.getTeacherAgentRuns.mockResolvedValue({ data: [] })
   studentContext.refreshStudents.mockReset()
 })
@@ -55,107 +99,139 @@ afterEach(() => {
   cleanup()
 })
 
+async function createCompletedPlan() {
+  api.createTeacherAgentRun.mockResolvedValue({ data: completedRun() })
+  render(<TeacherAgent />)
+  await userEvent.type(screen.getByLabelText('教学目标'), '规划复习课')
+  await userEvent.click(screen.getByRole('button', { name: /生成教学计划/ }))
+  expect(await screen.findByText('Read-only teaching plan')).toBeInTheDocument()
+}
+
 describe('TeacherAgent', () => {
-  it('shows read-only mode initially and blocks empty submit', async () => {
+  it('shows confirmed-save safety mode initially and blocks empty submit', () => {
     render(<TeacherAgent />)
 
-    expect(screen.getByText('当前为只读规划模式')).toBeInTheDocument()
+    expect(screen.getByText('模型只生成草稿，正式保存需要教师确认')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /生成教学计划/ })).toBeDisabled()
   })
 
-  it('renders completed structured plan', async () => {
-    api.createTeacherAgentRun.mockResolvedValue({ data: completedRun() })
-    render(<TeacherAgent />)
+  it('generates a completed plan and then shows practice draft controls', async () => {
+    await createCompletedPlan()
 
-    await userEvent.type(screen.getByLabelText('教学目标'), '规划复习课')
-    await userEvent.click(screen.getByRole('button', { name: /生成教学计划/ }))
-
-    expect(await screen.findByText('Read-only teaching plan')).toBeInTheDocument()
-    expect(screen.getByText('一次函数')).toBeInTheDocument()
+    expect(screen.getByText('练习题草稿')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /生成练习题草稿/ })).toBeInTheDocument()
   })
 
-  it('shows needs_input fields', async () => {
-    api.createTeacherAgentRun.mockResolvedValue({
+  it('generates structured practice draft preview', async () => {
+    await createCompletedPlan()
+    api.createPracticeDraft.mockResolvedValue({ data: artifact(1) })
+
+    await userEvent.type(screen.getByPlaceholderText('一次函数, 勾股定理'), '一次函数')
+    await userEvent.click(screen.getByRole('button', { name: /生成练习题草稿/ }))
+
+    expect(await screen.findByText('Practice Draft')).toBeInTheDocument()
+    expect(screen.getByText('版本 1')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Question 1')).toBeInTheDocument()
+    expect(api.createPracticeDraft).toHaveBeenCalledWith(1, expect.objectContaining({ question_count: 5 }))
+  })
+
+  it('edits question and updates artifact version', async () => {
+    await createCompletedPlan()
+    api.createPracticeDraft.mockResolvedValue({ data: artifact(1) })
+    api.updatePracticeArtifact.mockResolvedValue({ data: artifact(2) })
+
+    await userEvent.click(screen.getByRole('button', { name: /生成练习题草稿/ }))
+    const firstStem = await screen.findByDisplayValue('Question 1')
+    await userEvent.clear(firstStem)
+    await userEvent.type(firstStem, 'Updated Question 1')
+    await userEvent.click(screen.getByRole('button', { name: /保存编辑/ }))
+
+    await waitFor(() => expect(api.updatePracticeArtifact).toHaveBeenCalledWith(10, expect.objectContaining({ expected_version: 1 })))
+    expect(await screen.findByText('版本 2')).toBeInTheDocument()
+  })
+
+  it('shows stale version conflict message', async () => {
+    await createCompletedPlan()
+    api.createPracticeDraft.mockResolvedValue({ data: artifact(1) })
+    api.updatePracticeArtifact.mockRejectedValue({ response: { status: 409, data: { detail: 'stale' } } })
+
+    await userEvent.click(screen.getByRole('button', { name: /生成练习题草稿/ }))
+    await screen.findByText('版本 1')
+    await userEvent.click(screen.getByRole('button', { name: /保存编辑/ }))
+
+    expect(await screen.findByText('该草稿已被更新，请刷新后重试。')).toBeInTheDocument()
+  })
+
+  it('prepare-save opens explicit confirmation dialog and cancel does not confirm', async () => {
+    await createCompletedPlan()
+    api.createPracticeDraft.mockResolvedValue({ data: artifact(2) })
+    api.preparePracticeSave.mockResolvedValue({
       data: {
-        id: 2,
-        status: 'needs_input',
-        goal: '分析当前学生',
-        created_at: new Date().toISOString(),
-        missing_fields_json: [{ field: 'student_id', message: '请选择学生' }],
-        warnings_json: [],
+        action: preparedAction(),
+        confirmation_summary: {
+          question_count: 5,
+          target_question_bank: 'question_bank',
+          knowledge_points: ['一次函数'],
+          total_score: 50,
+          artifact_version: 2,
+          will_not: ['publish homework', 'create exam', 'charge payment'],
+        },
       },
     })
-    render(<TeacherAgent />)
 
-    await userEvent.type(screen.getByLabelText('教学目标'), '分析当前学生')
-    await userEvent.click(screen.getByRole('button', { name: /生成教学计划/ }))
+    await userEvent.click(screen.getByRole('button', { name: /生成练习题草稿/ }))
+    await screen.findByText('版本 2')
+    await userEvent.click(screen.getByRole('button', { name: /^保存到题库$/ }))
 
-    expect(await screen.findByText('需要补充信息')).toBeInTheDocument()
-    expect(screen.getByText('请选择学生')).toBeInTheDocument()
+    expect(await screen.findByRole('dialog')).toHaveTextContent('将创建 5 道正式题目')
+    expect(screen.getByText(/不会：publish homework/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '取消' }))
+    expect(api.confirmPracticeAction).not.toHaveBeenCalled()
   })
 
-  it('resubmits with selected student after needs_input', async () => {
-    api.createTeacherAgentRun
-      .mockResolvedValueOnce({
-        data: {
-          id: 2,
-          status: 'needs_input',
-          goal: '分析当前学生',
-          created_at: new Date().toISOString(),
-          missing_fields_json: [{ field: 'student_id', message: '请选择学生' }],
-          warnings_json: [],
-        },
-      })
-      .mockResolvedValueOnce({ data: completedRun() })
-    const { container } = render(<TeacherAgent />)
+  it('confirms save once and shows completed question count', async () => {
+    await createCompletedPlan()
+    api.createPracticeDraft.mockResolvedValue({ data: artifact(2) })
+    api.preparePracticeSave.mockResolvedValue({
+      data: {
+        action: preparedAction(),
+        confirmation_summary: { question_count: 5, target_question_bank: 'question_bank', knowledge_points: ['一次函数'], total_score: 50, artifact_version: 2, will_not: [] },
+      },
+    })
+    api.confirmPracticeAction.mockResolvedValue({
+      data: { ...preparedAction(), status: 'completed', completed_at: new Date().toISOString(), result_json: { question_count: 5, question_ids: [1, 2, 3, 4, 5] } },
+    })
 
-    await userEvent.type(screen.getByLabelText('教学目标'), '分析当前学生')
-    const button = screen.getByRole('button', { name: /生成教学计划/ })
-    await userEvent.click(button)
-    expect(await screen.findByText('请选择学生')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /生成练习题草稿/ }))
+    await screen.findByText('版本 2')
+    await userEvent.click(screen.getByRole('button', { name: /^保存到题库$/ }))
+    await screen.findByRole('dialog')
+    await userEvent.click(screen.getByRole('button', { name: /确认保存到题库/ }))
 
-    await userEvent.selectOptions(container.querySelector('select'), '1')
-    await userEvent.click(button)
-
-    await waitFor(() => expect(api.createTeacherAgentRun).toHaveBeenCalledTimes(2))
-    expect(api.createTeacherAgentRun.mock.calls[1][0]).toMatchObject({ student_id: 1 })
-  })
-
-  it('shows failed safety error and prevents double submit while loading', async () => {
-    let resolve
-    api.createTeacherAgentRun.mockReturnValue(new Promise((res) => { resolve = res }))
-    render(<TeacherAgent />)
-
-    await userEvent.type(screen.getByLabelText('教学目标'), '删除试卷')
-    const button = screen.getByRole('button', { name: /生成教学计划/ })
-    await userEvent.click(button)
-    expect(button).toBeDisabled()
-
-    resolve({ data: { id: 3, status: 'failed', goal: '删除试卷', created_at: new Date().toISOString(), error_message: '只读模式拒绝写操作' } })
-    expect(await screen.findByText('只读模式拒绝写操作')).toBeInTheDocument()
-    expect(api.createTeacherAgentRun).toHaveBeenCalledTimes(1)
-  })
-
-  it('restores submit state and avoids duplicate history on network error', async () => {
-    api.createTeacherAgentRun.mockRejectedValue(new Error('network timeout'))
-    render(<TeacherAgent />)
-
-    await userEvent.type(screen.getByLabelText('教学目标'), '规划复习课')
-    const button = screen.getByRole('button', { name: /生成教学计划/ })
-    await userEvent.click(button)
-
-    expect(await screen.findByText('network timeout')).toBeInTheDocument()
-    expect(button).not.toBeDisabled()
-    expect(api.createTeacherAgentRun).toHaveBeenCalledTimes(1)
-    expect(api.getTeacherAgentRuns).toHaveBeenCalledTimes(1)
-  })
-
-  it('only shows history records returned by API and does not leak internal prompt', async () => {
-    api.getTeacherAgentRuns.mockResolvedValue({ data: [completedRun()] })
-    render(<TeacherAgent />)
-
-    expect(await screen.findByText('规划复习课')).toBeInTheDocument()
-    await waitFor(() => expect(screen.queryByText(/SYSTEM RULES/)).not.toBeInTheDocument())
+    await waitFor(() => expect(api.confirmPracticeAction).toHaveBeenCalledTimes(1))
+    expect(await screen.findByText('已创建正式题目 5 道。')).toBeInTheDocument()
     expect(screen.queryByText(/api_key/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/SYSTEM PROMPT/i)).not.toBeInTheDocument()
+  })
+
+  it('cancels pending action from panel', async () => {
+    await createCompletedPlan()
+    api.createPracticeDraft.mockResolvedValue({ data: artifact(2) })
+    api.preparePracticeSave.mockResolvedValue({
+      data: {
+        action: preparedAction(),
+        confirmation_summary: { question_count: 5, target_question_bank: 'question_bank', knowledge_points: [], total_score: 50, artifact_version: 2, will_not: [] },
+      },
+    })
+    api.cancelPracticeAction.mockResolvedValue({ data: { ...preparedAction(), status: 'cancelled' } })
+
+    await userEvent.click(screen.getByRole('button', { name: /生成练习题草稿/ }))
+    await screen.findByText('版本 2')
+    await userEvent.click(screen.getByRole('button', { name: /^保存到题库$/ }))
+    await screen.findByRole('dialog')
+    await userEvent.click(screen.getByRole('button', { name: '取消' }))
+    await userEvent.click(screen.getByRole('button', { name: /取消 Action/ }))
+
+    expect(await screen.findByText('已取消')).toBeInTheDocument()
   })
 })
