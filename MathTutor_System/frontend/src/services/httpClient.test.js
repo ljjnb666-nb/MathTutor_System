@@ -21,8 +21,15 @@ describe('httpClient LLM headers', () => {
     expect(buildClientLlmHeaders(meta)).toBeNull()
   })
 
-  it('sends configured LLM headers in development by default', () => {
+  it('does not send configured LLM headers in development by default', () => {
     const meta = { env: { DEV: true } }
+
+    expect(shouldSendClientLlmHeaders(meta)).toBe(false)
+    expect(buildClientLlmHeaders(meta)).toBeNull()
+  })
+
+  it('sends configured LLM headers only when explicitly enabled in development', () => {
+    const meta = { env: { DEV: true, VITE_ALLOW_CLIENT_LLM_CONFIG: 'true' } }
 
     expect(shouldSendClientLlmHeaders(meta)).toBe(true)
     expect(buildClientLlmHeaders(meta)).toEqual({
@@ -35,7 +42,7 @@ describe('httpClient LLM headers', () => {
 
   it('uses explicit VITE_ALLOW_CLIENT_LLM_CONFIG before DEV default', () => {
     expect(shouldSendClientLlmHeaders({ env: { DEV: true, VITE_ALLOW_CLIENT_LLM_CONFIG: 'false' } })).toBe(false)
-    expect(shouldSendClientLlmHeaders({ env: { DEV: false, VITE_ALLOW_CLIENT_LLM_CONFIG: 'true' } })).toBe(true)
+    expect(shouldSendClientLlmHeaders({ env: { DEV: false, VITE_ALLOW_CLIENT_LLM_CONFIG: 'true' } })).toBe(false)
   })
 
   it('keeps buildAuthHeaders consistent with client LLM header policy', () => {
@@ -45,7 +52,7 @@ describe('httpClient LLM headers', () => {
 
     expect(headers.Authorization).toBe('Bearer token-a')
     expect(headers['Content-Type']).toBe('application/json')
-    if (import.meta.env.DEV) {
+    if (import.meta.env.DEV && import.meta.env.VITE_ALLOW_CLIENT_LLM_CONFIG === 'true') {
       expect(headers['x-llm-api-key']).toBe('client-secret')
     } else {
       expect(headers['x-llm-api-key']).toBeUndefined()

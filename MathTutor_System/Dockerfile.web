@@ -9,6 +9,8 @@ ENV NODE_OPTIONS=--max-old-space-size=512
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm install --legacy-peer-deps
 COPY frontend/ .
+ARG VITE_ALLOW_CLIENT_LLM_CONFIG=false
+ENV VITE_ALLOW_CLIENT_LLM_CONFIG=$VITE_ALLOW_CLIENT_LLM_CONFIG
 RUN npm run build
 
 # ---------- 阶段 2：学生端（base /student/） ----------

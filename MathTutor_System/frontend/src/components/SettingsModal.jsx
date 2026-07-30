@@ -1,15 +1,29 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Eye, EyeOff, ExternalLink } from 'lucide-react'
+import { ExternalLink, Eye, EyeOff, RefreshCw, Trash2, X } from 'lucide-react'
 import {
   PROVIDERS,
+  getApiKeyForProvider,
+  getApiVersionForProvider,
+  getBaseUrlForProvider,
+  getProviderByValue,
   getStoredSettings,
   setStoredSettings,
-  getProviderByValue,
-  getApiKeyForProvider,
-  getBaseUrlForProvider,
-  getApiVersionForProvider,
 } from '../constants/ai-providers'
+import { buildLlmHeadersFromSettings, shouldSendClientLlmHeaders } from '../services/httpClient'
+import { getLlmStatus, testLlmConnection } from '../services/llmApi'
+
+function statusText(status, frontendAllowsClientConfig) {
+  if (!status) return '正在读取模型配置状态...'
+  if (!frontendAllowsClientConfig) return '当前环境由服务器统一配置模型，浏览器端配置不会生效。'
+  if (!status.client_config_allowed) return '后端未开启客户端模型配置，当前浏览器配置不会用于生成请求。'
+  return '模型配置已保存到当前浏览器。生成请求将使用该配置。'
+}
+
+function resultClass(result) {
+  if (!result) return 'border-gray-200 bg-gray-50 text-gray-700'
+  return result.success ? 'border-green-200 bg-green-50 text-green-800' : 'border-red-200 bg-red-50 text-red-800'
+}
 
 export default function SettingsModal({ open, onClose }) {
   const [providerValue, setProviderValue] = useState('deepseek')
@@ -20,9 +34,16 @@ export default function SettingsModal({ open, onClose }) {
   const [apiVersion, setApiVersion] = useState('')
   const [showThinking, setShowThinking] = useState(false)
   const [showApiKey, setShowApiKey] = useState(false)
+  const [status, setStatus] = useState(null)
+  const [statusError, setStatusError] = useState('')
+  const [saveMessage, setSaveMessage] = useState('')
+  const [testResult, setTestResult] = useState(null)
+  const [testing, setTesting] = useState(false)
 
   const provider = getProviderByValue(providerValue)
   const displayModel = customModel.trim() || model
+  const frontendAllowsClientConfig = shouldSendClientLlmHeaders()
+  const clientInputsDisabled = !frontendAllowsClientConfig
 
   useEffect(() => {
     if (!open) return
@@ -35,9 +56,15 @@ export default function SettingsModal({ open, onClose }) {
     setBaseUrl(getBaseUrlForProvider(p.value))
     setApiVersion(getApiVersionForProvider(p.value))
     setShowThinking(Boolean(stored.showThinking))
+    setShowApiKey(false)
+    setSaveMessage('')
+    setTestResult(null)
+    setStatusError('')
+    getLlmStatus()
+      .then(setStatus)
+      .catch(() => setStatusError('无法读取服务器模型状态，请稍后重试。'))
   }, [open])
 
-  // 手机端打开时禁止背景滚动，关闭时恢复
   useEffect(() => {
     if (!open) return
     const prev = document.body.style.overflow
@@ -47,23 +74,25 @@ export default function SettingsModal({ open, onClose }) {
     }
   }, [open])
 
-  const handleProviderChange = (v) => {
-    setProviderValue(v)
-    const p = getProviderByValue(v)
-    setBaseUrl(getBaseUrlForProvider(v))
-    setApiVersion(getApiVersionForProvider(v))
-    setModel(p.models?.[0]?.value ?? '')
+  const handleProviderChange = (value) => {
+    const nextProvider = getProviderByValue(value)
+    setProviderValue(value)
+    setBaseUrl(getBaseUrlForProvider(value))
+    setApiVersion(getApiVersionForProvider(value))
+    setModel(nextProvider.models?.[0]?.value ?? '')
     setCustomModel('')
-    setApiKey(getApiKeyForProvider(v))
+    setApiKey(getApiKeyForProvider(value))
+    setSaveMessage('')
+    setTestResult(null)
   }
 
-  const handleAutoFillBaseUrl = () => {
-    setBaseUrl(provider.baseUrl ?? '')
-  }
-
-  const handleAutoFillApiVersion = () => {
-    setApiVersion(provider.apiVersion ?? '')
-  }
+  const currentSettings = () => ({
+    provider: providerValue,
+    model: displayModel,
+    apiKey,
+    baseUrl: baseUrl.trim(),
+    apiVersion: apiVersion.trim(),
+  })
 
   const handleSave = () => {
     const stored = getStoredSettings()
@@ -72,225 +101,177 @@ export default function SettingsModal({ open, onClose }) {
     const apiVersionsByProvider = { ...(stored.apiVersionsByProvider || {}), [providerValue]: apiVersion.trim() }
     setStoredSettings({
       ...stored,
-      provider: providerValue,
-      model: displayModel,
-      apiKey,
-      baseUrl: baseUrl.trim(),
-      apiVersion: apiVersion.trim(),
+      ...currentSettings(),
       showThinking,
       apiKeysByProvider,
       baseUrlsByProvider,
       apiVersionsByProvider,
     })
-    onClose?.()
+    setSaveMessage(statusText(status, frontendAllowsClientConfig))
+  }
+
+  const handleClear = () => {
+    setApiKey('')
+    setSaveMessage('已清除当前服务商在本浏览器保存的 API Key。')
+    const stored = getStoredSettings()
+    const apiKeysByProvider = { ...(stored.apiKeysByProvider || {}) }
+    delete apiKeysByProvider[providerValue]
+    setStoredSettings({ ...stored, apiKey: '', apiKeysByProvider })
+  }
+
+  const handleTest = async () => {
+    setTesting(true)
+    setTestResult(null)
+    try {
+      const headers = frontendAllowsClientConfig ? buildLlmHeadersFromSettings(currentSettings()) || {} : {}
+      const result = await testLlmConnection(headers)
+      setTestResult({ ...result, testedAt: new Date().toLocaleString() })
+    } catch {
+      setTestResult({
+        success: false,
+        code: 'LLM_CONNECTION_FAILED',
+        message: '模型测试请求失败，请检查后端服务是否可用。',
+        testedAt: new Date().toLocaleString(),
+      })
+    } finally {
+      setTesting(false)
+    }
   }
 
   if (!open) return null
 
   const modalContent = (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center p-0 sm:p-4">
-      {/* 安全区：整块遮罩铺满，弹窗内用 padding 避开刘海/横条 */}
-      <div
-        className="absolute inset-0 bg-black/50"
-        onClick={onClose}
-        onKeyDown={(e) => e.key === 'Escape' && onClose()}
-        role="button"
-        tabIndex={0}
-        aria-label="关闭"
-      />
-      <div
-        className="relative w-full max-h-[90dvh] sm:max-h-[85vh] max-w-lg rounded-t-2xl sm:rounded-xl border border-gray-200 border-b-0 sm:border-b bg-white shadow-xl flex flex-col"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="settings-title"
-      >
-        {/* 顶部：标题 + 关闭（刘海安全区） */}
-        <div
-          className="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 sm:px-5 py-3 sm:py-4 pt-[max(0.75rem,env(safe-area-inset-top))]"
-        >
-          <h2 id="settings-title" className="text-lg font-semibold text-gray-800">
-            API 配置
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-2 -m-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center"
-            aria-label="关闭"
-          >
+    <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative flex max-h-[90dvh] w-full max-w-lg flex-col rounded-t-2xl border border-gray-200 bg-white shadow-xl sm:max-h-[85vh] sm:rounded-xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3 sm:px-5 sm:py-4">
+          <h2 className="text-lg font-semibold text-gray-800">API 配置</h2>
+          <button type="button" onClick={onClose} className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2 text-gray-500 hover:bg-gray-100" aria-label="关闭">
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 px-4 sm:px-5 py-4">
-          {/* 服务商：按钮组，手机端加大触控区域 */}
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5">
+          <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+            <div>运行环境：{status?.environment || 'unknown'}</div>
+            <div>配置来源：{frontendAllowsClientConfig && status?.client_config_allowed ? '当前浏览器' : '服务器环境变量'}</div>
+            <div>服务器模型：{status?.configured ? `${status.provider || '-'} / ${status.model || '-'}` : '未配置'}</div>
+            <div>客户端配置：{frontendAllowsClientConfig && status?.client_config_allowed ? '已允许' : '未启用'}</div>
+            <p className="mt-2 text-xs">{statusError || statusText(status, frontendAllowsClientConfig)}</p>
+          </div>
+
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            此配置仅保存在当前浏览器中，仅建议用于本地开发环境。请勿在公共设备中使用。
+          </p>
+
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-600">
-              服务商
-            </label>
+            <label className="mb-1.5 block text-xs font-medium text-gray-600">服务商</label>
             <div className="flex flex-wrap gap-2">
-              {PROVIDERS.map((p) => (
+              {PROVIDERS.map((item) => (
                 <button
-                  key={p.value}
+                  key={item.value}
                   type="button"
-                  onClick={() => handleProviderChange(p.value)}
-                  className={`rounded-lg border px-3 py-2.5 min-h-[44px] text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 touch-manipulation ${
-                    providerValue === p.value
-                      ? 'border-blue-600 bg-blue-50 text-blue-700'
-                      : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100'
-                  }`}
+                  disabled={clientInputsDisabled}
+                  onClick={() => handleProviderChange(item.value)}
+                  className={`min-h-[44px] rounded-lg border px-3 py-2 text-sm font-medium ${
+                    providerValue === item.value ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-300 bg-white text-gray-700'
+                  } disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400`}
                 >
-                  {p.label}
+                  {item.label}
                 </button>
               ))}
             </div>
             {provider.docUrl && (
-              <a
-                href={provider.docUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-1.5 inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
-              >
+              <a href={provider.docUrl} target="_blank" rel="noopener noreferrer" className="mt-1.5 inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
                 <ExternalLink className="h-3.5 w-3.5" />
                 打开 API 文档
               </a>
             )}
-            {provider.regionHint && (
-              <p className="mt-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
-                {provider.regionHint}
-              </p>
-            )}
           </div>
 
-          {/* 模型：按钮组 + 自定义输入 */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-600">
-              模型
-            </label>
+            <label className="mb-1.5 block text-xs font-medium text-gray-600">模型</label>
             <div className="flex flex-wrap gap-2">
-              {(provider.models ?? []).map((m) => (
+              {(provider.models ?? []).map((item) => (
                 <button
-                  key={m.value}
+                  key={item.value}
                   type="button"
-                  onClick={() => setModel(m.value)}
-                  className={`rounded-lg border px-3 py-2.5 min-h-[44px] text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 touch-manipulation ${
-                    model === m.value
-                      ? 'border-blue-600 bg-blue-50 text-blue-700'
-                      : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100'
-                  }`}
+                  disabled={clientInputsDisabled}
+                  onClick={() => setModel(item.value)}
+                  className={`min-h-[44px] rounded-lg border px-3 py-2 text-sm font-medium ${
+                    model === item.value ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-300 bg-white text-gray-700'
+                  } disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400`}
                 >
-                  {m.label}
+                  {item.label}
                 </button>
               ))}
             </div>
             <input
               type="text"
+              disabled={clientInputsDisabled}
               value={customModel}
-              onChange={(e) => setCustomModel(e.target.value)}
-              placeholder="或自定义模型名"
-              className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5 min-h-[44px] text-sm text-gray-800 placeholder-gray-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+              onChange={(event) => setCustomModel(event.target.value)}
+              placeholder="或自定义模型名称"
+              className="mt-2 min-h-[44px] w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder-gray-400 disabled:bg-gray-100"
             />
           </div>
 
-          {/* API Key */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-600">
-              API Key
-            </label>
+            <label className="mb-1.5 block text-xs font-medium text-gray-600">API Key</label>
             <div className="relative">
               <input
                 type={showApiKey ? 'text' : 'password'}
+                disabled={clientInputsDisabled}
                 value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="请输入 API Key"
-                className="w-full rounded-lg border border-gray-300 bg-white py-2.5 min-h-[44px] pl-3 pr-12 text-sm text-gray-800 placeholder-gray-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+                onChange={(event) => setApiKey(event.target.value)}
+                placeholder={clientInputsDisabled ? '生产环境禁用浏览器端 API Key' : '请输入 API Key'}
+                className="min-h-[44px] w-full rounded-lg border border-gray-300 py-2 pl-3 pr-12 text-sm text-gray-800 placeholder-gray-400 disabled:bg-gray-100"
               />
-              <button
-                type="button"
-                onClick={() => setShowApiKey((v) => !v)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-gray-700 touch-manipulation"
-                aria-label={showApiKey ? '隐藏' : '显示'}
-              >
-                {showApiKey ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
+              <button type="button" disabled={clientInputsDisabled} onClick={() => setShowApiKey((value) => !value)} className="absolute right-2 top-1/2 flex min-h-[44px] min-w-[44px] -translate-y-1/2 items-center justify-center rounded p-2 text-gray-500 hover:bg-gray-100 disabled:text-gray-300" aria-label={showApiKey ? '隐藏 API Key' : '显示 API Key'}>
+                {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
           </div>
 
-          {/* Base URL + 自动填充（手机端上下排列） */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-600">
-              Base URL
-            </label>
-            <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
-              <input
-                type="url"
-                value={baseUrl}
-                onChange={(e) => setBaseUrl(e.target.value)}
-                placeholder="例如 https://api.openai.com/v1"
-                className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2.5 min-h-[44px] text-sm text-gray-800 placeholder-gray-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
-              />
-              <button
-                type="button"
-                onClick={handleAutoFillBaseUrl}
-                className="shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-600/20 touch-manipulation sm:text-xs"
-              >
+            <label className="mb-1.5 block text-xs font-medium text-gray-600">Base URL</label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <input type="url" disabled={clientInputsDisabled} value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="例如 https://api.openai.com/v1" className="min-h-[44px] flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder-gray-400 disabled:bg-gray-100" />
+              <button type="button" disabled={clientInputsDisabled} onClick={() => setBaseUrl(provider.baseUrl ?? '')} className="min-h-[44px] rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 disabled:bg-gray-100 disabled:text-gray-400">
                 自动填充
               </button>
             </div>
           </div>
 
-          {/* API 版本 + 自动填充 */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-600">
-              API 版本
-            </label>
-            <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
-              <input
-                type="text"
-                value={apiVersion}
-                onChange={(e) => setApiVersion(e.target.value)}
-                placeholder="如 v1 或 v1beta"
-                className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2.5 min-h-[44px] text-sm text-gray-800 placeholder-gray-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
-              />
-              <button
-                type="button"
-                onClick={handleAutoFillApiVersion}
-                className="shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-600/20 touch-manipulation sm:text-xs"
-              >
-                自动填充
-              </button>
-            </div>
+            <label className="mb-1.5 block text-xs font-medium text-gray-600">API 版本</label>
+            <input type="text" disabled={clientInputsDisabled} value={apiVersion} onChange={(event) => setApiVersion(event.target.value)} placeholder="如 v1 或 v1beta" className="min-h-[44px] w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder-gray-400 disabled:bg-gray-100" />
           </div>
 
-          {/* 调试选项（加大点击区域） */}
-          <label className="flex cursor-pointer items-center gap-3 py-2 -mx-1 rounded-lg hover:bg-gray-50 active:bg-gray-100 touch-manipulation">
-            <input
-              type="checkbox"
-              checked={showThinking}
-              onChange={(e) => setShowThinking(e.target.checked)}
-              className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-600 shrink-0"
-            />
+          <label className="flex cursor-pointer items-center gap-3 rounded-lg py-2 hover:bg-gray-50">
+            <input type="checkbox" checked={showThinking} onChange={(event) => setShowThinking(event.target.checked)} className="h-5 w-5 rounded border-gray-300 text-blue-600" />
             <span className="text-sm text-gray-700">显示 AI 思考过程</span>
           </label>
+
+          {saveMessage && <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">{saveMessage}</div>}
+          {testResult && (
+            <div className={`rounded-lg border px-3 py-2 text-sm ${resultClass(testResult)}`}>
+              <div>{testResult.message}</div>
+              <div className="mt-1 text-xs">代码：{testResult.code || 'OK'}；时间：{testResult.testedAt}</div>
+            </div>
+          )}
         </div>
 
-        {/* 底部按钮：手机端全宽、上下排列，底部安全区（避开横条） */}
-        <div className="flex shrink-0 flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3 border-t border-gray-200 px-4 sm:px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-gray-300 bg-white px-4 py-3 min-h-[48px] text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 touch-manipulation w-full sm:w-auto"
-          >
-            取消
+        <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-gray-200 px-4 py-4 sm:flex-row sm:justify-end sm:px-5">
+          <button type="button" onClick={handleClear} className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <Trash2 className="h-4 w-4" />
+            清除本地配置
           </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            className="rounded-xl bg-blue-600 px-4 py-3 min-h-[48px] text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 touch-manipulation w-full sm:w-auto"
-          >
+          <button type="button" onClick={handleTest} disabled={testing} className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:cursor-wait disabled:text-blue-300">
+            <RefreshCw className={`h-4 w-4 ${testing ? 'animate-spin' : ''}`} />
+            测试连接
+          </button>
+          <button type="button" onClick={handleSave} className="min-h-[48px] rounded-xl bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700">
             保存配置
           </button>
         </div>
