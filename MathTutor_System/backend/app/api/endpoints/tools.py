@@ -2,6 +2,7 @@
 工具类 API：PPT 生成等。
 """
 import logging
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
@@ -14,6 +15,7 @@ from app.core.deps import LLMConfig, get_llm_config
 from app.core.subscription import get_current_subscription, require_feature
 from app.models.base import get_db
 from app.models.user import User
+from app.services.llm_key_test_service import test_llm_api_key
 from app.services.ppt_service import create_pptx_file, generate_lecture_content
 
 logger = logging.getLogger(__name__)
@@ -23,6 +25,22 @@ router = APIRouter()
 class GeneratePPTRequest(BaseModel):
     topic: str = Field(..., description="主题，如 Pythagorean Theorem")
     grade: str = Field(default="Middle", description="学段：Primary | Middle | High School")
+
+
+class LLMKeyTestResponse(BaseModel):
+    ok: bool
+    provider: str
+    model: str
+    base_url: str
+    latency_ms: int
+    message: str
+
+
+class LLMKeyTestRequest(BaseModel):
+    provider: str = Field(default="")
+    api_key: str = Field(default="")
+    base_url: str = Field(default="")
+    model: str = Field(default="")
 
 
 def _sanitize_pptx_filename(name: str) -> str:
@@ -38,6 +56,21 @@ class BuildPPTRequest(BaseModel):
     title: str = Field(default="", description="演示文稿标题")
     slides: list = Field(..., description="幻灯片列表，每项含 layout, title, subtitle?, bullets?")
     filename: str | None = Field(None, description="下载时使用的文件名（不含路径），不含 .pptx 则自动追加")
+
+
+@router.post("/test-llm-key", response_model=LLMKeyTestResponse)
+async def api_test_llm_key(
+    body: LLMKeyTestRequest,
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Run a minimal authenticated LLM request without storing or returning the API key."""
+    llm_config = LLMConfig(
+        provider=body.provider.strip(),
+        api_key=body.api_key.strip(),
+        base_url=body.base_url.strip(),
+        model=body.model.strip(),
+    )
+    return await test_llm_api_key(llm_config)
 
 
 @router.post("/generate-ppt")

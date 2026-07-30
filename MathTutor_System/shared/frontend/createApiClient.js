@@ -20,7 +20,7 @@ export function createApiClient(axios, {
   api.interceptors.request.use((config) => {
     const token = typeof localStorage !== 'undefined' ? localStorage.getItem(tokenStorageKey) : null
     if (token) config.headers.Authorization = `Bearer ${token}`
-    const extraHeaders = getExtraHeaders ? getExtraHeaders() : null
+    const extraHeaders = !config.skipStoredLlmHeaders && getExtraHeaders ? getExtraHeaders() : null
     if (extraHeaders && typeof extraHeaders === 'object') {
       Object.assign(config.headers, extraHeaders)
     }
