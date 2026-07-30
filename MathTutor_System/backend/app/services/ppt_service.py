@@ -2,21 +2,18 @@
 Magic PPT 生成服务：用 DeepSeek 生成讲稿 JSON，再用 python-pptx 生成 .pptx 文件。
 采用空白布局 + 自定义版式，统一配色与字体层级，呈现更美观、专业的教学风格。
 """
-import json
-import logging
-import re
 from io import BytesIO
 from typing import Any
 
-from openai import OpenAI
 from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.util import Inches, Pt
 
-from app.core.config import AI_REQUEST_TIMEOUT, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL
-
-logger = logging.getLogger(__name__)
+from app.services.ppt_content_service import (
+    clean_json_string as _clean_json_string,
+    generate_lecture_content,
+)
 
 # 版式常量（16:9 宽屏）
 _SLIDE_W = Inches(13.333)
@@ -46,99 +43,6 @@ _SECTION_TITLE = RGBColor(0xFF, 0xFF, 0xFF)
 _LINE_LIGHT = RGBColor(0xE2, 0xE8, 0xF0)
 _CARD_SHADOW = RGBColor(0xF1, 0xF5, 0xF9)
 _SHADOW_COLOR = RGBColor(0xE2, 0xE8, 0xF0)   # 卡片阴影
-
-
-def _clean_json_string(raw: str) -> str:
-    """去除 AI 返回的 markdown 代码块标记。"""
-    s = (raw or "").strip()
-    m = re.search(r"```(?:json)?\s*([\s\S]*?)```", s)
-    if m:
-        s = m.group(1).strip()
-    return s
-
-
-def generate_lecture_content(
-    topic: str,
-    grade: str,
-    api_key: str | None = None,
-    base_url: str | None = None,
-    model: str | None = None,
-) -> dict[str, Any]:
-    """
-    使用 DeepSeek 根据主题与学段生成结构化幻灯片内容 JSON。
-    优先使用传入的 api_key / base_url（来自前端「设置」或请求头）。
-    """
-    key = (api_key or "").strip() or DEEPSEEK_API_KEY
-    if not key:
-        raise ValueError(
-            "未配置 API Key。请在前端「设置」中选择 DeepSeek 并填写 API Key 后保存，或在 .env 中设置 DEEPSEEK_API_KEY。"
-        )
-
-    url = (base_url or "").strip() or DEEPSEEK_BASE_URL
-    client = OpenAI(base_url=url, api_key=key, timeout=float(AI_REQUEST_TIMEOUT))
-    model_name = (model or "").strip() or DEEPSEEK_MODEL
-
-    system_prompt = """You are an expert math educator creating professional teaching slide decks for middle school (初中) math.
-Output a JSON object with a list of slides. Use ONLY two layout types: "title" (first slide only) and "content" (all other slides). Do NOT create any standalone section divider or "以下为本章内容" page.
-
-Structure (strict):
-{
-  "title": "Presentation Main Title",
-  "slides": [
-    { "layout": "title", "title": "Main Title", "subtitle": "Optional subtitle or grade/topic" },
-    { "layout": "content", "title": "学习目标", "bullets": ["目标1", "目标2"] },
-    { "layout": "content", "title": "概念讲解", "bullets": ["Point 1", "Point 2"] },
-    { "layout": "content", "title": "例题", "bullets": ["题目：...", "解：步骤1", "步骤2", "答：..."] },
-    { "layout": "content", "title": "本课总结", "bullets": ["要点1", "要点2"] }
-  ]
-}
-
-Layout rules (must follow):
-- "title": only the first slide; title + optional subtitle.
-- "content": all other slides. Each slide has "title" and "bullets" (array of strings). Do NOT use "section" layout.
-- Use content slides with clear titles (e.g. "学习目标", "概念讲解", "例题", "练习", "本课总结") so the structure is clear without any separate divider page.
-
-Content rules:
-- Be concise: each bullet one line; avoid long paragraphs.
-- Use proper math terms; formulas in text (e.g. "勾股定理: a²+b²=c²").
-- Include 1–2 example slides with title "例题" and clear steps in bullets, and a "本课总结" slide at the end.
-- Total: 6–12 content slides (plus one title slide); no empty or divider-only slides.
-
-Output only valid JSON. No markdown code fences or extra text."""
-
-    user_content = f"Topic: {topic}\nGrade level: {grade}"
-
-    try:
-        resp = client.chat.completions.create(
-            model=model_name,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_content},
-            ],
-            temperature=0.5,
-        )
-        raw = (resp.choices[0].message.content or "").strip()
-        cleaned = _clean_json_string(raw)
-        data = json.loads(cleaned)
-        if not isinstance(data, dict):
-            raise ValueError("AI 未返回有效的 JSON 对象")
-        if "slides" not in data or not isinstance(data["slides"], list):
-            raise ValueError("返回的 JSON 中缺少 slides 数组")
-        return data
-    except json.JSONDecodeError as e:
-        logger.warning(
-            "ppt_lecture_generate_failed",
-            extra={"error_type": "JSONDecodeError", "detail": str(e)},
-            exc_info=True,
-        )
-        raise ValueError(f"AI 返回内容不是合法 JSON: {e}") from e
-    except Exception as e:
-        logger.warning(
-            "ppt_lecture_generate_failed",
-            extra={"error_type": type(e).__name__, "detail": str(e)},
-            exc_info=True,
-        )
-        raise ValueError(f"生成讲稿失败: {str(e)}") from e
 
 
 # 字号（略放大，层次更清晰）

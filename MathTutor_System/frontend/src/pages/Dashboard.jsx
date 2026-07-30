@@ -61,9 +61,6 @@ const MOCK_STATS = {
   knowledge_distribution: [],
 }
 
-/**
- * 当前套餐与到期卡：教师显示套餐名、学生数、到期日及即将到期提示，可点进定价页。
- */
 function SubscriptionCard({ subscription, isTeacher, onNavigate }) {
   if (!subscription?.plan) return null
   const periodEnd = subscription.period_end
@@ -78,25 +75,25 @@ function SubscriptionCard({ subscription, isTeacher, onNavigate }) {
     <button
       type="button"
       onClick={onNavigate}
-      className="w-full rounded-mobile-lg md:rounded-xl border border-gray-100 md:border-gray-200 bg-white p-4 sm:p-5 text-left shadow-mobile-card md:shadow-sm transition-shadow hover:shadow-md active:shadow-sm"
+      className="pro-glass-card group relative overflow-hidden rounded-2xl p-5 text-left active:scale-[0.99]"
     >
-      <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
-          <CreditCard className="h-5 w-5 sm:h-6 sm:w-6" />
+      <div className="flex items-center gap-3.5">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-600 ring-1 ring-indigo-500/20 group-hover:scale-105 transition-transform">
+          <CreditCard className="h-6 w-6" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs sm:text-sm font-medium text-gray-500">当前套餐</p>
-          <p className="text-base sm:text-lg font-bold text-gray-900">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">当前订阅套餐</p>
+          <p className="text-base font-extrabold text-slate-800 truncate">
             {subscription.plan.name} · {subscription.student_count}/{subscription.max_students} 学生
           </p>
           {isTeacher && periodEndDate && (
-            <p className={`mt-0.5 text-sm ${isExpiringSoon ? 'font-medium text-amber-600' : 'text-gray-500'}`}>
-              有效期至 {formatDate(periodEndDate)}
+            <p className={`mt-0.5 text-xs ${isExpiringSoon ? 'font-bold text-amber-600' : 'text-slate-400'}`}>
+              到期 {formatDate(periodEndDate)}
               {isExpiringSoon && daysLeft >= 0 && ` · ${daysLeft} 天后到期`}
             </p>
           )}
           {isTeacher && !periodEndDate && subscription.plan.code !== 'free' && (
-            <p className="mt-0.5 text-sm text-gray-500">长期有效</p>
+            <p className="mt-0.5 text-xs text-slate-400">长期有效</p>
           )}
         </div>
       </div>
@@ -104,46 +101,38 @@ function SubscriptionCard({ subscription, isTeacher, onNavigate }) {
   )
 }
 
-/**
- * 待攻克错题汇总卡：展示当前学生 pending 错题数，点击跳转错题本。
- * - count === 0: 绿色 "All Clear! 🎉"
- * - count > 0: 红/橙 "Needs Review"
- */
 function PendingMistakeCard({ count, loading, hasStudent, onNavigate }) {
   const isClear = count === 0
   const isZeroOrNum = count !== null && count !== undefined
   const displayValue = isZeroOrNum ? String(count) : '—'
-  const statusText = isZeroOrNum ? (isClear ? 'All Clear! 🎉' : 'Needs Review') : (hasStudent ? '加载中…' : '请先选择学生')
-  const bgIcon = isZeroOrNum && !isClear ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'
-  const statusCls = isZeroOrNum && !isClear ? 'text-orange-700' : 'text-green-700'
+  const statusText = isZeroOrNum ? (isClear ? '知识掌握 100% 🎉' : '需重点突破') : (hasStudent ? '加载中…' : '请先选择学生')
+  const bgIcon = isZeroOrNum && !isClear ? 'bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/20' : 'bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20'
+  const statusCls = isZeroOrNum && !isClear ? 'text-amber-600' : 'text-emerald-600'
 
   return (
     <button
       type="button"
       onClick={onNavigate}
-      className="w-full rounded-mobile-lg md:rounded-xl border border-gray-100 md:border-gray-200 bg-white p-4 sm:p-5 text-left shadow-mobile-card md:shadow-sm transition-shadow hover:shadow-md active:shadow-sm"
+      className="pro-glass-card group relative overflow-hidden rounded-2xl p-5 text-left active:scale-[0.99]"
     >
-      <div className="flex items-center gap-3">
-        <div className={`flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl ${bgIcon}`}>
+      <div className="flex items-center gap-3.5">
+        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${bgIcon} group-hover:scale-105 transition-transform`}>
           {loading ? (
-            <span className="h-5 w-5 sm:h-6 sm:w-6 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
           ) : (
-            <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6" />
+            <AlertCircle className="h-6 w-6" />
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs sm:text-sm font-medium text-gray-500">待攻克错题</p>
-          <p className="text-xl sm:text-2xl font-bold text-gray-900 tabular-nums">{displayValue}</p>
-          <p className={`text-xs sm:text-sm font-medium ${statusCls}`}>{statusText}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">待攻克错题</p>
+          <p className="text-2xl font-black text-slate-900 tabular-nums">{displayValue}</p>
+          <p className={`text-xs font-bold ${statusCls}`}>{statusText}</p>
         </div>
       </div>
     </button>
   )
 }
 
-/**
- * 今日待复习卡：展示今日应复习的错题数，点击跳转错题本「今日待复习」筛选。
- */
 function TodayReviewCard({ count, loading, onNavigate }) {
   const n = count != null && Number.isFinite(count) ? Number(count) : 0
   const hasDue = n > 0
@@ -152,21 +141,21 @@ function TodayReviewCard({ count, loading, onNavigate }) {
     <button
       type="button"
       onClick={onNavigate}
-      className="w-full rounded-mobile-lg md:rounded-xl border border-gray-100 md:border-gray-200 bg-white p-4 sm:p-5 text-left shadow-mobile-card md:shadow-sm transition-shadow hover:shadow-md active:shadow-sm"
+      className="pro-glass-card group relative overflow-hidden rounded-2xl p-5 text-left active:scale-[0.99]"
     >
-      <div className="flex items-center gap-3">
-        <div className={`flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl ${hasDue ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-600'}`}>
+      <div className="flex items-center gap-3.5">
+        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${hasDue ? 'bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/20' : 'bg-slate-100 text-slate-500'} group-hover:scale-105 transition-transform`}>
           {loading ? (
-            <span className="h-5 w-5 sm:h-6 sm:w-6 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
           ) : (
-            <CalendarCheck className="h-5 w-5 sm:h-6 sm:w-6" />
+            <CalendarCheck className="h-6 w-6" />
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs sm:text-sm font-medium text-gray-500">今日待复习</p>
-          <p className="text-xl sm:text-2xl font-bold text-gray-900 tabular-nums">{loading ? '—' : n}</p>
-          <p className={`text-xs sm:text-sm font-medium ${hasDue ? 'text-amber-700' : 'text-slate-600'}`}>
-            {hasDue ? '去复习' : '暂无'}
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">今日待复习</p>
+          <p className="text-2xl font-black text-slate-900 tabular-nums">{loading ? '—' : n}</p>
+          <p className={`text-xs font-bold ${hasDue ? 'text-amber-600' : 'text-slate-400'}`}>
+            {hasDue ? '点击立即复习' : '保持完美记录'}
           </p>
         </div>
       </div>
@@ -243,17 +232,50 @@ export default function Dashboard() {
   }))
 
   return (
-    <div className="space-y-6 md:space-y-8">
-      {/* Welcome：移动端更紧凑、带渐变标题 */}
-      <header className="md:pt-0">
-        <h1 className="text-xl font-bold text-gray-900 md:text-3xl bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-          欢迎回来，MathTutor
-        </h1>
-        <p className="mt-1 text-sm md:text-base text-gray-500">今天是 {today}，准备好开始备课了吗？</p>
+    <div className="space-y-6 md:space-y-8 animate-fade-in-up">
+      {/* 黑曜石旗舰 Hero 控制台 Banner */}
+      <header className="relative overflow-hidden rounded-3xl bg-[#0B0F17] p-6 md:p-8 text-white border border-slate-800 shadow-2xl">
+        <div className="absolute right-0 top-0 -mr-16 -mt-16 h-72 w-72 rounded-full bg-indigo-600/20 blur-3xl" />
+        <div className="absolute right-36 bottom-0 h-48 w-48 rounded-full bg-purple-600/15 blur-2xl" />
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-400 border border-emerald-500/30">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                SYSTEM ONLINE
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/15 px-3 py-1 text-xs font-bold text-indigo-300 border border-indigo-500/30">
+                <Sparkles className="h-3.5 w-3.5" />
+                AI Model: DeepSeek-V3
+              </span>
+              {currentStudent && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-500/15 px-3 py-1 text-xs font-bold text-purple-300 border border-purple-500/30">
+                  <Users className="h-3.5 w-3.5" />
+                  当前学生: {currentStudent.name}
+                </span>
+              )}
+            </div>
+            <h1 className="text-2xl font-black tracking-tight md:text-3xl lg:text-4xl text-white">
+              MathTutor <span className="bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400 bg-clip-text text-transparent">Command Center</span>
+            </h1>
+            <p className="mt-2 text-xs md:text-sm text-slate-400 max-w-xl">
+              今天是 {today}。智能试卷生成引擎与考点向量数据库已全面就绪。
+            </p>
+          </div>
+          <div className="shrink-0 flex items-center gap-3">
+            <Link
+              to="/smart-gen"
+              className="btn-gradient-pro inline-flex items-center gap-2 rounded-2xl px-6 py-3.5 text-xs font-bold tracking-wide"
+            >
+              <Sparkles className="h-4 w-4" />
+              一键智能 AI 出题
+            </Link>
+          </div>
+        </div>
       </header>
 
-      {/* Stats Cards：移动端大圆角 + 柔和阴影 */}
-      <div className={`grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 ${isTeacher ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
+      {/* KPI 指标 4 卡片阵列 */}
+      <div className={`grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 ${isTeacher ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
         {isTeacher && (
           subscription?.plan ? (
             <SubscriptionCard
@@ -267,15 +289,15 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={() => navigate('/pricing')}
-              className="w-full rounded-mobile-lg md:rounded-xl border border-gray-100 md:border-gray-200 bg-white p-4 sm:p-5 text-left shadow-mobile-card md:shadow-sm transition-shadow hover:shadow-md active:shadow-sm"
+              className="pro-glass-card group relative overflow-hidden rounded-2xl p-5 text-left active:scale-[0.99]"
             >
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
-                  <CreditCard className="h-5 w-5 sm:h-6 sm:w-6" />
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-600 ring-1 ring-indigo-500/20 group-hover:scale-105 transition-transform">
+                  <CreditCard className="h-6 w-6" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm font-medium text-gray-500">套餐与定价</p>
-                  <p className="text-base sm:text-lg font-bold text-gray-900">查看当前套餐与升级</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">套餐与定价</p>
+                  <p className="text-base font-extrabold text-slate-800">查看当前套餐与升级</p>
                 </div>
               </div>
             </button>
@@ -289,36 +311,36 @@ export default function Dashboard() {
           </>
         ) : (
           <>
-            <div className="rounded-mobile-lg md:rounded-xl border border-gray-100 md:border-gray-200 bg-white p-4 sm:p-5 shadow-mobile-card md:shadow-sm transition-shadow hover:shadow-md">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
-                  <Database className="h-5 w-5 sm:h-6 sm:w-6" />
+            <div className="pro-glass-card group relative overflow-hidden rounded-2xl p-5">
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-600 ring-1 ring-indigo-500/20 group-hover:scale-105 transition-transform">
+                  <Database className="h-6 w-6" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-gray-500">题库总量</p>
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900 tabular-nums">{stats.total_questions ?? 0}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">题库总量</p>
+                  <p className="text-2xl font-black text-slate-900 tabular-nums">{stats.total_questions ?? 0}</p>
                 </div>
               </div>
             </div>
-            <div className="rounded-mobile-lg md:rounded-xl border border-gray-100 md:border-gray-200 bg-white p-4 sm:p-5 shadow-mobile-card md:shadow-sm transition-shadow hover:shadow-md">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
-                  <Users className="h-5 w-5 sm:h-6 sm:w-6" />
+            <div className="pro-glass-card group relative overflow-hidden rounded-2xl p-5">
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20 group-hover:scale-105 transition-transform">
+                  <Users className="h-6 w-6" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-gray-500">学生档案</p>
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900 tabular-nums">{stats.total_students ?? 0}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">学生档案</p>
+                  <p className="text-2xl font-black text-slate-900 tabular-nums">{stats.total_students ?? 0}</p>
                 </div>
               </div>
             </div>
-            <div className="rounded-mobile-lg md:rounded-xl border border-gray-100 md:border-gray-200 bg-white p-4 sm:p-5 shadow-mobile-card md:shadow-sm transition-shadow hover:shadow-md">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
-                  <FileText className="h-5 w-5 sm:h-6 sm:w-6" />
+            <div className="pro-glass-card group relative overflow-hidden rounded-2xl p-5">
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-500/10 text-violet-600 ring-1 ring-violet-500/20 group-hover:scale-105 transition-transform">
+                  <FileText className="h-6 w-6" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-gray-500">试卷存档</p>
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900 tabular-nums">{stats.total_exams ?? 0}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">试卷存档</p>
+                  <p className="text-2xl font-black text-slate-900 tabular-nums">{stats.total_exams ?? 0}</p>
                 </div>
               </div>
             </div>
@@ -338,8 +360,8 @@ export default function Dashboard() {
       </div>
 
       {error && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800">
-          <span>{error}</span>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-amber-800 backdrop-blur-md">
+          <span className="text-xs font-bold">{error}</span>
           <button
             type="button"
             onClick={() => {
@@ -350,102 +372,128 @@ export default function Dashboard() {
                 .catch((err) => setError(err.response?.data?.detail || err.message || '加载失败'))
                 .finally(() => setLoading(false))
             }}
-            className="shrink-0 rounded-md bg-amber-200/80 px-3 py-1.5 text-sm font-medium text-amber-900 hover:bg-amber-200"
+            className="shrink-0 rounded-xl bg-amber-200/80 px-4 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-300/80 transition-colors"
           >
             重试
           </button>
         </div>
       )}
 
-      {/* Main: two columns */}
+      {/* 主面板布局 */}
       <div className="grid grid-cols-1 gap-6 md:gap-8 lg:grid-cols-3">
-        {/* Left 2/3: Quick Actions + Chart */}
-        <div className="space-y-5 md:space-y-6 lg:col-span-2">
-          <section className="rounded-mobile-lg md:rounded-xl border border-gray-100 md:border-gray-200 bg-white p-4 sm:p-6 shadow-mobile-card md:shadow-sm">
-            <h2 className="mb-3 md:mb-4 text-base md:text-lg font-semibold text-gray-900">快捷入口</h2>
-            <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+        {/* 左侧 2/3: 快捷矩阵 + 图表 */}
+        <div className="space-y-6 lg:col-span-2">
+          <section className="pro-glass-card rounded-3xl p-6">
+            <h2 className="mb-4 text-sm font-black uppercase tracking-wider text-slate-800">快捷功能发射台</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
               <Link
                 to="/smart-gen"
-                className="flex items-center justify-center gap-2 rounded-xl md:rounded-lg bg-primary-600 px-5 py-3.5 sm:py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-primary-700 active:bg-primary-800"
+                className="btn-gradient-pro flex items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-xs font-extrabold"
               >
-                <Sparkles className="h-5 w-5 shrink-0" />
-                开始智能出题
+                <Sparkles className="h-4 w-4 shrink-0" />
+                智能 AI 出题
               </Link>
               <Link
                 to="/mistake-book"
-                className="flex items-center justify-center gap-2 rounded-xl md:rounded-lg border border-gray-200 bg-white px-5 py-3.5 sm:py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 active:bg-gray-100"
+                className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200/90 bg-slate-50/80 px-4 py-3.5 text-xs font-bold text-slate-700 transition-all hover:bg-slate-100 hover:border-slate-300 active:scale-[0.98]"
               >
-                <BookOpen className="h-5 w-5 shrink-0" />
-                查看错题本
+                <BookOpen className="h-4 w-4 shrink-0 text-slate-500" />
+                错题本精炼
               </Link>
               <Link
                 to="/student-mgmt"
-                className="flex items-center justify-center gap-2 rounded-xl md:rounded-lg border border-gray-200 bg-white px-5 py-3.5 sm:py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 active:bg-gray-100"
+                className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200/90 bg-slate-50/80 px-4 py-3.5 text-xs font-bold text-slate-700 transition-all hover:bg-slate-100 hover:border-slate-300 active:scale-[0.98]"
               >
-                <UserPlus className="h-5 w-5 shrink-0" />
-                录入新学生
+                <UserPlus className="h-4 w-4 shrink-0 text-slate-500" />
+                录入学生档案
               </Link>
             </div>
           </section>
 
-          {/* 学情趋势：仅当已选学生时展示 */}
-          <section className="rounded-mobile-lg md:rounded-xl border border-gray-100 md:border-gray-200 bg-white p-4 sm:p-6 shadow-mobile-card md:shadow-sm w-full min-w-0">
-            <h2 className="mb-3 md:mb-4 text-base md:text-lg font-semibold text-gray-900">学情趋势（近 8 周）</h2>
+          {/* 学情趋势 */}
+          <section className="pro-glass-card rounded-3xl p-6 w-full min-w-0">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-black uppercase tracking-wider text-slate-800">学情趋势分析（近 8 周）</h2>
+              {currentStudent && (
+                <span className="text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">
+                  学生: {currentStudent.name}
+                </span>
+              )}
+            </div>
             {!currentStudent ? (
-              <div className="flex min-h-[220px] items-center justify-center rounded-lg bg-gray-50 text-gray-500">
-                请先在左侧选择学生，查看该生的错题新增与掌握趋势
+              <div className="flex min-h-[220px] flex-col items-center justify-center rounded-2xl bg-slate-50/80 text-slate-400 text-xs">
+                <Users className="h-8 w-8 mb-2 text-slate-300" />
+                请先在左侧黑曜石侧栏选择学生
               </div>
             ) : loadingTrend ? (
               <ChartSkeleton />
             ) : trendWeeks.length === 0 ? (
-              <div className="flex min-h-[220px] items-center justify-center rounded-lg bg-gray-50 text-gray-500">
+              <div className="flex min-h-[220px] items-center justify-center rounded-2xl bg-slate-50/80 text-slate-400 text-xs">
                 暂无趋势数据
               </div>
             ) : (
               <div className="w-full min-w-0" style={{ height: 260 }}>
                 <ResponsiveContainer width="100%" height={260} minWidth={0}>
-                  <BarChart data={trendWeeks} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+                  <BarChart data={trendWeeks} margin={{ top: 8, right: 8, left: -20, bottom: 8 }}>
+                    <defs>
+                      <linearGradient id="mistakeGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#f59e0b" stopOpacity={1} />
+                        <stop offset="100%" stopColor="#d97706" stopOpacity={0.8} />
+                      </linearGradient>
+                      <linearGradient id="masteredGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" stopOpacity={1} />
+                        <stop offset="100%" stopColor="#059669" stopOpacity={0.8} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#cbd5e1' }} />
+                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} axisLine={false} />
                     <Tooltip
                       formatter={(value, name) => [value, name === 'new_mistakes' ? '新增错题' : '新掌握']}
-                      labelFormatter={(label) => `周 ${label}`}
-                      contentStyle={{ borderRadius: 8 }}
+                      labelFormatter={(label) => `第 ${label} 周`}
+                      contentStyle={{ backgroundColor: '#0B0F17', color: '#f8fafc', borderRadius: '16px', border: '1px solid #1e293b', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}
                     />
-                    <Bar dataKey="new_mistakes" fill="#f59e0b" radius={[4, 4, 0, 0]} name="新增错题" />
-                    <Bar dataKey="new_mastered" fill="#10b981" radius={[4, 4, 0, 0]} name="新掌握" />
+                    <Bar dataKey="new_mistakes" fill="url(#mistakeGradient)" radius={[6, 6, 0, 0]} name="新增错题" />
+                    <Bar dataKey="new_mastered" fill="url(#masteredGradient)" radius={[6, 6, 0, 0]} name="新掌握" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             )}
           </section>
 
-          <section className="rounded-mobile-lg md:rounded-xl border border-gray-100 md:border-gray-200 bg-white p-4 sm:p-6 shadow-mobile-card md:shadow-sm w-full min-w-0">
-            <h2 className="mb-3 md:mb-4 text-base md:text-lg font-semibold text-gray-900">题库知识点分布 (Top 5)</h2>
+          {/* Top 5 知识点分布 */}
+          <section className="pro-glass-card rounded-3xl p-6 w-full min-w-0">
+            <h2 className="mb-4 text-sm font-black uppercase tracking-wider text-slate-800">题库知识点热度 Top 5</h2>
             {loading ? (
               <ChartSkeleton />
             ) : chartData.length === 0 ? (
-              <div className="flex min-h-[300px] items-center justify-center rounded-lg bg-gray-50 text-gray-500">
+              <div className="flex min-h-[280px] items-center justify-center rounded-2xl bg-slate-50/80 text-slate-400 text-xs">
                 暂无题目数据
               </div>
             ) : (
-              <div className="w-full min-w-0" style={{ height: 300 }}>
-                <ResponsiveContainer width="100%" height={300} minWidth={0}>
-                  <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <div className="w-full min-w-0" style={{ height: 280 }}>
+                <ResponsiveContainer width="100%" height={280} minWidth={0}>
+                  <BarChart data={chartData} margin={{ top: 8, right: 8, left: -20, bottom: 8 }}>
+                    <defs>
+                      <linearGradient id="indigoBarGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#6366f1" stopOpacity={1} />
+                        <stop offset="100%" stopColor="#4338ca" stopOpacity={0.8} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                     <XAxis
                       dataKey="name"
-                      tick={{ fontSize: 12 }}
+                      tick={{ fontSize: 11, fill: '#64748b' }}
+                      axisLine={{ stroke: '#cbd5e1' }}
                       tickFormatter={(v) => (v.length > 6 ? v.slice(0, 6) + '…' : v)}
                     />
-                    <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} axisLine={false} />
                     <Tooltip
                       formatter={(value) => [value, '题目数']}
                       labelFormatter={(label) => `知识点: ${label}`}
-                      contentStyle={{ borderRadius: 8 }}
+                      contentStyle={{ backgroundColor: '#0B0F17', color: '#f8fafc', borderRadius: '16px', border: '1px solid #1e293b', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}
                     />
-                    <Bar dataKey="count" fill="#2563eb" radius={[4, 4, 0, 0]} name="题目数" />
+                    <Bar dataKey="count" fill="url(#indigoBarGradient)" radius={[6, 6, 0, 0]} name="题目数" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -453,41 +501,48 @@ export default function Dashboard() {
           </section>
         </div>
 
-        {/* Right 1/3: Recent exams */}
-        <div className="rounded-mobile-lg md:rounded-xl border border-gray-100 md:border-gray-200 bg-white p-4 sm:p-6 shadow-mobile-card md:shadow-sm min-w-0 overflow-x-auto">
-          <h2 className="mb-3 md:mb-4 text-base md:text-lg font-semibold text-gray-900">最近试卷</h2>
+        {/* 右侧 1/3: 最近试卷 */}
+        <div className="pro-glass-card rounded-3xl p-6 min-w-0">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-black uppercase tracking-wider text-slate-800">最近存档试卷</h2>
+            <Link to="/exams" className="text-xs font-bold text-indigo-600 hover:text-indigo-700">
+              全部试卷 →
+            </Link>
+          </div>
           {loading ? (
             <ListSkeleton />
           ) : !stats.recent_exams?.length ? (
-            <p className="text-sm text-gray-500">暂无试卷</p>
+            <div className="py-12 text-center text-xs text-slate-400">暂无试卷记录</div>
           ) : (
-            <ul className="space-y-1 min-w-0">
+            <ul className="space-y-2.5 min-w-0">
               {stats.recent_exams.map((exam) => (
                 <li key={exam.id}>
                   <button
                     type="button"
                     onClick={() => navigate(`/exams/${exam.id}`)}
-                    className="w-full rounded-xl md:rounded-lg px-3 py-3 md:py-2.5 text-left transition-colors hover:bg-gray-50 active:bg-gray-100"
+                    className="group w-full rounded-2xl border border-slate-100 bg-slate-50/70 p-3.5 text-left transition-all hover:border-indigo-300 hover:bg-indigo-50/40 active:scale-[0.99]"
                   >
-                    <p className="truncate text-sm font-medium text-gray-900" title={exam.title}>
+                    <p className="truncate text-xs font-extrabold text-slate-800 group-hover:text-indigo-600 transition-colors" title={exam.title}>
                       {exam.title || '未命名试卷'}
                     </p>
-                    <p className="mt-0.5 truncate text-xs text-gray-500">
+                    <p className="mt-1 truncate text-[11px] font-medium text-slate-400">
                       {formatDate(exam.created_at)}
                       {exam.student_name ? ` · ${exam.student_name}` : ''}
                     </p>
                     {exam.student_id != null && (
-                      <p className="mt-0.5 text-xs">
+                      <div className="mt-2 flex items-center gap-1.5 text-[11px]">
                         {exam.graded_at ? (
-                          <span className="text-green-600">
-                            已提交
+                          <span className="inline-flex items-center rounded-full bg-emerald-50 border border-emerald-200/60 px-2.5 py-0.5 font-bold text-emerald-700">
+                            已批改
                             {exam.grade_summary?.total != null &&
                               ` ${exam.grade_summary.correct}/${exam.grade_summary.total}`}
                           </span>
                         ) : (
-                          <span className="text-amber-600">未提交</span>
+                          <span className="inline-flex items-center rounded-full bg-amber-50 border border-amber-200/60 px-2.5 py-0.5 font-bold text-amber-700">
+                            未批改
+                          </span>
                         )}
-                      </p>
+                      </div>
                     )}
                   </button>
                 </li>

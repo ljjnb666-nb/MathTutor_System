@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './contexts/AuthContext'
@@ -7,24 +8,33 @@ import { SmartGenProvider } from './contexts/SmartGenContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminRoute from './components/AdminRoute'
 import Layout from './components/Layout'
-import Dashboard from './pages/Dashboard'
-import SmartGen from './pages/SmartGen'
-import QuestionBank from './pages/QuestionBank'
-import StudentMgmt from './pages/StudentMgmt'
-import ExamPreview from './pages/ExamPreview'
-import ExamList from './pages/ExamList'
-import ImportExam from './pages/ImportExam'
-import PPTGenerator from './pages/PPTGenerator'
-import MistakeBook from './pages/MistakeBook'
-import KnowledgeGraph from './pages/KnowledgeGraph'
-import Reports from './pages/Reports'
-import KnowledgeBase from './pages/KnowledgeBase'
-import AIChat from './pages/AIChat'
-import AdminUserPage from './pages/AdminUserPage'
-import SchedulePage from './pages/SchedulePage'
-import HomeworkProgress from './pages/HomeworkProgress'
-import LoginPage from './pages/LoginPage'
-import Pricing from './pages/Pricing'
+
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const SmartGen = lazy(() => import('./pages/SmartGen'))
+const QuestionBank = lazy(() => import('./pages/QuestionBank'))
+const StudentMgmt = lazy(() => import('./pages/StudentMgmt'))
+const ExamPreview = lazy(() => import('./pages/ExamPreview'))
+const ExamList = lazy(() => import('./pages/ExamList'))
+const ImportExam = lazy(() => import('./pages/ImportExam'))
+const PPTGenerator = lazy(() => import('./pages/PPTGenerator'))
+const MistakeBook = lazy(() => import('./pages/MistakeBook'))
+const KnowledgeGraph = lazy(() => import('./pages/KnowledgeGraph'))
+const Reports = lazy(() => import('./pages/Reports'))
+const KnowledgeBase = lazy(() => import('./pages/KnowledgeBase'))
+const AIChat = lazy(() => import('./pages/AIChat'))
+const AdminUserPage = lazy(() => import('./pages/AdminUserPage'))
+const SchedulePage = lazy(() => import('./pages/SchedulePage'))
+const HomeworkProgress = lazy(() => import('./pages/HomeworkProgress'))
+const LoginPage = lazy(() => import('./pages/LoginPage'))
+const Pricing = lazy(() => import('./pages/Pricing'))
+
+function RouteFallback() {
+  return (
+    <div className="min-h-[50vh] flex items-center justify-center text-sm text-slate-500">
+      页面加载中...
+    </div>
+  )
+}
 
 function App() {
   return (
@@ -47,6 +57,7 @@ function App() {
       <SubscriptionProvider>
       <StudentProvider>
       <SmartGenProvider>
+      <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route element={<ProtectedRoute />}>
@@ -75,6 +86,7 @@ function App() {
           </Route>
         </Route>
       </Routes>
+      </Suspense>
       </SmartGenProvider>
       </StudentProvider>
       </SubscriptionProvider>

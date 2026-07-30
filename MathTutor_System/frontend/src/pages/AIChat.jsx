@@ -321,17 +321,17 @@ export default function AIChat() {
 
   return (
     <div
-      className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-gray-50/80 shadow-sm md:flex-row"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl pro-glass-card md:flex-row animate-fade-in-up"
     >
-      {/* 会话列表：左侧面板（标题固定，仅列表可滚动） */}
-      <aside className="flex min-h-0 shrink-0 flex-col border-b border-gray-200 bg-white md:w-64 md:border-b-0 md:border-r">
-        <div className="shrink-0 border-b border-gray-100 px-4 py-3">
+      {/* 会话列表：左侧面板 */}
+      <aside className="flex min-h-0 shrink-0 flex-col border-b border-slate-200/80 bg-white/60 md:w-64 md:border-b-0 md:border-r">
+        <div className="shrink-0 border-b border-slate-100 p-4">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-semibold text-gray-800">会话记录</span>
+            <span className="text-xs font-black uppercase tracking-wider text-slate-700">历史会话节点</span>
             <button
               type="button"
               onClick={() => loadSession(null)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700 active:scale-[0.98]"
+              className="btn-gradient-pro inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold"
             >
               <Plus className="h-4 w-4" />
               新会话
@@ -341,16 +341,16 @@ export default function AIChat() {
         <div className="min-h-0 flex-1 overflow-y-auto">
           {sessionsLoading ? (
             <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+              <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
             </div>
           ) : sessions.length === 0 ? (
             <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
-              <MessageCircle className="h-10 w-10 text-gray-300" />
-              <p className="mt-2 text-xs text-gray-500">暂无历史会话</p>
-              <p className="mt-0.5 text-xs text-gray-400">发送消息后将自动保存</p>
+              <MessageCircle className="h-10 w-10 text-slate-300" />
+              <p className="mt-2 text-xs font-bold text-slate-500">暂无历史会话</p>
+              <p className="mt-0.5 text-[11px] text-slate-400">输入问题后系统自动归档保存</p>
             </div>
           ) : (
-            <ul className="p-2 space-y-0.5">
+            <ul className="p-2 space-y-1">
               {sessions.map((s) => (
                 <li key={s.id} className="flex items-stretch gap-1">
                   <button
@@ -358,39 +358,37 @@ export default function AIChat() {
                     onClick={() => loadSession(s.id)}
                     className={`min-w-0 flex-1 rounded-xl px-3 py-2.5 text-left transition-all ${
                       currentSessionId === s.id
-                        ? 'bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100'
-                        : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'
-                    } ${s.pinned ? 'border-l-2 border-blue-500' : ''}`}
+                        ? 'bg-[#0B0F17] text-white shadow-md font-bold'
+                        : 'text-slate-700 hover:bg-slate-100/80'
+                    } ${s.pinned ? 'border-l-2 border-indigo-400' : ''}`}
                   >
-                    <span className="line-clamp-2 flex items-center gap-1.5 text-sm font-medium leading-snug">
-                      {s.pinned && <Pin className="h-3.5 w-3.5 shrink-0 text-blue-500" />}
-                      {s.title || '未命名会话'}
+                    <span className="line-clamp-2 flex items-center gap-1.5 text-xs font-extrabold leading-snug">
+                      {s.pinned && <Pin className="h-3.5 w-3.5 shrink-0 text-indigo-400" />}
+                      {s.title || '新对话记录'}
                     </span>
-                    <span className="mt-1 block text-xs text-gray-500">
+                    <span className="mt-1 block text-[10px] opacity-60">
                       {formatSessionDate(s.created_at)}
                     </span>
                   </button>
                   <button
                     type="button"
                     onClick={(e) => handleTogglePin(s.id, s.pinned, e)}
-                    className={`shrink-0 self-center rounded-lg p-2 transition-colors ${
+                    className={`shrink-0 self-center rounded-xl p-2 transition-colors ${
                       s.pinned
-                        ? 'text-blue-500 hover:bg-blue-50'
-                        : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
+                        ? 'text-indigo-600 hover:bg-indigo-50'
+                        : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'
                     }`}
-                    aria-label={s.pinned ? '取消固定' : '固定到顶部'}
                     title={s.pinned ? '取消固定' : '固定到顶部'}
                   >
-                    {s.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+                    {s.pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
                   </button>
                   <button
                     type="button"
                     onClick={(e) => handleDeleteSession(s.id, e)}
-                    className="shrink-0 self-center rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 active:bg-red-100"
-                    aria-label="删除会话"
+                    className="shrink-0 self-center rounded-xl p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
                     title="删除会话"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </li>
               ))}
@@ -399,62 +397,48 @@ export default function AIChat() {
         </div>
       </aside>
 
-      {/* 主对话区：仅聊天消息区可滚动，整页不滚动 */}
-      <div className="flex min-h-0 flex-1 flex-col min-w-0 bg-gray-50/50">
-        {/* 顶部：标题 + 选项（固定不随滚动） */}
-        <header className="shrink-0 border-b border-gray-200 bg-white px-4 py-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
-              <MessageCircle className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold text-gray-900">AI 对话</h1>
-              <p className="text-xs text-gray-500">结合学情与知识库，针对性辅导</p>
+      {/* 主对话区 */}
+      <div className="flex min-h-0 flex-1 flex-col min-w-0 bg-slate-50/40">
+        {/* 顶部：标题 + 选项 */}
+        <header className="shrink-0 border-b border-slate-200/80 bg-white/80 backdrop-blur-xl px-5 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-md shadow-indigo-500/20">
+                <MessageCircle className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-base font-black tracking-tight text-slate-900">AI 智能辅导对话仓</h1>
+                  <span className="rounded-full bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-0.5 text-[10px] font-black text-indigo-600 uppercase">PRO TUTOR</span>
+                </div>
+                <p className="text-xs text-slate-500">结合学生个案学情与向量知识库精准解疑答惑</p>
+              </div>
             </div>
           </div>
 
-          {contextQuestion && (
-            <div className="mt-3 flex items-start gap-2 rounded-xl border border-indigo-200 bg-indigo-50/90 px-3 py-2.5">
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-indigo-800">当前针对题目</p>
-                <p className="mt-0.5 line-clamp-2 text-sm text-indigo-900">
-                  {contextQuestion.length > 120 ? contextQuestion.slice(0, 120) + '…' : contextQuestion}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setContextQuestion('')}
-                className="shrink-0 rounded-lg p-1.5 text-indigo-600 transition-colors hover:bg-indigo-100 active:bg-indigo-200"
-                aria-label="清除题目上下文"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          )}
-
-          <div className="mt-3 flex flex-wrap items-center gap-4 rounded-xl bg-gray-50 px-3 py-2.5">
+          <div className="mt-3 flex flex-wrap items-center gap-4 rounded-2xl bg-slate-100/80 px-4 py-2.5 text-xs font-bold text-slate-700">
             <label className="flex cursor-pointer items-center gap-2">
               <input
                 type="checkbox"
                 checked={useStream}
                 onChange={(e) => setUseStream(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
+                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
               />
-              <span className="text-sm text-gray-700">流式回复</span>
+              <span>实时流式极速回复</span>
             </label>
             <label className="flex cursor-pointer items-center gap-2">
               <input
                 type="checkbox"
                 checked={useContext}
                 onChange={(e) => setUseContext(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
+                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
               />
-              <span className="text-sm text-gray-700">带入学生与知识点</span>
+              <span>导入学生画像与知识点</span>
             </label>
             {useContext && (
               <>
                 {currentStudent?.name && (
-                  <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
+                  <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-black text-indigo-700 border border-indigo-200/60">
                     {currentStudent.name}
                   </span>
                 )}
@@ -463,86 +447,33 @@ export default function AIChat() {
                   value={knowledgePoint}
                   onChange={(e) => setKnowledgePoint(e.target.value)}
                   placeholder="知识点，如：二次函数"
-                  className="w-40 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="w-40 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                 />
               </>
             )}
           </div>
         </header>
 
-        {/* 消息区域：仅此区域可滚动 */}
+        {/* 消息区域 */}
         <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-center px-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 text-blue-600">
-                <MessageCircle className="h-7 w-7" />
+              <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-indigo-500/10 text-indigo-600 ring-1 ring-indigo-500/20 mb-3">
+                <Bot className="h-7 w-7" />
               </div>
-              <p className="mt-4 text-sm font-medium text-gray-600">发送一条消息开始对话</p>
-              <p className="mt-1 text-xs text-gray-400">支持数学公式、学情上下文与带题提问</p>
-              <div className="mt-6 flex flex-wrap justify-center gap-2">
-                {['这道题第二步怎么解？', '帮我总结勾股定理', '出两道类似的练习题'].map((label) => (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={() => setInput(label)}
-                    className="rounded-full border border-gray-200 bg-white px-4 py-2 text-xs text-gray-600 shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 active:scale-[0.98]"
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+              <p className="text-sm font-extrabold text-slate-700">发送一条消息，开启 AI 智能辅导对话</p>
+              <p className="mt-1 text-xs text-slate-400">支持 LaTeX 公式呈现、错题变式拆解与精准点拨</p>
             </div>
           )}
-          <div className="mx-auto max-w-2xl space-y-5">
+          <div className="mx-auto max-w-3xl space-y-5">
             {messages.map((m, i) =>
               m.role === 'user' ? (
                 <div key={m.id ?? i} className="flex justify-end">
                   <div className="flex max-w-[88%] items-end gap-2 sm:max-w-[85%]">
-                    {editingMessageId === m.id ? (
-                      <div className="flex flex-1 flex-col gap-2 rounded-2xl rounded-br-md border-2 border-blue-400 bg-blue-600/95 p-3">
-                        <textarea
-                          value={editingContent}
-                          onChange={(e) => setEditingContent(e.target.value)}
-                          rows={3}
-                          className="min-w-0 flex-1 resize-y rounded-lg border border-blue-400 bg-white px-3 py-2 text-sm text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                          placeholder="编辑消息内容…"
-                          autoFocus
-                        />
-                        <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={handleCancelEdit}
-                            className="rounded-lg bg-white/20 px-3 py-1.5 text-sm text-white hover:bg-white/30"
-                          >
-                            取消
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleSaveEdit}
-                            className="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50"
-                          >
-                            <Check className="h-4 w-4" />
-                            保存
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="rounded-2xl rounded-br-md bg-blue-600 px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm">
-                        {m.content}
-                      </div>
-                    )}
-                    {editingMessageId !== m.id && m.id != null && currentSessionId != null && (
-                      <button
-                        type="button"
-                        onClick={() => handleStartEdit(m)}
-                        className="shrink-0 rounded-lg p-1.5 text-blue-600/90 transition-colors hover:bg-blue-100 hover:text-blue-700"
-                        aria-label="编辑消息"
-                        title="编辑消息"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                    )}
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                    <div className="rounded-3xl rounded-br-none bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-3 text-xs font-bold leading-relaxed text-white shadow-md shadow-indigo-500/20">
+                      {m.content}
+                    </div>
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white font-bold">
                       <User className="h-4 w-4" />
                     </span>
                   </div>
@@ -550,16 +481,16 @@ export default function AIChat() {
               ) : (
                 <div key={m.id ?? i} className="flex justify-start">
                   <div className="flex max-w-[88%] items-end gap-2 sm:max-w-[85%]">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-600">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#0B0F17] text-indigo-400 shadow-md">
                       <Bot className="h-4 w-4" />
                     </span>
                     <div className="flex flex-col gap-1">
-                      <div className="rounded-2xl rounded-bl-md border border-gray-200 bg-white px-4 py-2.5 text-sm leading-relaxed text-gray-800 shadow-sm">
+                      <div className="pro-glass-card rounded-3xl rounded-bl-none px-5 py-3 text-xs font-medium leading-relaxed text-slate-800 shadow-sm border border-slate-200/80">
                         <Latex>{normalizeLatexForKaTeX(m.content ?? '')}</Latex>
                       </div>
                       {Array.isArray(m.rag_sources) && m.rag_sources.length > 0 && (
-                        <p className="text-xs text-gray-500">
-                          参考自：{m.rag_sources.join('、')}
+                        <p className="text-[10px] font-bold text-indigo-600 px-2">
+                          相关参考向量来源：{m.rag_sources.join(' · ')}
                         </p>
                       )}
                     </div>
@@ -569,13 +500,9 @@ export default function AIChat() {
             )}
             {loading && (
               <div className="flex justify-start">
-                <div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-gray-200 bg-white px-4 py-3 shadow-sm">
-                  <span className="flex gap-1">
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.3s]" />
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.15s]" />
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400" />
-                  </span>
-                  <span className="text-xs text-gray-500">思考中…</span>
+                <div className="flex items-center gap-2 rounded-3xl rounded-bl-none pro-glass-card px-4 py-3 shadow-sm border border-slate-200">
+                  <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+                  <span className="text-xs font-bold text-slate-600">DeepSeek AI 思考分析中…</span>
                 </div>
               </div>
             )}
@@ -583,32 +510,29 @@ export default function AIChat() {
         </div>
 
         {/* 输入区 */}
-        <div className="shrink-0 border-t border-gray-200 bg-white px-4 py-3">
-          <div className="mx-auto flex max-w-2xl gap-3">
+        <div className="shrink-0 border-t border-slate-200/80 bg-white/90 backdrop-blur-xl px-5 py-4">
+          <div className="mx-auto flex max-w-3xl gap-3">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-              placeholder={loading ? 'AI 正在回复，请稍候…' : '输入消息，按 Enter 发送'}
+              placeholder={loading ? 'AI 思考回复中…' : '输入数学疑问或题目解法，按 Enter 发送…'}
               disabled={loading}
-              aria-label="输入消息"
-              className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 placeholder-gray-400 transition-colors focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+              className="flex-1 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-xs font-bold text-slate-800 placeholder-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-60"
             />
             <button
               type="button"
               onClick={handleSend}
               disabled={loading || !(input || '').trim()}
-              aria-label={loading ? '发送中' : '发送'}
-              title={loading ? '发送中' : '发送 (Enter)'}
-              className="shrink-0 flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white transition-all hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98]"
+              className="btn-gradient-pro shrink-0 flex items-center gap-2 rounded-2xl px-6 py-3 text-xs font-black"
             >
               {loading ? (
-                <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <>
-                  <Send className="h-4 w-4" aria-hidden="true" />
-                  <span>发送</span>
+                  <Send className="h-4 w-4" />
+                  <span>发送提问</span>
                 </>
               )}
             </button>

@@ -1,36 +1,17 @@
 import axios from 'axios'
+import { createApiClient } from '../../../shared/frontend/createApiClient'
 
 export const AUTH_TOKEN_KEY = 'math_tutor_student_token'
 
-const baseURL =
-  typeof import.meta !== 'undefined' && import.meta.env?.DEV
-    ? ''
-    : (import.meta.env?.VITE_API_BASE_URL || '')
-
-const api = axios.create({
-  baseURL,
-  timeout: 60000,
-  headers: { 'Content-Type': 'application/json' },
-})
-
-api.interceptors.request.use((config) => {
-  const token = typeof localStorage !== 'undefined' ? localStorage.getItem(AUTH_TOKEN_KEY) : null
-  if (token) config.headers.Authorization = `Bearer ${token}`
-  return config
-})
-
-api.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    if (err.response?.status === 401 && typeof localStorage !== 'undefined') {
-      localStorage.removeItem(AUTH_TOKEN_KEY)
-      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-        window.location.assign('/login')
-      }
+const api = createApiClient(axios, {
+  importMeta: import.meta,
+  tokenStorageKey: AUTH_TOKEN_KEY,
+  onUnauthorized: () => {
+    if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+      window.location.assign('/login')
     }
-    return Promise.reject(err)
-  }
-)
+  },
+})
 
 export default api
 

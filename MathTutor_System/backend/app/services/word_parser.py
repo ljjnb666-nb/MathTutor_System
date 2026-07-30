@@ -16,6 +16,14 @@ from openai import OpenAI
 from PIL import Image
 
 from app.core.config import AI_REQUEST_TIMEOUT, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL
+from app.services.exam_question_merge import (
+    append_region as _append_region,
+    merge_by_section_headers as _merge_by_section_headers,
+    merge_same_number_questions as _merge_same_number_questions,
+    normalize_question_number as _normalize_question_number,
+    normalize_question_type as _normalize_question_type,
+    question_merge_key as _question_merge_key,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -66,177 +74,6 @@ def _clean_json_string(raw: str) -> str:
     if m:
         s = m.group(1).strip()
     return s
-
-
-def _normalize_question_number(num: Any) -> str:
-    """题号统一为字符串便于比较（20 与 '20' 视为相同）。"""
-    if num is None:
-        return ""
-    return str(num).strip()
-
-
-def _question_merge_key(num: Any) -> str:
-    """用于合并的题号键：20、20.1、20.2 均视为同一题（取数字前缀）。"""
-    s = _normalize_question_number(num)
-    if not s:
-        return ""
-    m = re.match(r"^(\d+)", s)
-    return m.group(1) if m else s
-
-
-# bbox 过滤：面积过小视为无效；接近整页（仅参考图不应整页）则丢弃
-_IMAGE_REGION_MIN_AREA = 0.001
-_IMAGE_REGION_MAX_SIDE = 0.92
-
-
-def _append_region(regions: list[dict[str, float]], region: Any) -> None:
-    """若 region 为合法且合理的 bbox 则追加到 regions（过滤过小或整页框）。"""
-    if not isinstance(region, dict):
-        return
-    try:
-        x = float(region.get("x", 0))
-        y = float(region.get("y", 0))
-        w = float(region.get("width", 0))
-        h = float(region.get("height", 0))
-        if not (0 <= x <= 1 and 0 <= y <= 1 and 0 < w <= 1 and 0 < h <= 1):
-            return
-        if w * h < _IMAGE_REGION_MIN_AREA:
-            return
-        if w >= _IMAGE_REGION_MAX_SIDE and h >= _IMAGE_REGION_MAX_SIDE:
-            return
-        regions.append({"x": x, "y": y, "width": w, "height": h})
-    except (TypeError, ValueError):
-        pass
-
-
-def _merge_same_number_questions(questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """
-    将题号相同或同主题号（如 20 与 20.1、20.2）的连续题目合并为一道（综合题、探究题常被模型拆成多段）。
-    """
-    if not questions:
-        return []
-    result: list[dict[str, Any]] = []
-    i = 0
-    while i < len(questions):
-        q = dict(questions[i])
-        key = _question_merge_key(q.get("number"))
-        num_display = _normalize_question_number(q.get("number")) or key
-        contents = [(q.get("content") or "").strip()]
-        opts = q.get("options")
-        if not isinstance(opts, list):
-            opts = []
-        images_list: list[str] = list(q.get("images") or []) if isinstance(q.get("images"), list) else []
-        image_regions_list: list[dict[str, float]] = []
-        _append_region(image_regions_list, q.get("image_region"))
-        typ = _normalize_question_type(q.get("type"), opts)
-        j = i + 1
-        while j < len(questions) and _question_merge_key(questions[j].get("number")) == key:
-            nq = questions[j]
-            part = (nq.get("content") or "").strip()
-            if part:
-                contents.append(part)
-            nopts = nq.get("options")
-            if isinstance(nopts, list) and nopts and not opts:
-                opts = nopts
-            nimg = nq.get("images")
-            if isinstance(nimg, list):
-                images_list.extend(nimg)
-            _append_region(image_regions_list, nq.get("image_region"))
-            if _normalize_question_type(nq.get("type"), nq.get("options")) == "solution":
-                typ = "solution"
-            j += 1
-        q["content"] = "\n\n".join(contents)
-        q["options"] = opts
-        q["type"] = typ
-        q["number"] = int(key) if key and key.isdigit() else num_display
-        q["images"] = images_list
-        if image_regions_list:
-            q["image_regions"] = image_regions_list
-        if "image_region" in q:
-            del q["image_region"]
-        result.append(q)
-        i = j
-    return result
-
-
-# 综合与探究/综合与实践类大题常见小节标题：以这些开头的项可合并到上一道 solution 题
-_SECTION_HEADERS = (
-    "【探索发现】", "【抽象定义】", "【问题解决】", "【方法应用】",
-    "【问题背景】", "【研究条件】", "【模型构建】", "【模型应用】", "【总结反思】",
-)
-# 通用【小节】模式：2～20 字，未在白名单中的新小节也会被合并，无需改代码
-_SECTION_HEADER_PATTERN = re.compile(r"^\s*【[^】]{2,20}】")
-
-
-def _merge_by_section_headers(questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """
-    将 content 以小节标题（【探索发现】等或任意【…】）开头且上一题为 solution 的项合并到上一题。
-    先做同题号合并，再做本小节续写合并；采用白名单 + 通用【…】模式，新题型一般无需改代码。
-    """
-    if not questions:
-        return []
-    result: list[dict[str, Any]] = []
-    for q in questions:
-        if not isinstance(q, dict):
-            continue
-        content = (q.get("content") or "").strip()
-        if not result:
-            result.append(dict(q))
-            continue
-        prev = result[-1]
-        prev_type = _normalize_question_type(prev.get("type"), prev.get("options"))
-        starts_with_section = (
-            any(content.startswith(h) for h in _SECTION_HEADERS)
-            or bool(_SECTION_HEADER_PATTERN.match(content))
-        )
-        has_new_number_in_start = bool(
-            re.search(r"^\s*\d+[.．]\s", content[:25])
-        )
-        if (
-            starts_with_section
-            and prev_type == "solution"
-            and not has_new_number_in_start
-        ):
-            prev_content = (prev.get("content") or "").strip()
-            prev["content"] = f"{prev_content}\n\n{content}".strip()
-            prev_imgs = prev.get("images")
-            prev_imgs = list(prev_imgs) if isinstance(prev_imgs, list) else []
-            cur_imgs = q.get("images")
-            if isinstance(cur_imgs, list):
-                prev_imgs.extend(cur_imgs)
-            prev["images"] = prev_imgs
-            prev_regions = prev.get("image_regions")
-            prev_regions = list(prev_regions) if isinstance(prev_regions, list) else []
-            _append_region(prev_regions, q.get("image_region"))
-            for r in (q.get("image_regions") or []):
-                if isinstance(r, dict):
-                    prev_regions.append(r)
-            if prev_regions:
-                prev["image_regions"] = prev_regions
-        else:
-            result.append(dict(q))
-    return result
-
-
-def _normalize_question_type(raw_type: Any, options: list[Any] | None = None) -> str:
-    """
-    将 AI 可能返回的题型表述统一映射为 choice | fill | solution。
-    若无法识别则根据 options 推断：有 2 个及以上选项则视为 choice，否则 fill。
-    """
-    t = (raw_type if isinstance(raw_type, str) else "").strip().lower()
-    opts = options if isinstance(options, list) else []
-    choice_aliases = ("choice", "选择", "选择题", "单选", "单选题", "判断", "判断题")
-    fill_aliases = ("fill", "填空", "填空题", "text", "填空題")
-    solution_aliases = ("solution", "解答", "解答题", "计算", "计算题", "应用", "应用题", "大题")
-    if t in choice_aliases:
-        return "choice"
-    if t in fill_aliases:
-        return "fill"
-    if t in solution_aliases:
-        return "solution"
-    if len(opts) >= 2:
-        return "choice"
-    return "fill"
 
 
 def parse_with_deepseek(

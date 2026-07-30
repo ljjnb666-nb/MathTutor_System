@@ -55,7 +55,8 @@ async def test_generate_mocked():
 
     with patch("app.services.llm_service._call_llm_async", new_callable=AsyncMock) as m:
         m.return_value = TRUNCATED_RAW
-        questions = await generate_questions_async(request, config)
+        questions, rag_used = await generate_questions_async(request, config)
+    assert rag_used is False
     assert len(questions) >= 1, "mock 截断返回时应解析出至少 1 题"
     assert questions[0].content
     assert questions[0].answer
@@ -88,7 +89,8 @@ async def test_concurrent_keyerror_swallowed():
         return '{"questions":[{"content":"题' + str(call_count) + '","options":[],"answer":"1","analysis":""}]}'
 
     with patch("app.services.llm_service._call_llm_async", side_effect=mock_call):
-        questions = await generate_questions_async(request, config)
+        questions, rag_used = await generate_questions_async(request, config)
+    assert rag_used is False
     # 第 1 题 KeyError 被吞掉返回 []，第 2、3 题正常，应得到 2 题
     assert isinstance(questions, list), "应返回列表"
     assert len(questions) >= 1, "至少应得到 1 题（第 2、3 题成功）"

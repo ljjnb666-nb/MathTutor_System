@@ -1,20 +1,19 @@
 """
-套餐 Plan 模型：免费版 / 基础版 / 专业版等
+Subscription plan model.
 """
 from sqlalchemy import Column, Float, Integer, String
-from sqlalchemy.dialects.sqlite import JSON
 
-from app.models.base import Base
+from app.models.base import Base, json_dict_column, pk_column
 
 
 class Plan(Base):
     __tablename__ = "plans"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    code = Column(String(32), unique=True, index=True, nullable=False)  # free | basic | pro
+    id = pk_column()
+    code = Column(String(32), unique=True, index=True, nullable=False)
     name = Column(String(64), nullable=False)
     max_students = Column(Integer, nullable=False)
-    features = Column(JSON, default=dict, nullable=False)  # e.g. {"magic_ppt": true, "rag": true}
+    features = json_dict_column()
     sort_order = Column(Integer, default=0, nullable=False)
     price_monthly = Column(Float, nullable=True)
     price_yearly = Column(Float, nullable=True)

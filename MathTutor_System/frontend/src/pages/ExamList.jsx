@@ -106,7 +106,7 @@ export default function ExamList() {
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col animate-fade-in-up space-y-4">
       <StudentSelectorModal
         open={!!assignExam}
         onClose={() => setAssignExam(null)}
@@ -114,21 +114,26 @@ export default function ExamList() {
         defaultTitle={assignExam?.title || ''}
         allowEditTitle
       />
-      <header className="mb-6">
-        <h1 className="text-xl font-semibold text-gray-800">我的试卷</h1>
-        <p className="mt-1 text-sm text-gray-500">历史保存的试卷，点击可预览与打印</p>
+      <header className="flex items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-black tracking-tight text-slate-900">我的试卷与讲义资产</h1>
+            <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[10px] font-black text-emerald-600 uppercase">PRO EXAM ASSETS</span>
+          </div>
+          <p className="mt-0.5 text-xs text-slate-500">归档备课生成的试卷与同步讲义，支持排版打印、导出 Word 与一键批量分发作业</p>
+        </div>
       </header>
 
       {exams.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-gray-200 bg-white py-16 text-center shadow-sm">
-          <FileText className="mx-auto h-12 w-12 text-gray-300" />
-          <p className="mt-4 text-sm text-gray-500">暂无试卷</p>
-          <p className="mt-1 text-xs text-gray-400">在「智能出题」中生成完整试卷后点击「保存为试卷」即可在此查看</p>
+        <div className="pro-glass-card rounded-3xl py-20 text-center shadow-sm">
+          <FileText className="mx-auto h-14 w-14 text-slate-300 mb-3" />
+          <p className="text-sm font-extrabold text-slate-700">暂无归档试卷</p>
+          <p className="mt-1 text-xs text-slate-400">在「智能 AI 出题中心」生成题目后，点击「保存为试卷」即可显示在归档库中</p>
           <Link
             to="/smart-gen"
-            className="mt-4 inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            className="btn-gradient-pro mt-5 inline-flex items-center gap-2 rounded-2xl px-6 py-3 text-xs font-black"
           >
-            去智能出题
+            前往 AI 智能出题
           </Link>
         </div>
       ) : (
@@ -138,72 +143,62 @@ export default function ExamList() {
             const count = getQuestionCount(exam)
             return (
               <li key={exam.id}>
-                <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50/50">
+                <div className="pro-glass-card flex items-center justify-between gap-4 rounded-2xl p-4 transition-all hover:border-indigo-500/50">
                   <Link to={`/exams/${exam.id}`} className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h2 className="truncate text-base font-medium text-gray-800">{exam.title || '未命名试卷'}</h2>
+                    <div className="flex items-center gap-2.5">
+                      <h2 className="truncate text-sm font-black text-slate-900">{exam.title || '未命名数学试卷'}</h2>
                       <span
-                        className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase ${
                           lessonPlan
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-green-100 text-green-800'
+                            ? 'bg-indigo-500/10 text-indigo-700 border-indigo-200'
+                            : 'bg-emerald-500/10 text-emerald-700 border-emerald-200'
                         }`}
                       >
                         {lessonPlan ? '📘 辅导讲义' : '📝 练习试卷'}
                       </span>
                     </div>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {count} 道题 · {formatDate(exam.created_at)}
+                    <p className="mt-1 text-xs font-medium text-slate-500">
+                      {count} 道考题 · 创建时间 {formatDate(exam.created_at)}
                       {exam.student_name && (
-                        <span className="ml-2 text-gray-400">· {exam.student_name}</span>
+                        <span className="ml-2 font-bold text-indigo-600">· 布置给 {exam.student_name}</span>
                       )}
                     </p>
-                    {exam.student_id != null && (
-                      <p className="mt-0.5 text-xs text-gray-500">
-                        {exam.graded_at ? (
-                          <span className="text-green-600">
-                            已提交 {formatDate(exam.graded_at)}
-                            {exam.grade_summary?.total != null && (
-                              <> · 正确 {exam.grade_summary.correct}/{exam.grade_summary.total}</>
-                            )}
-                          </span>
-                        ) : (
-                          <span className="text-amber-600">未提交</span>
-                        )}
-                      </p>
-                    )}
                   </Link>
-                  <span className="shrink-0 text-sm text-blue-600">
-                    <Link to={`/exams/${exam.id}`}>预览 / 打印 →</Link>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      setAssignExam(exam)
-                    }}
-                    className="shrink-0 inline-flex items-center gap-1 rounded-lg p-2 text-gray-500 hover:bg-indigo-50 hover:text-indigo-600"
-                    title="布置给更多学生"
-                    aria-label="布置"
-                  >
-                    <Send className="h-4 w-4" />
-                    <span className="text-sm">布置</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => handleDelete(exam, e)}
-                    disabled={deletingId === exam.id}
-                    className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-                    title="删除"
-                    aria-label="删除"
-                  >
-                    {deletingId === exam.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                  </button>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Link
+                      to={`/exams/${exam.id}`}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+                    >
+                      打印与导出
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setAssignExam(exam)
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition-colors"
+                      title="布置给更多学生"
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      一键布置
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => handleDelete(exam, e)}
+                      disabled={deletingId === exam.id}
+                      className="rounded-xl border border-rose-200 bg-rose-50 p-2 text-rose-600 hover:bg-rose-100 disabled:opacity-50 transition-colors"
+                      title="删除试卷"
+                    >
+                      {deletingId === exam.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </li>
             )

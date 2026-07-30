@@ -374,34 +374,39 @@ export default function MistakeBook() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in-up">
       <header className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-gray-900">
-          智能错题本 <span className="text-lg font-normal text-gray-500">(Smart Notebook)</span>
-        </h1>
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-black tracking-tight text-slate-900">智能错题追踪本</h1>
+            <span className="rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-[10px] font-black text-amber-600 uppercase">SMART NOTEBOOK</span>
+          </div>
+          <p className="mt-0.5 text-xs text-slate-500">基于艾宾浩斯遗忘曲线复习打卡，一键生成变式消灭错题卷</p>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           {filterKnowledgePoint && (
             <Link
               to={`/knowledge-graph?knowledge_point=${encodeURIComponent(filterKnowledgePoint)}`}
-              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
             >
-              <GitBranch className="h-4 w-4" />
-              在学情图谱中查看
+              <GitBranch className="h-4 w-4 text-indigo-600" />
+              学情图谱
             </Link>
           )}
           <button
             type="button"
             onClick={openCreateModal}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 active:bg-blue-800"
+            className="btn-gradient-pro inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 text-xs font-black"
           >
             <Plus className="h-4 w-4" />
-            添加错题
+            手动录入错题
           </button>
         </div>
       </header>
 
+      {/* Pro 选项卡切换器 */}
       <div
-        className="flex gap-2 rounded-xl border border-gray-200 bg-white p-1 shadow-sm"
+        className="pro-glass-card flex gap-2 rounded-2xl p-1.5"
         role="tablist"
         aria-label="待攻克 / 今日待复习 / 已掌握"
       >
@@ -410,16 +415,16 @@ export default function MistakeBook() {
           role="tab"
           aria-selected={activeTab === 'pending'}
           onClick={() => setActiveTab('pending')}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
+          className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-extrabold transition-all ${
             activeTab === 'pending'
-              ? 'bg-amber-100 text-amber-800 shadow-sm'
-              : 'text-gray-600 hover:bg-gray-100'
+              ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25'
+              : 'text-slate-600 hover:bg-slate-100/80'
           }`}
         >
-          <span>🔥 待攻克</span>
+          <span>🔥 待攻克错题</span>
           <span
-            className={`min-w-[1.25rem] rounded-full px-1.5 py-0.5 text-xs font-semibold ${
-              activeTab === 'pending' ? 'bg-amber-200 text-amber-900' : 'bg-gray-200 text-gray-700'
+            className={`min-w-[1.25rem] rounded-full px-2 py-0.5 text-[10px] font-black ${
+              activeTab === 'pending' ? 'bg-amber-600 text-white' : 'bg-slate-200 text-slate-700'
             }`}
           >
             {pendingList.length}
@@ -430,16 +435,16 @@ export default function MistakeBook() {
           role="tab"
           aria-selected={activeTab === 'due_today'}
           onClick={() => setActiveTab('due_today')}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
+          className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-extrabold transition-all ${
             activeTab === 'due_today'
-              ? 'bg-amber-100 text-amber-800 shadow-sm'
-              : 'text-gray-600 hover:bg-gray-100'
+              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
+              : 'text-slate-600 hover:bg-slate-100/80'
           }`}
         >
-          <span>📅 今日待复习</span>
+          <span>📅 今日急待复习</span>
           <span
-            className={`min-w-[1.25rem] rounded-full px-1.5 py-0.5 text-xs font-semibold ${
-              activeTab === 'due_today' ? 'bg-amber-200 text-amber-900' : 'bg-gray-200 text-gray-700'
+            className={`min-w-[1.25rem] rounded-full px-2 py-0.5 text-[10px] font-black ${
+              activeTab === 'due_today' ? 'bg-indigo-700 text-white' : 'bg-slate-200 text-slate-700'
             }`}
           >
             {dueTodayList.length}
@@ -450,16 +455,16 @@ export default function MistakeBook() {
           role="tab"
           aria-selected={activeTab === 'mastered'}
           onClick={() => setActiveTab('mastered')}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
+          className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-extrabold transition-all ${
             activeTab === 'mastered'
-              ? 'bg-green-100 text-green-800 shadow-sm'
-              : 'text-gray-600 hover:bg-gray-100'
+              ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/25'
+              : 'text-slate-600 hover:bg-slate-100/80'
           }`}
         >
-          <span>✅ 已掌握</span>
+          <span>✅ 已完全掌握</span>
           <span
-            className={`min-w-[1.25rem] rounded-full px-1.5 py-0.5 text-xs font-semibold ${
-              activeTab === 'mastered' ? 'bg-green-200 text-green-900' : 'bg-gray-200 text-gray-700'
+            className={`min-w-[1.25rem] rounded-full px-2 py-0.5 text-[10px] font-black ${
+              activeTab === 'mastered' ? 'bg-emerald-700 text-white' : 'bg-slate-200 text-slate-700'
             }`}
           >
             {masteredList.length}
@@ -468,58 +473,55 @@ export default function MistakeBook() {
       </div>
 
       {activeTab === 'pending' && pendingList.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
-          <button
-            type="button"
-            onClick={handleGenerateReviewPaper}
-            disabled={loadingList || generating}
-            className="flex w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-6 py-3 text-base font-semibold text-white shadow-md transition-all hover:from-amber-600 hover:to-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {generating ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin" />
-                正在生成消灭错题卷…
-              </>
-            ) : (
-              <>
-                <Zap className="h-5 w-5" />
-                生成消灭错题卷
-              </>
-            )}
-          </button>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            根据当前 {pendingList.length} 道待攻克错题生成变式练习
-          </p>
+        <div className="relative overflow-hidden rounded-3xl bg-[#0B0F17] p-6 text-white border border-slate-800 shadow-2xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Zap className="h-4 w-4 text-amber-400" />
+                <span className="text-xs font-extrabold text-amber-400 uppercase tracking-wide">AI 错题消灭引擎</span>
+              </div>
+              <p className="text-sm font-bold text-white">基于当前 {pendingList.length} 道待攻克错题生成同源变式巩固试卷</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleGenerateReviewPaper}
+              disabled={loadingList || generating}
+              className="btn-gradient-pro shrink-0 inline-flex items-center gap-2 rounded-2xl px-6 py-3 text-xs font-black"
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  正在生成变式卷…
+                </>
+              ) : (
+                <>
+                  <Zap className="h-4 w-4" />
+                  一键生成消灭错题卷
+                </>
+              )}
+            </button>
+          </div>
         </div>
       )}
 
-      <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
+      <section className="pro-glass-card rounded-3xl overflow-hidden">
         {loadingList ? (
           <div className="flex min-h-[200px] items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+            <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
           </div>
         ) : displayList.length === 0 ? (
-          <div className="flex min-h-[200px] flex-col items-center justify-center gap-2 py-12 text-gray-500">
-            <BookOpen className="h-12 w-12 text-gray-300" />
+          <div className="flex min-h-[200px] flex-col items-center justify-center gap-2 py-16 text-slate-400 text-xs font-bold">
+            <BookOpen className="h-12 w-12 text-slate-300" />
             <p>
               {activeTab === 'pending'
-                ? (filterKnowledgePoint ? '该知识点下暂无待攻克错题' : '暂无待攻克错题，点击「添加错题」开始')
+                ? (filterKnowledgePoint ? '该知识点下暂无待攻克错题' : '暂无待攻克错题，点击「手动录入错题」开始')
                 : activeTab === 'due_today'
-                  ? '今日暂无待复习错题'
+                  ? '今日暂无待复习错题，保持完美节奏！'
                   : '暂无已掌握记录'}
             </p>
-            {activeTab === 'pending' && !filterKnowledgePoint && (
-              <button
-                type="button"
-                onClick={openCreateModal}
-                className="mt-2 text-sm text-blue-600 hover:underline"
-              >
-                添加错题
-              </button>
-            )}
           </div>
         ) : (
-          <ul className="divide-y divide-gray-100">
+          <ul className="divide-y divide-slate-100">
             {displayList.map((m) => (
               <MistakeCard
                 key={m.id}

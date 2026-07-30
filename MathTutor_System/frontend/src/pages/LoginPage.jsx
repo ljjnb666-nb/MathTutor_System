@@ -71,16 +71,33 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100/80 px-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
-      <div className="w-full max-w-sm">
-        <div className="bg-white rounded-2xl shadow-mobile-card md:shadow-lg border border-gray-100 p-6 sm:p-8">
-          <h1 className="text-lg sm:text-xl font-semibold text-gray-800 text-center mb-5 sm:mb-6">
-            系统登录
-          </h1>
-          <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#0B0F17] bg-mesh-canvas px-4 py-8 relative overflow-hidden">
+      {/* Background ambient spotlight glows */}
+      <div className="pointer-events-none absolute -top-40 -left-40 h-96 w-96 rounded-full bg-indigo-600/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-purple-600/20 blur-3xl" />
+
+      <div className="w-full max-w-md relative z-10 animate-fade-in-up">
+        <div className="pro-obsidian-panel rounded-3xl p-8 border border-slate-800 shadow-2xl backdrop-blur-2xl">
+          {/* Logo Header */}
+          <div className="flex flex-col items-center justify-center text-center mb-8">
+            <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 p-0.5 shadow-lg shadow-indigo-500/25 mb-3">
+              <div className="h-full w-full bg-[#0B0F17] rounded-[14px] flex items-center justify-center text-white font-black text-xl">
+                ∑
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-black text-white tracking-tight">MathTutor</h1>
+              <span className="rounded-full bg-indigo-500/20 border border-indigo-500/30 px-2.5 py-0.5 text-[10px] font-black text-indigo-400 uppercase tracking-widest">
+                PRO STUDIO
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-slate-400 font-bold">智能 AI 数学教学与全场景备课工作台</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-                用户名
+              <label htmlFor="username" className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                账号 / 用户名
               </label>
               <input
                 ref={usernameInputRef}
@@ -89,14 +106,14 @@ export default function LoginPage() {
                 autoComplete="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                placeholder="请输入用户名"
+                className="w-full px-4 py-3 rounded-2xl bg-slate-900/90 border border-slate-700/80 text-sm font-bold text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                placeholder="请输入您的账号"
                 disabled={loading}
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                密码
+              <label htmlFor="password" className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                安全密码
               </label>
               <div className="relative">
                 <input
@@ -105,37 +122,39 @@ export default function LoginPage() {
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                  className="w-full px-4 py-3 pr-12 rounded-2xl bg-slate-900/90 border border-slate-700/80 text-sm font-bold text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
                   placeholder="请输入密码"
                   disabled={loading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-white transition-colors"
                   aria-label={showPassword ? '隐藏密码' : '显示密码'}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
+
             {error && (
-              <p className="text-sm text-red-500" role="alert">
+              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs font-bold text-rose-400" role="alert">
                 {error}
-              </p>
+              </div>
             )}
+
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 active:bg-blue-800 disabled:opacity-60 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
+              className="btn-gradient-pro w-full py-3.5 px-5 rounded-2xl text-xs font-black tracking-wider uppercase shadow-lg shadow-indigo-500/25 transition-transform active:scale-[0.98]"
             >
               {loading ? (
-                <>
-                  <span className="loading-spinner h-4 w-4 border-2" aria-hidden />
-                  登录中…
-                </>
+                <span className="flex items-center justify-center gap-2">
+                  <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  正在验证身份…
+                </span>
               ) : (
-                '登录系统'
+                '登录进入控制台'
               )}
             </button>
           </form>

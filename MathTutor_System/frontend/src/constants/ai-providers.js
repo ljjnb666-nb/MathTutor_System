@@ -1,6 +1,9 @@
 /**
- * AI 供应商预设配置：各服务商最新可用模型（2025）。
- * 模型 ID 以各平台 API 文档为准。
+ * AI provider presets and current recommended model IDs.
+ *
+ * Notes:
+ * - Keep model IDs aligned with provider docs.
+ * - Prefer stable general-purpose text models first, then optional previews.
  */
 export const PROVIDERS = [
   {
@@ -10,23 +13,25 @@ export const PROVIDERS = [
     apiVersion: '',
     docUrl: 'https://api-docs.deepseek.com/',
     models: [
-      { value: 'deepseek-chat', label: 'DeepSeek-V3 (通用对话)' },
-      { value: 'deepseek-reasoner', label: 'DeepSeek-R1 (深度思考/强推理)' },
+      { value: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash (默认推荐)' },
+      { value: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro (高质量)' },
+      { value: 'deepseek-chat', label: 'DeepSeek Chat (兼容别名，已弃用)' },
+      { value: 'deepseek-reasoner', label: 'DeepSeek Reasoner (兼容别名，已弃用)' },
     ],
   },
   {
-    label: 'OpenRouter (Gemini 等·免直连)',
+    label: 'OpenRouter (免直连聚合)',
     value: 'openrouter',
     baseUrl: 'https://openrouter.ai/api/v1',
     apiVersion: 'v1',
     docUrl: 'https://openrouter.ai/docs',
-    regionHint: '通过 OpenRouter 转发，无需代理、不受 Google 直连地区限制；需在 openrouter.ai 申请 API Key',
+    regionHint:
+      '通过 OpenRouter 转发，无需单独处理部分官方直连限制；需要在 openrouter.ai 申请 API Key。',
     models: [
       { value: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
       { value: 'google/gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
-      { value: 'google/gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
-      { value: 'google/gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
-      { value: 'google/gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
+      { value: 'google/gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite' },
+      { value: 'google/gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro Preview' },
     ],
   },
   {
@@ -35,15 +40,13 @@ export const PROVIDERS = [
     baseUrl: 'https://generativelanguage.googleapis.com',
     apiVersion: 'v1beta',
     docUrl: 'https://ai.google.dev/gemini-api/docs/models',
-    regionHint: '部分地区需在服务器 .env 中配置 LLM_HTTPS_PROXY 代理后重启后端',
+    regionHint:
+      '部分地区可能需要在服务端 .env 中配置 LLM_HTTPS_PROXY 后再调用 Gemini 官方接口。',
     models: [
-      { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro (预览·最强)' },
-      { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash (预览·均衡)' },
-      { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (思维/长文本)' },
-      { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (性价比)' },
-      { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite (极速)' },
-      { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
-      { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
+      { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (默认推荐)' },
+      { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (复杂推理/代码)' },
+      { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite (低成本)' },
+      { value: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro Preview' },
     ],
   },
   {
@@ -53,10 +56,11 @@ export const PROVIDERS = [
     apiVersion: 'v1',
     docUrl: 'https://platform.openai.com/docs/models',
     models: [
-      { value: 'gpt-4o', label: 'GPT-4o (全能旗舰)' },
+      { value: 'gpt-4.1', label: 'GPT-4.1 (通用旗舰)' },
+      { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini (默认推荐)' },
+      { value: 'gpt-4o', label: 'GPT-4o (多模态通用)' },
       { value: 'gpt-4o-mini', label: 'GPT-4o Mini (高性价比)' },
-      { value: 'o1', label: 'o1 (深度推理)' },
-      { value: 'o1-mini', label: 'o1-mini (推理·轻量)' },
+      { value: 'o4-mini', label: 'o4-mini (推理向)' },
     ],
   },
   {
@@ -64,12 +68,12 @@ export const PROVIDERS = [
     value: 'anthropic',
     baseUrl: 'https://api.anthropic.com/v1',
     apiVersion: 'v1',
-    docUrl: 'https://docs.anthropic.com/en/api/models',
+    docUrl: 'https://docs.anthropic.com/en/docs/about-claude/models/overview',
     models: [
-      { value: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5 (编程/推理)' },
-      { value: 'claude-opus-4-1', label: 'Claude Opus 4.1 (最强)' },
-      { value: 'claude-3-5-sonnet-latest', label: 'Claude 3.5 Sonnet' },
-      { value: 'claude-3-5-haiku-latest', label: 'Claude 3.5 Haiku (极速)' },
+      { value: 'claude-sonnet-5', label: 'Claude Sonnet 5 (默认推荐)' },
+      { value: 'claude-opus-4-8', label: 'Claude Opus 4.8 (高阶复杂任务)' },
+      { value: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5' },
+      { value: 'claude-3-5-haiku-latest', label: 'Claude 3.5 Haiku (轻量快速)' },
     ],
   },
   {
@@ -77,23 +81,25 @@ export const PROVIDERS = [
     value: 'moonshot',
     baseUrl: 'https://api.moonshot.cn/v1',
     apiVersion: 'v1',
-    docUrl: 'https://platform.moonshot.cn/docs',
+    docUrl: 'https://platform.moonshot.cn/docs/api/chat',
     models: [
-      { value: 'moonshot-v1-8k', label: 'Moonshot V1 (8k)' },
-      { value: 'moonshot-v1-32k', label: 'Moonshot V1 (32k)' },
-      { value: 'moonshot-v1-128k', label: 'Moonshot V1 (128k)' },
+      { value: 'kimi-k2.6', label: 'Kimi K2.6 (默认推荐)' },
+      { value: 'kimi-k2.7-code', label: 'Kimi K2.7 Code' },
+      { value: 'kimi-k2.7-code-highspeed', label: 'Kimi K2.7 Code Highspeed' },
+      { value: 'kimi-k2.5', label: 'Kimi K2.5' },
+      { value: 'moonshot-v1', label: 'Moonshot V1 (兼容模型)' },
     ],
   },
   {
-    label: 'ZhipuAI (智谱清言)',
+    label: 'ZhipuAI (智谱)',
     value: 'zhipu',
     baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
     apiVersion: 'v4',
     docUrl: 'https://open.bigmodel.cn/dev/api',
     models: [
-      { value: 'glm-4-plus', label: 'GLM-4-Plus (旗舰)' },
-      { value: 'glm-4', label: 'GLM-4' },
-      { value: 'glm-4-flash', label: 'GLM-4 Flash (极速)' },
+      { value: 'glm-5.2', label: 'GLM-5.2 (默认推荐)' },
+      { value: 'glm-4-plus', label: 'GLM-4-Plus' },
+      { value: 'glm-4-flash', label: 'GLM-4 Flash' },
     ],
   },
   {
@@ -101,12 +107,12 @@ export const PROVIDERS = [
     value: 'qwen',
     baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     apiVersion: 'v1',
-    docUrl: 'https://help.aliyun.com/zh/dashscope/developer-reference',
+    docUrl: 'https://help.aliyun.com/zh/model-studio/models',
     models: [
-      { value: 'qwen-max', label: 'Qwen-Max (旗舰)' },
-      { value: 'qwen-plus', label: 'Qwen-Plus (均衡)' },
-      { value: 'qwen-turbo', label: 'Qwen-Turbo (快速)' },
-      { value: 'qwen-long', label: 'Qwen-Long (长文本)' },
+      { value: 'qwen3.7-max', label: 'Qwen 3.7 Max (默认推荐)' },
+      { value: 'qwen3.7-plus', label: 'Qwen 3.7 Plus' },
+      { value: 'qwen3.6-flash', label: 'Qwen 3.6 Flash' },
+      { value: 'qwen-plus', label: 'Qwen Plus (兼容常用)' },
     ],
   },
   {
@@ -122,12 +128,11 @@ const STORAGE_KEY = 'app_settings'
 
 const defaultSettings = {
   provider: 'deepseek',
-  model: 'deepseek-chat',
+  model: 'deepseek-v4-flash',
   apiKey: '',
   baseUrl: 'https://api.deepseek.com',
   apiVersion: '',
   showThinking: false,
-  /** 按服务商分别保存的 API Key，切换服务商时恢复对应 Key */
   apiKeysByProvider: {},
   baseUrlsByProvider: {},
   apiVersionsByProvider: {},
@@ -144,10 +149,6 @@ export function getStoredSettings() {
   }
 }
 
-/**
- * 获取指定服务商已保存的 API Key（用于设置弹窗内切换服务商时回填）。
- * 仅当该服务商已保存过 Key、或就是当前选中的服务商时返回值；否则返回空，避免把别的服务商的 Key 显示出来。
- */
 export function getApiKeyForProvider(providerValue) {
   const stored = getStoredSettings()
   const byProvider = stored.apiKeysByProvider || {}
@@ -158,9 +159,6 @@ export function getApiKeyForProvider(providerValue) {
   return ''
 }
 
-/**
- * 获取指定服务商的 Base URL：优先该服务商已保存的值，否则当前全局或该服务商默认值。
- */
 export function getBaseUrlForProvider(providerValue) {
   const stored = getStoredSettings()
   const p = getProviderByValue(providerValue)
@@ -172,9 +170,6 @@ export function getBaseUrlForProvider(providerValue) {
   return (p.baseUrl ?? '').trim()
 }
 
-/**
- * 获取指定服务商的 API 版本：优先该服务商已保存的值，否则当前全局或该服务商默认值。
- */
 export function getApiVersionForProvider(providerValue) {
   const stored = getStoredSettings()
   const p = getProviderByValue(providerValue)

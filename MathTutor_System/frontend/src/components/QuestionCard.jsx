@@ -331,30 +331,41 @@ export default function QuestionCard({
     }
   }
 
+  const getRankBadgeClass = (diff) => {
+    switch (diff) {
+      case 'L1': return 'rank-badge-l1'
+      case 'L2': return 'rank-badge-l2'
+      case 'L3': return 'rank-badge-l3'
+      case 'L4': return 'rank-badge-l4'
+      case 'L5': return 'rank-badge-l5'
+      default: return 'rank-badge-l3'
+    }
+  }
+
   return (
-    <article className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-      {/* Header: 序号 + 题型/难度/知识点 pill + 工具栏 */}
-      <div className="flex items-center justify-between gap-3 border-b border-gray-100 bg-gray-50/50 px-4 py-3">
+    <article className="pro-glass-card rounded-3xl overflow-hidden transition-all duration-300">
+      {/* Header: 序号 + 游戏化 Rank 勋章 + 工具栏 */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/80 px-5 py-3.5">
         <div className="flex flex-wrap items-center gap-2 min-w-0">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-violet-600 text-xs font-black text-white shadow-md shadow-indigo-500/25">
             {index ?? 1}
           </span>
-          <span className="rounded-full bg-gray-200 px-2.5 py-0.5 text-xs font-medium text-gray-700">
+          <span className="rounded-full bg-slate-100 border border-slate-200/80 px-3 py-0.5 text-xs font-extrabold text-slate-700">
             {questionTypeLabel}
           </span>
-          <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
-            {difficultyLabel}
+          <span className={`rounded-full px-3 py-0.5 text-xs font-black uppercase tracking-wider ${getRankBadgeClass(difficulty)}`}>
+            {difficulty} {difficultyLabel}
           </span>
-          <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800" title="知识点">
+          <span className="rounded-full bg-indigo-50 border border-indigo-200/70 px-3 py-0.5 text-xs font-bold text-indigo-700" title="知识点">
             知识点：{knowledgePointLabel}
           </span>
         </div>
-        <div className="flex items-center gap-0.5 shrink-0">
+        <div className="flex items-center gap-1 shrink-0 bg-white/90 border border-slate-200/80 rounded-2xl p-1 shadow-2xs">
           <button
             type="button"
             onClick={handleAddToMistake}
             disabled={addingToMistake}
-            className={iconBtnClass}
+            className="p-1.5 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all active:scale-95"
             title="加入错题本"
             aria-label="加入错题本"
           >
@@ -368,7 +379,7 @@ export default function QuestionCard({
             type="button"
             onClick={handleAddToTodayHomework}
             disabled={addingToHomework}
-            className={iconBtnClass}
+            className="p-1.5 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all active:scale-95"
             title="加入今日作业"
             aria-label="加入今日作业"
           >
@@ -382,7 +393,7 @@ export default function QuestionCard({
             type="button"
             onClick={handleCollect}
             disabled={collecting}
-            className={collected ? 'p-1.5 rounded-md text-amber-500 hover:text-amber-600 hover:bg-amber-50 transition-colors' : iconBtnClass}
+            className={collected ? 'p-1.5 rounded-xl text-amber-500 hover:text-amber-600 hover:bg-amber-50 transition-all' : 'p-1.5 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all active:scale-95'}
             title={collected ? '已收藏' : '收藏'}
             aria-label={collected ? '已收藏' : '收藏'}
           >
@@ -395,7 +406,7 @@ export default function QuestionCard({
           <button
             type="button"
             onClick={handleStartEdit}
-            className={iconBtnClass}
+            className="p-1.5 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all active:scale-95"
             title="编辑"
             aria-label="编辑"
           >
@@ -406,7 +417,7 @@ export default function QuestionCard({
               <button
                 type="button"
                 onClick={handleSaveEdit}
-                className="p-1.5 rounded-md text-emerald-600 hover:bg-emerald-50 transition-colors"
+                className="p-1.5 rounded-xl text-emerald-600 hover:bg-emerald-50 transition-all"
                 title="保存"
                 aria-label="保存"
               >
@@ -415,7 +426,7 @@ export default function QuestionCard({
               <button
                 type="button"
                 onClick={handleCancelEdit}
-                className="p-1.5 rounded-md text-red-600 hover:bg-red-50 transition-colors"
+                className="p-1.5 rounded-xl text-rose-600 hover:bg-rose-50 transition-all"
                 title="取消"
                 aria-label="取消"
               >
@@ -425,7 +436,7 @@ export default function QuestionCard({
           )}
           <button
             type="button"
-            className={iconBtnClass}
+            className="p-1.5 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all active:scale-95"
             title="重新生成"
             aria-label="重新生成"
             onClick={onRegenerate}
@@ -439,24 +450,21 @@ export default function QuestionCard({
           </button>
           <button
             type="button"
-            className={iconBtnClass}
+            className="p-1.5 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all active:scale-95"
             title={verifyingActive ? '验算中...' : '校对'}
             aria-label={verifyingActive ? '验算中' : '校对'}
             onClick={handleVerify}
             disabled={verifyingActive || !onVerify || !onUpdate}
           >
             {verifyingActive ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                <span className="sr-only">验算中...</span>
-              </>
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <BookOpen className="h-4 w-4" />
             )}
           </button>
           <button
             type="button"
-            className={iconBtnClass}
+            className="p-1.5 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all active:scale-95"
             title="问 AI"
             aria-label="问 AI"
             onClick={() =>
@@ -465,18 +473,18 @@ export default function QuestionCard({
           >
             <MessageCircle className="h-4 w-4" />
           </button>
-          {actions && <div className="ml-1 pl-1 border-l border-gray-200">{actions}</div>}
+          {actions && <div className="ml-1 pl-1 border-l border-slate-200">{actions}</div>}
         </div>
       </div>
 
-      {/* 题干：查看为 LaTeX，编辑为 textarea */}
-      <div className="px-4 py-4 text-gray-800 leading-relaxed">
+      {/* 题干容器：电光蓝左加重线 */}
+      <div className="mx-5 my-4 rounded-r-2xl border-l-4 border-indigo-500 bg-slate-50/60 p-4 text-slate-800 leading-relaxed font-semibold">
         {isEditing ? (
           <textarea
             value={editData?.content ?? ''}
             onChange={(e) => setEditData((d) => (d ? { ...d, content: e.target.value } : d))}
             rows={6}
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className="w-full rounded-xl border border-slate-200 p-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
             placeholder="题目内容（支持 LaTeX，如 $x^2$）"
           />
         ) : (
@@ -484,29 +492,29 @@ export default function QuestionCard({
         )}
       </div>
 
-      {/* 题目附图（题库/试卷中带图题目的参考图） */}
+      {/* 题目附图 */}
       {Array.isArray(data.images) && data.images.length > 0 && (
-        <div className="px-4 pb-4 flex flex-wrap gap-2">
+        <div className="px-5 pb-4 flex flex-wrap gap-2">
           {data.images.map((src, idx) => (
             <img
               key={idx}
               src={src}
               alt="题目附图"
               loading="lazy"
-              className="max-w-full max-h-80 object-contain rounded border border-gray-200"
+              className="max-w-full max-h-80 object-contain rounded-2xl border border-slate-200 shadow-sm"
             />
           ))}
         </div>
       )}
 
-      {/* 选项：查看为 Grid，编辑为 4 个 input */}
+      {/* 选项：查看为 Grid */}
       {isChoice && (
-        <div className="px-4 pb-4">
+        <div className="px-5 pb-4">
           {isEditing ? (
             <div className="space-y-2">
               {[0, 1, 2, 3].map((i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-medium text-gray-700">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-700">
                     {String.fromCharCode(65 + i)}
                   </span>
                   <input
@@ -517,23 +525,23 @@ export default function QuestionCard({
                       next[i] = e.target.value
                       setEditData((d) => (d ? { ...d, options: next } : d))
                     }}
-                    className="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                     placeholder={`选项 ${String.fromCharCode(65 + i)}`}
                   />
                 </div>
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {options.map((opt, i) => (
                 <div
                   key={i}
-                  className="flex items-start gap-3 rounded-lg bg-gray-50 p-3 hover:bg-gray-100 transition-colors"
+                  className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3.5 hover:border-indigo-300 hover:bg-indigo-50/40 transition-all"
                 >
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-300 text-xs font-medium text-gray-700">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-white border border-slate-200 text-xs font-black text-slate-700 shadow-xs">
                     {String.fromCharCode(65 + i)}
                   </span>
-                  <span className="min-w-0 text-gray-700 text-sm leading-relaxed">
+                  <span className="min-w-0 text-slate-800 text-sm leading-relaxed font-medium">
                     <Latex>{normalizeLatexForKaTeX(getOptionText(opt))}</Latex>
                   </span>
                 </div>
@@ -543,28 +551,28 @@ export default function QuestionCard({
         </div>
       )}
 
-      {/* 答案：编辑模式下显示 input */}
+      {/* 答案：编辑模式 */}
       {isEditing && (
-        <div className="px-4 pb-4">
-          <label className="mb-1.5 block text-xs font-medium text-gray-500">答案</label>
+        <div className="px-5 pb-4">
+          <label className="mb-1.5 block text-xs font-bold text-slate-500">答案</label>
           <input
             type="text"
             value={editData?.answer ?? ''}
             onChange={(e) => setEditData((d) => (d ? { ...d, answer: e.target.value } : d))}
-            className="w-full max-w-md rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className="w-full max-w-md rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
             placeholder="答案（选择题可填 A/B/C/D，支持 LaTeX）"
           />
         </div>
       )}
 
-      {/* Footer: 查看解析 / 编辑解析 */}
-      <div className="border-t border-gray-100">
+      {/* Footer: 查看解析 */}
+      <div className="border-t border-slate-100">
         <button
           type="button"
           onClick={() => (isControlled ? onToggle(!showAnalysis) : setInternalExpanded((v) => !v))}
-          className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-sm font-medium text-blue-600 hover:bg-blue-50/50 transition-colors cursor-pointer"
+          className="flex w-full items-center justify-between gap-2 px-5 py-3 text-left text-xs font-extrabold text-indigo-600 hover:bg-indigo-50/60 transition-colors cursor-pointer"
         >
-          <span>{isEditing ? '解析' : '查看解析'}</span>
+          <span>{isEditing ? '解析内容' : '查看详细解析'}</span>
           {showAnalysis || isEditing ? (
             <ChevronUp className="h-4 w-4 shrink-0" />
           ) : (
@@ -572,14 +580,14 @@ export default function QuestionCard({
           )}
         </button>
         {(showAnalysis || isEditing) && (
-          <div className="border-t border-gray-100 bg-blue-50/50 px-4 py-3">
-            <p className="text-xs font-medium text-gray-500 mb-1.5">解析</p>
+          <div className="border-t border-slate-100 bg-slate-50/70 px-5 py-4 space-y-3">
+            <p className="text-xs font-black text-slate-500 tracking-wide">详细解析与解题步骤</p>
             {isEditing ? (
               <textarea
                 value={editData?.analysis ?? ''}
                 onChange={(e) => setEditData((d) => (d ? { ...d, analysis: e.target.value } : d))}
                 rows={8}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                className="w-full rounded-xl border border-slate-200 p-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                 placeholder="解析内容（支持 LaTeX）"
               />
             ) : analysis ? (
@@ -590,19 +598,20 @@ export default function QuestionCard({
                       const isSteps = label === '步骤'
                       const steps = isSteps ? splitSteps(content) : []
                       return (
-                        <div key={label}>
-                          <span className="font-medium text-blue-700">{label}</span>
-                          <span className="text-gray-700"> </span>
+                        <div key={label} className="rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-2xs">
+                          <span className="inline-block rounded-lg bg-indigo-600 px-2.5 py-0.5 text-xs font-bold text-white mb-2">{label}</span>
                           {isSteps && steps.length > 0 ? (
-                            <div className="mt-1 space-y-1.5 overflow-visible">
+                            <div className="space-y-2 overflow-visible">
                               {steps.map((step, i) => (
-                                <div key={i} className="text-gray-700 min-h-[1.5em] overflow-visible">
+                                <div key={i} className="text-slate-800 text-sm leading-relaxed min-h-[1.5em] overflow-visible">
                                   <Latex>{normalizeLatexForKaTeX(step)}</Latex>
                                 </div>
                               ))}
                             </div>
                           ) : (
-                            <Latex>{normalizeLatexForKaTeX(content)}</Latex>
+                            <div className="text-slate-800 text-sm leading-relaxed">
+                              <Latex>{normalizeLatexForKaTeX(content)}</Latex>
+                            </div>
                           )}
                         </div>
                       )
@@ -611,7 +620,7 @@ export default function QuestionCard({
                   return <Latex>{normalizeLatexForKaTeX(analysis)}</Latex>
                 })()
               ) : (
-                <span className="text-gray-500">暂无解析</span>
+                <span className="text-slate-400 text-xs font-semibold">暂无详细解析</span>
               )}
           </div>
         )}

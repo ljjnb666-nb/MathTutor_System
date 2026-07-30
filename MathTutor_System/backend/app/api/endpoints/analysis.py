@@ -12,32 +12,9 @@ from app.models.base import get_db
 from app.models.mistake import MistakeRecord
 from app.models.student import Student
 from app.models.user import User
+from app.services.topic_service import split_topics
 
 router = APIRouter()
-
-
-def _normalize_topic(s: str) -> str:
-    """去除首尾空白，将全角空格替换为半角。"""
-    if not s or not isinstance(s, str):
-        return ""
-    s = s.strip().replace("\u3000", " ").replace("\uff0c", ",")
-    return " ".join(s.split())  # 合并连续空白
-
-
-def _split_topics(topic_str: str | None) -> set[str]:
-    """将可能为组合知识点的字符串拆分为集合。支持分隔符：+、＋、、。每段去空并规范化。"""
-    if not topic_str or not str(topic_str).strip():
-        return set()
-    raw = str(topic_str).strip()
-    out: set[str] = set()
-    # 统一用 + 分割：先替换全角顿号、加号为 +
-    for sep in ["＋", "、", "+"]:
-        raw = raw.replace(sep, "+")
-    for part in raw.split("+"):
-        t = _normalize_topic(part)
-        if t:
-            out.add(t)
-    return out
 
 
 @router.get("/mastery/{student_id}")
@@ -76,10 +53,10 @@ async def get_student_mastery(
 
         weak_points: set[str] = set()
         for m in pending_mistakes:
-            weak_points |= _split_topics(m.topic)
+            weak_points |= split_topics(m.topic)
         mastered_points: set[str] = set()
         for m in mastered_mistakes:
-            mastered_points |= _split_topics(m.topic)
+            mastered_points |= split_topics(m.topic)
         # 若某知识点既在弱项又在已掌握（数据可能不同步），以弱项为准，从已掌握中剔除
         mastered_points -= weak_points
 
@@ -144,7 +121,7 @@ async def get_students_overview(
                 )
                 .all()
             ):
-                weak_set |= _split_topics(m.topic)
+                weak_set |= split_topics(m.topic)
             out.append({
                 "student_id": s.id,
                 "student_name": (s.name or "").strip() or f"学生{s.id}",
