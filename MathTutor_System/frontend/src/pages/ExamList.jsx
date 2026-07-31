@@ -92,14 +92,14 @@ export default function ExamList() {
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+        <Loader2 className="h-10 w-10 animate-spin" style={{ color: 'var(--color-primary-600)' }} />
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
+      <div className="rounded-lg p-4" style={{ border: '1px solid rgba(239, 68, 68, 0.2)', backgroundColor: 'color-mix(in srgb, #ef4444 10%, var(--color-bg-card))', color: '#b91c1c' }}>
         <p>{error}</p>
       </div>
     )
@@ -114,21 +114,30 @@ export default function ExamList() {
         defaultTitle={assignExam?.title || ''}
         allowEditTitle
       />
-      <header className="flex items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-black tracking-tight text-slate-900">我的试卷与讲义资产</h1>
-            <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[10px] font-black text-emerald-600 uppercase">PRO EXAM ASSETS</span>
+      <header className="rounded-3xl p-6 sm:p-8 shadow-sm flex items-center justify-between gap-4" style={{ border: '1px solid color-mix(in srgb, var(--color-border-primary) 90%, transparent)', backgroundColor: 'var(--color-bg-card)' }}>
+        <div className="flex items-center gap-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 text-white shadow-lg shrink-0" style={{ boxShadow: '0 10px 15px -3px color-mix(in srgb, var(--color-primary-500) 25%, transparent)' }}>
+            <FileText className="h-7 w-7" />
           </div>
-          <p className="mt-0.5 text-xs text-slate-500">归档备课生成的试卷与同步讲义，支持排版打印、导出 Word 与一键批量分发作业</p>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-black tracking-tight" style={{ color: 'var(--color-text-primary)' }}>我的试卷与讲义资产库</h1>
+              <span className="rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase" style={{ backgroundColor: 'color-mix(in srgb, #10b981 10%, transparent)', border: '1px solid rgba(16, 185, 129, 0.2)', color: '#047857' }}>
+                EXAM ASSETS
+              </span>
+            </div>
+            <p className="mt-1 text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+              归档备课生成的试卷与同步讲义，支持 A4 打印排版、导出 Word 与一键批量布置作业
+            </p>
+          </div>
         </div>
       </header>
 
       {exams.length === 0 ? (
         <div className="pro-glass-card rounded-3xl py-20 text-center shadow-sm">
-          <FileText className="mx-auto h-14 w-14 text-slate-300 mb-3" />
-          <p className="text-sm font-extrabold text-slate-700">暂无归档试卷</p>
-          <p className="mt-1 text-xs text-slate-400">在「智能 AI 出题中心」生成题目后，点击「保存为试卷」即可显示在归档库中</p>
+          <FileText className="mx-auto h-14 w-14 mb-3" style={{ color: 'var(--color-border-primary)' }} />
+          <p className="text-sm font-extrabold" style={{ color: 'var(--color-text-primary)' }}>暂无归档试卷</p>
+          <p className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>在「智能 AI 出题中心」生成题目后，点击「保存为试卷」即可显示在归档库中</p>
           <Link
             to="/smart-gen"
             className="btn-gradient-pro mt-5 inline-flex items-center gap-2 rounded-2xl px-6 py-3 text-xs font-black"
@@ -146,7 +155,7 @@ export default function ExamList() {
                 <div className="pro-glass-card flex items-center justify-between gap-4 rounded-2xl p-4 transition-all hover:border-indigo-500/50">
                   <Link to={`/exams/${exam.id}`} className="min-w-0 flex-1">
                     <div className="flex items-center gap-2.5">
-                      <h2 className="truncate text-sm font-black text-slate-900">{exam.title || '未命名数学试卷'}</h2>
+                      <h2 className="truncate text-sm font-black" style={{ color: 'var(--color-text-primary)' }}>{exam.title || '未命名数学试卷'}</h2>
                       <span
                         className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase ${
                           lessonPlan
