@@ -28,6 +28,7 @@ const SchedulePage = lazy(() => import('./pages/SchedulePage'))
 const HomeworkProgress = lazy(() => import('./pages/HomeworkProgress'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
 const Pricing = lazy(() => import('./pages/Pricing'))
+const Settings = lazy(() => import('./pages/Settings'))
 
 function RouteFallback() {
   return (
@@ -82,6 +83,7 @@ function App() {
             <Route path="ppt" element={<PPTGenerator />} />
             <Route path="exams/:id" element={<ExamPreview />} />
             <Route path="pricing" element={<Pricing />} />
+            <Route path="settings" element={<Settings />} />
             <Route element={<AdminRoute />}>
               <Route path="admin-users" element={<AdminUserPage />} />
             </Route>
