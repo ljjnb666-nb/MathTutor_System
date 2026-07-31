@@ -1,3 +1,5 @@
+@import './styles/design-tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,13 +10,13 @@ html {
 
 body {
   margin: 0;
-  font-family: "Inter", "Plus Jakarta Sans", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
-  background-color: #f8fafc;
-  color: #0f172a;
+  background-color: var(--color-bg-canvas);
+  color: var(--color-text-primary);
 }
 
 /* 优雅精致的自定义滚动条 */
