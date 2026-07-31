@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Home, BookOpen, Users, Settings, ChevronDown, Search, Plus, FileStack, FileUp, Presentation, BookMarked, GitBranch, LogOut, UserCog, Database, MessageCircle, FileText, Calendar, ClipboardCheck, X, Sparkles, CreditCard } from 'lucide-react'
+import { Settings, ChevronDown, Search, Plus, LogOut, X, Sparkles } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useStudent } from '../contexts/StudentContext'
 import { useSubscription } from '../contexts/SubscriptionContext'
+import { getVisibleNavGroups } from '../config/navigation'
 
 const AVATAR_COLORS = [
   'bg-blue-100 text-blue-700',
@@ -23,45 +24,6 @@ function getInitial(name) {
   return String(name).trim()[0]
 }
 
-/** 分组导航：便于后续在任一组下拓展新菜单，仅改对应 group.items 即可 */
-const navGroups = [
-  {
-    title: null,
-    items: [{ to: '/', icon: LayoutDashboard, label: '首页', end: true }],
-  },
-  {
-    title: '出题与内容',
-    items: [
-      { to: '/smart-gen', icon: Home, label: '智能出题' },
-      { to: '/chat', icon: MessageCircle, label: 'AI 对话' },
-      { to: '/teacher-agent', icon: Sparkles, label: 'AI 教师助手' },
-      { to: '/question-bank', icon: BookOpen, label: '题库管理' },
-      { to: '/knowledge-base', icon: Database, label: '知识库管理' },
-      { to: '/exams/import', icon: FileUp, label: '导入试卷' },
-      { to: '/ppt', icon: Presentation, label: 'Magic PPT' },
-    ],
-  },
-  {
-    title: '学情与练习',
-    items: [
-      { to: '/schedule', icon: Calendar, label: '排课' },
-      { to: '/homework-progress', icon: ClipboardCheck, label: '学生做题情况' },
-      { to: '/mistake-book', icon: BookMarked, label: '错题本' },
-      { to: '/knowledge-graph', icon: GitBranch, label: '学情图谱' },
-      { to: '/reports', icon: FileText, label: '课后与学习报告' },
-      { to: '/exams', icon: FileStack, label: '我的试卷', end: true },
-    ],
-  },
-  {
-    title: '系统管理',
-    items: [
-      { to: '/student-mgmt', icon: Users, label: '学生管理与总览' },
-      { to: '/pricing', icon: CreditCard, label: '套餐与定价' },
-      { to: '/admin-users', icon: UserCog, label: '用户管理', end: true },
-    ],
-  },
-]
-
 export default function Sidebar({ onCloseDrawer }) {
   const [switcherOpen, setSwitcherOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -72,13 +34,7 @@ export default function Sidebar({ onCloseDrawer }) {
   const { atStudentLimit } = useSubscription()
 
   const visibleNavGroups = useMemo(
-    () =>
-      navGroups.map((group) => ({
-        ...group,
-        items: group.items.filter(
-          (item) => item.to !== '/admin-users' || user?.role === 'admin'
-        ),
-      })).filter((group) => group.items.length > 0),
+    () => getVisibleNavGroups(user?.role),
     [user?.role]
   )
 
