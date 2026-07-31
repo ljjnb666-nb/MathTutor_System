@@ -48,12 +48,17 @@ export default function Settings() {
     setShowThinking(Boolean(stored.showThinking))
 
     // 加载外观设置
-    const savedTheme = localStorage.getItem('ui_theme') || 'light'
+    const savedTheme = localStorage.getItem('ui_theme') || 'dark'
     const savedAccent = localStorage.getItem('ui_accent') || 'indigo'
     const savedDensity = localStorage.getItem('ui_density') || 'comfortable'
     setTheme(savedTheme)
     setAccentColor(savedAccent)
     setDensity(savedDensity)
+
+    // 立即应用到 DOM
+    document.documentElement.dataset.theme = savedTheme
+    document.documentElement.dataset.accent = savedAccent
+    document.documentElement.dataset.density = savedDensity
   }, [])
 
   const handleProviderChange = (v) => {
@@ -109,7 +114,13 @@ export default function Settings() {
     localStorage.setItem('ui_theme', theme)
     localStorage.setItem('ui_accent', accentColor)
     localStorage.setItem('ui_density', density)
-    alert('外观设置已保存')
+
+    // 立即应用到 DOM
+    document.documentElement.dataset.theme = theme
+    document.documentElement.dataset.accent = accentColor
+    document.documentElement.dataset.density = density
+
+    alert('外观设置已保存并应用')
   }
 
   const handleClearLocalConfig = () => {

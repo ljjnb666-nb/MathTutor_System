@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './contexts/AuthContext'
@@ -39,6 +39,17 @@ function RouteFallback() {
 }
 
 function App() {
+  // 初始化主题设置
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('ui_theme') || 'dark'
+    const savedAccent = localStorage.getItem('ui_accent') || 'indigo'
+    const savedDensity = localStorage.getItem('ui_density') || 'comfortable'
+
+    document.documentElement.dataset.theme = savedTheme
+    document.documentElement.dataset.accent = savedAccent
+    document.documentElement.dataset.density = savedDensity
+  }, [])
+
   return (
     <BrowserRouter
       future={{
