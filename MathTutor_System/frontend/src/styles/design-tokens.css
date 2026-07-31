@@ -7,27 +7,32 @@
  * - 或使用 Tailwind 扩展类：bg-obsidian-900
  */
 
-:root {
+/* ========== 深色主题（默认） ========== */
+:root,
+html[data-theme="dark"] {
   /* ========== 颜色系统 ========== */
 
   /* 背景色 - 深色海军蓝 */
   --color-bg-primary: #0B0F17;        /* 主背景（黑曜石） */
   --color-bg-secondary: #111726;      /* 次级背景 */
   --color-bg-tertiary: #161F33;       /* 三级背景 */
-  --color-bg-canvas: #0B0F17;         /* 画布背景（深色） */
-  --color-bg-card: rgba(17, 23, 38, 0.92); /* 卡片背景（深色半透明） */
+  --color-bg-canvas: #080c14;         /* 画布背景（更深） */
+  --color-bg-surface: #0d1320;        /* 表面背景 */
+  --color-bg-card: #111827;           /* 卡片背景 */
+  --color-bg-card-hover: #172033;     /* 卡片悬停背景 */
+  --color-bg-input: #0f172a;          /* 输入框背景 */
 
   /* 文本色 */
   --color-text-primary: #f8fafc;      /* 主文本（浅色） */
-  --color-text-secondary: #cbd5e1;    /* 次级文本（浅灰） */
-  --color-text-tertiary: #94a3b8;     /* 三级文本（中灰） */
-  --color-text-inverse: #0f172a;      /* 反转文本（深色，用于浅色背景） */
+  --color-text-secondary: #94a3b8;    /* 次级文本（浅灰） */
+  --color-text-tertiary: #64748b;     /* 三级文本（中灰） */
   --color-text-muted: #64748b;        /* 弱化文本 */
+  --color-text-inverse: #0f172a;      /* 反转文本（深色，用于浅色背景） */
 
   /* 边框色 */
-  --color-border-primary: rgba(255, 255, 255, 0.08); /* 主边框（深色模式） */
-  --color-border-secondary: rgba(255, 255, 255, 0.05); /* 次级边框 */
-  --color-border-light: #e2e8f0;      /* 浅色边框（反转场景） */
+  --color-border-primary: rgba(148, 163, 184, 0.14); /* 主边框 */
+  --color-border-secondary: rgba(148, 163, 184, 0.08); /* 次级边框 */
+  --color-border-hover: rgba(129, 140, 248, 0.35);    /* 悬停边框 */
 
   /* 强调色 - 紫色/蓝色 */
   --color-primary-50: #eef2ff;
@@ -145,9 +150,27 @@
   /* 2xl: 1536px */
 }
 
-/* ========== 深色模式覆盖（预留） ========== */
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* 未来支持深色模式时，在这里覆盖变量 */
-  }
+/* ========== 浅色主题 ========== */
+html[data-theme="light"] {
+  /* 背景色 - 浅色 */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f8fafc;
+  --color-bg-tertiary: #f1f5f9;
+  --color-bg-canvas: #f8fafc;
+  --color-bg-surface: #ffffff;
+  --color-bg-card: #ffffff;
+  --color-bg-card-hover: #f8fafc;
+  --color-bg-input: #ffffff;
+
+  /* 文本色 */
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-tertiary: #64748b;
+  --color-text-muted: #94a3b8;
+  --color-text-inverse: #f8fafc;
+
+  /* 边框色 */
+  --color-border-primary: rgba(15, 23, 42, 0.10);
+  --color-border-secondary: rgba(15, 23, 42, 0.06);
+  --color-border-hover: rgba(99, 102, 241, 0.40);
 }

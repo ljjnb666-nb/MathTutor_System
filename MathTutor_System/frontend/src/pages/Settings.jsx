@@ -28,7 +28,7 @@ export default function Settings() {
   const [testingKey, setTestingKey] = useState(false)
 
   // 系统外观状态
-  const [theme, setTheme] = useState('light')
+  const [theme, setTheme] = useState('dark')
   const [accentColor, setAccentColor] = useState('indigo')
   const [density, setDensity] = useState('comfortable')
 
@@ -137,59 +137,64 @@ export default function Settings() {
   return (
     <div className="space-y-6 max-w-5xl animate-fade-in-up">
       {/* 页面说明 */}
-      <div className="pro-glass-card rounded-2xl p-6 bg-[#111726] border border-slate-700/80">
-        <h2 className="text-lg font-black text-slate-100 mb-2">系统设置</h2>
-        <p className="text-sm text-slate-400">
+      <div className="pro-glass-card rounded-2xl p-6">
+        <h2 className="text-lg font-black mb-2" style={{ color: 'var(--color-text-primary)' }}>系统设置</h2>
+        <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
           管理您的个人资料、系统外观、通知提醒、AI 偏好和集成配置。
         </p>
       </div>
 
       {/* 1. 个人资料（只读） */}
-      <section className="pro-glass-card rounded-2xl p-6 bg-[#111726] border border-slate-700/80">
+      <section className="pro-glass-card rounded-2xl p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-400">
             <User className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-100">个人资料</h3>
-            <p className="text-xs text-slate-400">查看您的账号信息</p>
+            <h3 className="text-base font-bold" style={{ color: 'var(--color-text-primary)' }}>个人资料</h3>
+            <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>查看您的账号信息</p>
           </div>
         </div>
         <div className="space-y-3">
-          <div className="flex items-center justify-between py-2 border-b border-slate-800">
-            <span className="text-sm font-medium text-slate-400">用户名</span>
-            <span className="text-sm font-bold text-slate-200">{user?.username || '—'}</span>
+          <div className="flex items-center justify-between py-2" style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
+            <span className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>用户名</span>
+            <span className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>{user?.username || '—'}</span>
           </div>
-          <div className="flex items-center justify-between py-2 border-b border-slate-800">
-            <span className="text-sm font-medium text-slate-400">角色</span>
-            <span className="text-sm font-bold text-slate-200">
+          <div className="flex items-center justify-between py-2" style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
+            <span className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>角色</span>
+            <span className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>
               {user?.role === 'admin' ? '管理员' : '教师'}
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-3">
+          <p className="text-xs mt-3" style={{ color: 'var(--color-text-muted)' }}>
             个人资料由管理员管理，当前无法自助修改。
           </p>
         </div>
       </section>
 
       {/* 2. 系统外观 */}
-      <section className="pro-glass-card rounded-2xl p-6 bg-[#111726] border border-slate-700/80">
+      <section className="pro-glass-card rounded-2xl p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/20 text-purple-400">
             <Palette className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-100">系统外观</h3>
-            <p className="text-xs text-slate-400">自定义界面主题和布局</p>
+            <h3 className="text-base font-bold" style={{ color: 'var(--color-text-primary)' }}>系统外观</h3>
+            <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>自定义界面主题和布局</p>
           </div>
         </div>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">主题模式</label>
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>主题模式</label>
             <select
               value={theme}
               onChange={(e) => setTheme(e.target.value)}
-              className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2.5 text-sm text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+              className="w-full rounded-xl px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+              style={{
+                border: '1px solid var(--color-border-primary)',
+                backgroundColor: 'var(--color-bg-input)',
+                color: 'var(--color-text-primary)'
+              }}
             >
               <option value="light">浅色</option>
               <option value="dark">深色</option>
@@ -197,11 +202,16 @@ export default function Settings() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">强调色</label>
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>强调色</label>
             <select
               value={accentColor}
               onChange={(e) => setAccentColor(e.target.value)}
-              className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2.5 text-sm text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+              className="w-full rounded-xl px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+              style={{
+                border: '1px solid var(--color-border-primary)',
+                backgroundColor: 'var(--color-bg-input)',
+                color: 'var(--color-text-primary)'
+              }}
             >
               <option value="indigo">靛蓝</option>
               <option value="purple">紫色</option>
@@ -210,11 +220,16 @@ export default function Settings() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">布局密度</label>
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>布局密度</label>
             <select
               value={density}
               onChange={(e) => setDensity(e.target.value)}
-              className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2.5 text-sm text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+              className="w-full rounded-xl px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+              style={{
+                border: '1px solid var(--color-border-primary)',
+                backgroundColor: 'var(--color-bg-input)',
+                color: 'var(--color-text-primary)'
+              }}
             >
               <option value="compact">紧凑</option>
               <option value="comfortable">舒适</option>
@@ -233,14 +248,14 @@ export default function Settings() {
       </section>
 
       {/* 3. 通知提醒 */}
-      <section className="pro-glass-card rounded-2xl p-6 bg-[#111726] border border-slate-700/80">
+      <section className="pro-glass-card rounded-2xl p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400">
             <Bell className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-100">通知提醒</h3>
-            <p className="text-xs text-slate-400">管理通知接收偏好</p>
+            <h3 className="text-base font-bold" style={{ color: 'var(--color-text-primary)' }}>通知提醒</h3>
+            <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>管理通知接收偏好</p>
           </div>
         </div>
         <div className="rounded-xl bg-amber-950/30 border border-amber-800/40 p-4">
@@ -251,23 +266,28 @@ export default function Settings() {
       </section>
 
       {/* 4. AI 偏好 */}
-      <section className="pro-glass-card rounded-2xl p-6 bg-[#111726] border border-slate-700/80">
+      <section className="pro-glass-card rounded-2xl p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-400">
             <Key className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-100">AI 偏好</h3>
-            <p className="text-xs text-slate-400">配置默认 AI 提供商和模型</p>
+            <h3 className="text-base font-bold" style={{ color: 'var(--color-text-primary)' }}>AI 偏好</h3>
+            <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>配置默认 AI 提供商和模型</p>
           </div>
         </div>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">默认 Provider</label>
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>默认 Provider</label>
             <select
               value={providerValue}
               onChange={(e) => handleProviderChange(e.target.value)}
-              className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2.5 text-sm text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+              className="w-full rounded-xl px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+              style={{
+                border: '1px solid var(--color-border-primary)',
+                backgroundColor: 'var(--color-bg-input)',
+                color: 'var(--color-text-primary)'
+              }}
             >
               {PROVIDERS.map((p) => (
                 <option key={p.value} value={p.value}>
@@ -277,11 +297,16 @@ export default function Settings() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">默认模型</label>
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>默认模型</label>
             <select
               value={model}
               onChange={(e) => setModel(e.target.value)}
-              className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2.5 text-sm text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+              className="w-full rounded-xl px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+              style={{
+                border: '1px solid var(--color-border-primary)',
+                backgroundColor: 'var(--color-bg-input)',
+                color: 'var(--color-text-primary)'
+              }}
             >
               {provider.models?.map((m) => (
                 <option key={m.value} value={m.value}>
@@ -296,9 +321,10 @@ export default function Settings() {
                 type="checkbox"
                 checked={showThinking}
                 onChange={(e) => setShowThinking(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-600 bg-slate-900/60 text-indigo-600 focus:ring-indigo-500"
+                className="h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500"
+                style={{ borderColor: 'var(--color-border-primary)', backgroundColor: 'var(--color-bg-input)' }}
               />
-              <span className="text-sm font-medium text-slate-300">显示 AI 思考过程</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>显示 AI 思考过程</span>
             </label>
           </div>
           <button
@@ -313,18 +339,18 @@ export default function Settings() {
       </section>
 
       {/* 5. 数据与隐私 */}
-      <section className="pro-glass-card rounded-2xl p-6 bg-[#111726] border border-slate-700/80">
+      <section className="pro-glass-card rounded-2xl p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400">
             <Database className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-100">数据与隐私</h3>
-            <p className="text-xs text-slate-400">管理本地存储数据</p>
+            <h3 className="text-base font-bold" style={{ color: 'var(--color-text-primary)' }}>数据与隐私</h3>
+            <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>管理本地存储数据</p>
           </div>
         </div>
         <div className="space-y-3">
-          <p className="text-sm text-slate-400">
+          <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
             您的 API Key 和偏好设置仅保存在当前浏览器的本地存储中，不会上传到服务器。
           </p>
           <button
@@ -339,49 +365,55 @@ export default function Settings() {
       </section>
 
       {/* 6. 账号安全 */}
-      <section className="pro-glass-card rounded-2xl p-6 bg-[#111726] border border-slate-700/80">
+      <section className="pro-glass-card rounded-2xl p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/20 text-rose-400">
             <Lock className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-100">账号安全</h3>
-            <p className="text-xs text-slate-400">密码和登录安全</p>
+            <h3 className="text-base font-bold" style={{ color: 'var(--color-text-primary)' }}>账号安全</h3>
+            <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>密码和登录安全</p>
           </div>
         </div>
-        <div className="rounded-xl bg-slate-800/50 border border-slate-700 p-4">
-          <p className="text-sm font-medium text-slate-400">
+        <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--color-bg-card-hover)', border: '1px solid var(--color-border-primary)' }}>
+          <p className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
             密码修改和双因素认证服务尚未接入。
           </p>
         </div>
       </section>
 
       {/* 7. 集成与 API */}
-      <section className="pro-glass-card rounded-2xl p-6 bg-[#111726] border border-slate-700/80">
+      <section className="pro-glass-card rounded-2xl p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/20 text-cyan-400">
             <Key className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-100">集成与 API</h3>
-            <p className="text-xs text-slate-400">配置外部服务 API Key</p>
+            <h3 className="text-base font-bold" style={{ color: 'var(--color-text-primary)' }}>集成与 API</h3>
+            <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>配置外部服务 API Key</p>
           </div>
         </div>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">API Key</label>
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>API Key</label>
             <div className="relative">
               <input
                 type={showApiKey ? 'text' : 'password'}
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder={`输入 ${provider.label} API Key`}
-                className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2.5 pr-12 text-sm text-slate-200 placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                className="w-full rounded-xl px-4 py-2.5 pr-12 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                style={{
+                  border: '1px solid var(--color-border-primary)',
+                  backgroundColor: 'var(--color-bg-input)',
+                  color: 'var(--color-text-primary)'
+                }}
               />
               <button
                 type="button"
                 onClick={() => setShowApiKey(!showApiKey)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                className="absolute right-3 top-1/2 -translate-y-1/2 hover:text-slate-300"
+                style={{ color: 'var(--color-text-muted)' }}
               >
                 {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -389,25 +421,35 @@ export default function Settings() {
           </div>
           {provider.needBaseUrl && (
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Base URL</label>
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>Base URL</label>
               <input
                 type="text"
                 value={baseUrl}
                 onChange={(e) => setBaseUrl(e.target.value)}
                 placeholder={provider.baseUrl || ''}
-                className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                className="w-full rounded-xl px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                style={{
+                  border: '1px solid var(--color-border-primary)',
+                  backgroundColor: 'var(--color-bg-input)',
+                  color: 'var(--color-text-primary)'
+                }}
               />
             </div>
           )}
           {provider.needApiVersion && (
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">API Version</label>
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>API Version</label>
               <input
                 type="text"
                 value={apiVersion}
                 onChange={(e) => setApiVersion(e.target.value)}
                 placeholder={provider.apiVersion || ''}
-                className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                className="w-full rounded-xl px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                style={{
+                  border: '1px solid var(--color-border-primary)',
+                  backgroundColor: 'var(--color-bg-input)',
+                  color: 'var(--color-text-primary)'
+                }}
               />
             </div>
           )}
