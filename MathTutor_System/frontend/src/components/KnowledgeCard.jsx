@@ -13,23 +13,32 @@ export default function KnowledgeCard({ data }) {
   const keyPoints = Array.isArray(data.key_points) ? data.key_points : []
 
   return (
-    <div className="rounded-xl border border-amber-200/80 bg-amber-50/90 shadow-sm overflow-hidden print:bg-white print:border-gray-400 print:shadow-none print:rounded-lg">
-      <div className="border-b border-amber-200/60 px-5 py-4 print:border-gray-400">
-        <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900">
-          <BookOpen className="h-5 w-5 text-amber-600 shrink-0 print:text-gray-700" />
+    <div
+      className="rounded-xl shadow-sm overflow-hidden print:bg-white print:border-gray-400 print:shadow-none print:rounded-lg"
+      style={{
+        border: '1px solid rgba(251, 191, 36, 0.3)',
+        backgroundColor: 'color-mix(in srgb, #fbbf24 10%, var(--color-bg-card))'
+      }}
+    >
+      <div
+        className="px-5 py-4 print:border-gray-400"
+        style={{ borderBottom: '1px solid rgba(251, 191, 36, 0.2)' }}
+      >
+        <h2 className="flex items-center gap-2 text-lg font-bold" style={{ color: 'var(--color-text-primary)' }}>
+          <BookOpen className="h-5 w-5 shrink-0 print:text-gray-700" style={{ color: '#d97706' }} />
           {title}
         </h2>
       </div>
       <div className="px-5 py-4 space-y-4">
         {summary && (
-          <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+          <p className="leading-relaxed whitespace-pre-line" style={{ color: 'var(--color-text-primary)' }}>
             <Latex>{normalizeLatexForKaTeX(summary)}</Latex>
           </p>
         )}
         {keyPoints.length > 0 && (
           <div>
-            <p className="text-sm font-semibold text-gray-800 mb-2">重点与易错点</p>
-            <ul className="list-disc list-inside space-y-1.5 text-gray-700 text-sm">
+            <p className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text-primary)' }}>重点与易错点</p>
+            <ul className="list-disc list-inside space-y-1.5 text-sm" style={{ color: 'var(--color-text-primary)' }}>
               {keyPoints.map((point, i) => (
                 <li key={i}>
                   <Latex>{normalizeLatexForKaTeX(String(point))}</Latex>
