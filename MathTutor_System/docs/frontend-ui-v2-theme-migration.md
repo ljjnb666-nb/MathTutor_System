@@ -22,18 +22,18 @@ from-white|to-white
 1. `frontend/src/pages/Dashboard.jsx` ⚠️ **PARTIALLY MIGRATED** - some cards remain
 2. `frontend/src/pages/AIChat.jsx` ✅ **MIGRATED** (Commit d79b58c)
 3. `frontend/src/pages/TeacherAgent.jsx` ✅ **MIGRATED** (Commit 423e5e0)
-4. `frontend/src/pages/StudentMgmt.jsx`
-5. `frontend/src/pages/Reports.jsx`
-6. `frontend/src/pages/Pricing.jsx`
-7. `frontend/src/pages/PPTGenerator.jsx`
-8. `frontend/src/pages/KnowledgeGraph.jsx`
-9. `frontend/src/pages/ImportExam.jsx`
-10. `frontend/src/pages/HomeworkProgress.jsx`
-11. `frontend/src/pages/ExamList.jsx`
-12. `frontend/src/pages/AdminUserPage.jsx`
-13. `frontend/src/pages/KnowledgeBase.jsx`
-14. `frontend/src/pages/MistakeBook.jsx`
-15. `frontend/src/pages/QuestionBank.jsx`
+4. `frontend/src/pages/StudentMgmt.jsx` ✅ **MIGRATED** (Commit 6be49c2)
+5. `frontend/src/pages/Reports.jsx` ✅ **MIGRATED** (Commit 0c0cb9c)
+6. `frontend/src/pages/Pricing.jsx` ✅ **MIGRATED** (Commit 9568ed4)
+7. `frontend/src/pages/PPTGenerator.jsx` ✅ **MIGRATED** (Commit 4234a34)
+8. `frontend/src/pages/KnowledgeGraph.jsx` ✅ **MIGRATED** (Commit a002536)
+9. `frontend/src/pages/ImportExam.jsx` ✅ **MIGRATED** (Commit be227e3)
+10. `frontend/src/pages/HomeworkProgress.jsx` ✅ **MIGRATED** (Commit c1152d9)
+11. `frontend/src/pages/ExamList.jsx` ✅ **MIGRATED** (Commit 2138fab)
+12. `frontend/src/pages/AdminUserPage.jsx` ✅ **MIGRATED** (Commit c576845)
+13. `frontend/src/pages/KnowledgeBase.jsx` ✅ **MIGRATED** (Commit bfac249)
+14. `frontend/src/pages/MistakeBook.jsx` ✅ **MIGRATED** (Commit 6c722b7)
+15. `frontend/src/pages/QuestionBank.jsx` ✅ **MIGRATED** (Commit faecc45)
 
 ### Category 2: 共用组件 (需要优先迁移)
 
