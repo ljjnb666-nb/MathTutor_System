@@ -117,7 +117,8 @@ export default function SettingsModal({ open, onClose }) {
     <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center p-0 sm:p-4">
       {/* 安全区：整块遮罩铺满，弹窗内用 padding 避开刘海/横条 */}
       <div
-        className="absolute inset-0 bg-black/50"
+        className="absolute inset-0"
+        style={{ backgroundColor: 'var(--color-bg-overlay)' }}
         onClick={onClose}
         onKeyDown={(e) => e.key === 'Escape' && onClose()}
         role="button"
@@ -125,22 +126,36 @@ export default function SettingsModal({ open, onClose }) {
         aria-label="关闭"
       />
       <div
-        className="relative w-full max-h-[90dvh] sm:max-h-[85vh] max-w-lg rounded-t-2xl sm:rounded-xl border border-gray-200 border-b-0 sm:border-b bg-white shadow-xl flex flex-col"
+        className="relative w-full max-h-[90dvh] sm:max-h-[85vh] max-w-lg rounded-t-2xl sm:rounded-xl border-b-0 sm:border-b shadow-xl flex flex-col"
+        style={{
+          border: '1px solid var(--color-border-primary)',
+          backgroundColor: 'var(--color-bg-card)'
+        }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-title"
       >
         {/* 顶部：标题 + 关闭（刘海安全区） */}
         <div
-          className="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 sm:px-5 py-3 sm:py-4 pt-[max(0.75rem,env(safe-area-inset-top))]"
+          className="flex shrink-0 items-center justify-between px-4 sm:px-5 py-3 sm:py-4 pt-[max(0.75rem,env(safe-area-inset-top))]"
+          style={{ borderBottom: '1px solid var(--color-border-primary)' }}
         >
-          <h2 id="settings-title" className="text-lg font-semibold text-gray-800">
+          <h2 id="settings-title" className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
             API 配置
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 -m-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="rounded-lg p-2 -m-2 transition-colors touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center"
+            style={{ color: 'var(--color-text-secondary)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+              e.currentTarget.style.color = 'var(--color-text-primary)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent'
+              e.currentTarget.style.color = 'var(--color-text-secondary)'
+            }}
             aria-label="关闭"
           >
             <X className="h-5 w-5" />
@@ -150,7 +165,7 @@ export default function SettingsModal({ open, onClose }) {
         <div className="flex-1 min-h-0 overflow-y-auto space-y-4 px-4 sm:px-5 py-4">
           {/* 服务商：按钮组，手机端加大触控区域 */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-600">
+            <label className="mb-1.5 block text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>
               服务商
             </label>
             <div className="flex flex-wrap gap-2">
@@ -159,11 +174,30 @@ export default function SettingsModal({ open, onClose }) {
                   key={p.value}
                   type="button"
                   onClick={() => handleProviderChange(p.value)}
-                  className={`rounded-lg border px-3 py-2.5 min-h-[44px] text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 touch-manipulation ${
+                  className="rounded-lg border px-3 py-2.5 min-h-[44px] text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 touch-manipulation"
+                  style={
                     providerValue === p.value
-                      ? 'border-blue-600 bg-blue-50 text-blue-700'
-                      : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100'
-                  }`}
+                      ? {
+                          border: '1px solid var(--color-primary-600)',
+                          backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)',
+                          color: 'var(--color-primary-700)'
+                        }
+                      : {
+                          border: '1px solid var(--color-border-primary)',
+                          backgroundColor: 'var(--color-bg-card)',
+                          color: 'var(--color-text-primary)'
+                        }
+                  }
+                  onMouseEnter={(e) => {
+                    if (providerValue !== p.value) {
+                      e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (providerValue !== p.value) {
+                      e.currentTarget.style.backgroundColor = 'var(--color-bg-card)'
+                    }
+                  }}
                 >
                   {p.label}
                 </button>
@@ -174,14 +208,15 @@ export default function SettingsModal({ open, onClose }) {
                 href={provider.docUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-1.5 inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                className="mt-1.5 inline-flex items-center gap-1 text-xs hover:underline"
+                style={{ color: 'var(--color-primary-600)' }}
               >
                 <ExternalLink className="h-3.5 w-3.5" />
                 打开 API 文档
               </a>
             )}
             {provider.regionHint && (
-              <p className="mt-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+              <p className="mt-1.5 text-xs rounded px-2 py-1.5" style={{ color: '#92400e', backgroundColor: 'color-mix(in srgb, #fbbf24 10%, var(--color-bg-card))', border: '1px solid rgba(251, 191, 36, 0.3)' }}>
                 {provider.regionHint}
               </p>
             )}
@@ -189,7 +224,7 @@ export default function SettingsModal({ open, onClose }) {
 
           {/* 模型：按钮组 + 自定义输入 */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-600">
+            <label className="mb-1.5 block text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>
               模型
             </label>
             <div className="flex flex-wrap gap-2">
@@ -198,11 +233,30 @@ export default function SettingsModal({ open, onClose }) {
                   key={m.value}
                   type="button"
                   onClick={() => setModel(m.value)}
-                  className={`rounded-lg border px-3 py-2.5 min-h-[44px] text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-1 touch-manipulation ${
+                  className="rounded-lg border px-3 py-2.5 min-h-[44px] text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 touch-manipulation"
+                  style={
                     model === m.value
-                      ? 'border-blue-600 bg-blue-50 text-blue-700'
-                      : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100'
-                  }`}
+                      ? {
+                          border: '1px solid var(--color-primary-600)',
+                          backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)',
+                          color: 'var(--color-primary-700)'
+                        }
+                      : {
+                          border: '1px solid var(--color-border-primary)',
+                          backgroundColor: 'var(--color-bg-card)',
+                          color: 'var(--color-text-primary)'
+                        }
+                  }
+                  onMouseEnter={(e) => {
+                    if (model !== m.value) {
+                      e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (model !== m.value) {
+                      e.currentTarget.style.backgroundColor = 'var(--color-bg-card)'
+                    }
+                  }}
                 >
                   {m.label}
                 </button>
@@ -213,13 +267,18 @@ export default function SettingsModal({ open, onClose }) {
               value={customModel}
               onChange={(e) => setCustomModel(e.target.value)}
               placeholder="或自定义模型名"
-              className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5 min-h-[44px] text-sm text-gray-800 placeholder-gray-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+              className="mt-2 w-full rounded-lg px-3 py-2.5 min-h-[44px] text-sm focus:outline-none focus:ring-2"
+              style={{
+                border: '1px solid var(--color-border-primary)',
+                backgroundColor: 'var(--color-bg-input)',
+                color: 'var(--color-text-primary)'
+              }}
             />
           </div>
 
           {/* API Key */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-600">
+            <label className="mb-1.5 block text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>
               API Key
             </label>
             <div className="relative">
@@ -228,12 +287,26 @@ export default function SettingsModal({ open, onClose }) {
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder="请输入 API Key"
-                className="w-full rounded-lg border border-gray-300 bg-white py-2.5 min-h-[44px] pl-3 pr-12 text-sm text-gray-800 placeholder-gray-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+                className="w-full rounded-lg py-2.5 min-h-[44px] pl-3 pr-12 text-sm focus:outline-none focus:ring-2"
+                style={{
+                  border: '1px solid var(--color-border-primary)',
+                  backgroundColor: 'var(--color-bg-input)',
+                  color: 'var(--color-text-primary)'
+                }}
               />
               <button
                 type="button"
                 onClick={() => setShowApiKey((v) => !v)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-gray-700 touch-manipulation"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-2 min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors touch-manipulation"
+                style={{ color: 'var(--color-text-secondary)' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+                  e.currentTarget.style.color = 'var(--color-text-primary)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                  e.currentTarget.style.color = 'var(--color-text-secondary)'
+                }}
                 aria-label={showApiKey ? '隐藏' : '显示'}
               >
                 {showApiKey ? (
@@ -250,17 +323,31 @@ export default function SettingsModal({ open, onClose }) {
               type="button"
               onClick={handleTestApiKey}
               disabled={testingKey || !apiKey.trim() || !displayModel.trim()}
-              className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 min-h-[44px] text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400"
+              className="rounded-lg border px-3 py-2.5 min-h-[44px] text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
+              style={{
+                border: '1px solid var(--color-primary-300)',
+                backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)',
+                color: 'var(--color-primary-700)'
+              }}
             >
               {testingKey ? '测试中...' : '测试 API Key'}
             </button>
             {testStatus && (
               <p
-                className={`rounded-lg border px-3 py-2 text-xs ${
+                className="rounded-lg border px-3 py-2 text-xs"
+                style={
                   testStatus.ok
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                    : 'border-rose-200 bg-rose-50 text-rose-700'
-                }`}
+                    ? {
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        backgroundColor: 'color-mix(in srgb, #10b981 10%, var(--color-bg-card))',
+                        color: '#047857'
+                      }
+                    : {
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        backgroundColor: 'color-mix(in srgb, #ef4444 10%, var(--color-bg-card))',
+                        color: '#b91c1c'
+                      }
+                }
               >
                 {testStatus.ok
                   ? `可用：${testStatus.provider || providerValue} / ${testStatus.model || displayModel}，${testStatus.latency_ms ?? 0}ms`
@@ -271,7 +358,7 @@ export default function SettingsModal({ open, onClose }) {
 
           {/* Base URL + 自动填充（手机端上下排列） */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-600">
+            <label className="mb-1.5 block text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>
               Base URL
             </label>
             <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
@@ -280,12 +367,28 @@ export default function SettingsModal({ open, onClose }) {
                 value={baseUrl}
                 onChange={(e) => setBaseUrl(e.target.value)}
                 placeholder="例如 https://api.openai.com/v1"
-                className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2.5 min-h-[44px] text-sm text-gray-800 placeholder-gray-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+                className="flex-1 rounded-lg px-3 py-2.5 min-h-[44px] text-sm focus:outline-none focus:ring-2"
+                style={{
+                  border: '1px solid var(--color-border-primary)',
+                  backgroundColor: 'var(--color-bg-input)',
+                  color: 'var(--color-text-primary)'
+                }}
               />
               <button
                 type="button"
                 onClick={handleAutoFillBaseUrl}
-                className="shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-600/20 touch-manipulation sm:text-xs"
+                className="shrink-0 rounded-lg px-3 py-2.5 min-h-[44px] text-sm font-medium focus:outline-none focus:ring-2 touch-manipulation sm:text-xs transition-colors"
+                style={{
+                  border: '1px solid var(--color-border-primary)',
+                  backgroundColor: 'var(--color-bg-card)',
+                  color: 'var(--color-text-primary)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--color-bg-card)'
+                }}
               >
                 自动填充
               </button>
@@ -294,7 +397,7 @@ export default function SettingsModal({ open, onClose }) {
 
           {/* API 版本 + 自动填充 */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-600">
+            <label className="mb-1.5 block text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>
               API 版本
             </label>
             <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
@@ -303,12 +406,28 @@ export default function SettingsModal({ open, onClose }) {
                 value={apiVersion}
                 onChange={(e) => setApiVersion(e.target.value)}
                 placeholder="如 v1 或 v1beta"
-                className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2.5 min-h-[44px] text-sm text-gray-800 placeholder-gray-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+                className="flex-1 rounded-lg px-3 py-2.5 min-h-[44px] text-sm focus:outline-none focus:ring-2"
+                style={{
+                  border: '1px solid var(--color-border-primary)',
+                  backgroundColor: 'var(--color-bg-input)',
+                  color: 'var(--color-text-primary)'
+                }}
               />
               <button
                 type="button"
                 onClick={handleAutoFillApiVersion}
-                className="shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-2.5 min-h-[44px] text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-600/20 touch-manipulation sm:text-xs"
+                className="shrink-0 rounded-lg px-3 py-2.5 min-h-[44px] text-sm font-medium focus:outline-none focus:ring-2 touch-manipulation sm:text-xs transition-colors"
+                style={{
+                  border: '1px solid var(--color-border-primary)',
+                  backgroundColor: 'var(--color-bg-card)',
+                  color: 'var(--color-text-primary)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--color-bg-card)'
+                }}
               >
                 自动填充
               </button>
@@ -316,30 +435,61 @@ export default function SettingsModal({ open, onClose }) {
           </div>
 
           {/* 调试选项（加大点击区域） */}
-          <label className="flex cursor-pointer items-center gap-3 py-2 -mx-1 rounded-lg hover:bg-gray-50 active:bg-gray-100 touch-manipulation">
+          <label className="flex cursor-pointer items-center gap-3 py-2 -mx-1 rounded-lg transition-colors touch-manipulation"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent'
+            }}
+          >
             <input
               type="checkbox"
               checked={showThinking}
               onChange={(e) => setShowThinking(e.target.checked)}
-              className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-600 shrink-0"
+              className="h-5 w-5 rounded shrink-0"
+              style={{
+                borderColor: 'var(--color-border-primary)',
+                color: 'var(--color-primary-600)'
+              }}
             />
-            <span className="text-sm text-gray-700">显示 AI 思考过程</span>
+            <span className="text-sm" style={{ color: 'var(--color-text-primary)' }}>显示 AI 思考过程</span>
           </label>
         </div>
 
         {/* 底部按钮：手机端全宽、上下排列，底部安全区（避开横条） */}
-        <div className="flex shrink-0 flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3 border-t border-gray-200 px-4 sm:px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-4">
+        <div className="flex shrink-0 flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3 px-4 sm:px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-4"
+          style={{ borderTop: '1px solid var(--color-border-primary)' }}
+        >
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-gray-300 bg-white px-4 py-3 min-h-[48px] text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 touch-manipulation w-full sm:w-auto"
+            className="rounded-xl px-4 py-3 min-h-[48px] text-sm font-medium focus:outline-none focus:ring-2 touch-manipulation w-full sm:w-auto transition-colors"
+            style={{
+              border: '1px solid var(--color-border-primary)',
+              backgroundColor: 'var(--color-bg-card)',
+              color: 'var(--color-text-primary)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--color-bg-card)'
+            }}
           >
             取消
           </button>
           <button
             type="button"
             onClick={handleSave}
-            className="rounded-xl bg-blue-600 px-4 py-3 min-h-[48px] text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 touch-manipulation w-full sm:w-auto"
+            className="rounded-xl px-4 py-3 min-h-[48px] text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 touch-manipulation w-full sm:w-auto transition-colors"
+            style={{ backgroundColor: 'var(--color-primary-600)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--color-primary-700)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--color-primary-600)'
+            }}
           >
             保存配置
           </button>
