@@ -8,16 +8,22 @@ export default function AgentActionStatus({ action }) {
     cancelled: 'Cancelled',
   }
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <h2 className="text-sm font-bold text-slate-800">Save action status</h2>
-      <p className="mt-2 text-sm text-slate-700">{labels[action.status] || action.status}</p>
+    <section
+      className="rounded-lg p-4 shadow-sm"
+      style={{
+        border: '1px solid var(--color-border-primary)',
+        backgroundColor: 'var(--color-bg-card)'
+      }}
+    >
+      <h2 className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>Save action status</h2>
+      <p className="mt-2 text-sm" style={{ color: 'var(--color-text-primary)' }}>{labels[action.status] || action.status}</p>
       {action.result_json?.question_count != null && (
-        <p className="mt-1 text-sm text-emerald-700">Created {action.result_json.question_count} formal question-bank items.</p>
+        <p className="mt-1 text-sm" style={{ color: '#047857' }}>Created {action.result_json.question_count} formal question-bank items.</p>
       )}
       {action.result_json?.question_ids && (
-        <p className="mt-1 text-xs text-slate-500">Question IDs: {action.result_json.question_ids.join(', ')}</p>
+        <p className="mt-1 text-xs" style={{ color: 'var(--color-text-secondary)' }}>Question IDs: {action.result_json.question_ids.join(', ')}</p>
       )}
-      {action.error_message && <p className="mt-1 text-sm text-rose-700">{action.error_message}</p>}
+      {action.error_message && <p className="mt-1 text-sm" style={{ color: '#b91c1c' }}>{action.error_message}</p>}
     </section>
   )
 }
