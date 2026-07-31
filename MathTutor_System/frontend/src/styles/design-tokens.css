@@ -21,17 +21,25 @@ html[data-theme="dark"] {
   --color-bg-card: #111827;           /* 卡片背景 */
   --color-bg-card-hover: #172033;     /* 卡片悬停背景 */
   --color-bg-input: #0f172a;          /* 输入框背景 */
+  --color-bg-elevated: #111827;       /* 悬浮元素背景 */
+  --color-bg-panel: #0d1320;          /* 面板背景 */
+  --color-bg-panel-muted: #151e2e;    /* 弱化面板背景 */
+  --color-bg-option: #1b2536;         /* 选项背景 */
+  --color-bg-overlay: rgba(8, 12, 20, 0.82); /* 遮罩背景 */
 
   /* 文本色 */
   --color-text-primary: #f8fafc;      /* 主文本（浅色） */
   --color-text-secondary: #94a3b8;    /* 次级文本（浅灰） */
   --color-text-tertiary: #64748b;     /* 三级文本（中灰） */
   --color-text-muted: #64748b;        /* 弱化文本 */
+  --color-text-disabled: #475569;     /* 禁用文本 */
   --color-text-inverse: #0f172a;      /* 反转文本（深色，用于浅色背景） */
 
   /* 边框色 */
   --color-border-primary: rgba(148, 163, 184, 0.14); /* 主边框 */
   --color-border-secondary: rgba(148, 163, 184, 0.08); /* 次级边框 */
+  --color-border-subtle: rgba(148, 163, 184, 0.12);   /* 微妙边框 */
+  --color-border-strong: rgba(148, 163, 184, 0.24);   /* 强边框 */
   --color-border-hover: rgba(129, 140, 248, 0.35);    /* 悬停边框 */
 
   /* 强调色 - 紫色/蓝色 */
@@ -161,16 +169,24 @@ html[data-theme="light"] {
   --color-bg-card: #ffffff;
   --color-bg-card-hover: #f8fafc;
   --color-bg-input: #ffffff;
+  --color-bg-elevated: #ffffff;
+  --color-bg-panel: #f8fafc;
+  --color-bg-panel-muted: #f1f5f9;
+  --color-bg-option: #ffffff;
+  --color-bg-overlay: rgba(248, 250, 252, 0.92);
 
   /* 文本色 */
   --color-text-primary: #0f172a;
   --color-text-secondary: #475569;
   --color-text-tertiary: #64748b;
   --color-text-muted: #94a3b8;
+  --color-text-disabled: #94a3b8;
   --color-text-inverse: #f8fafc;
 
   /* 边框色 */
   --color-border-primary: rgba(15, 23, 42, 0.10);
   --color-border-secondary: rgba(15, 23, 42, 0.06);
+  --color-border-subtle: rgba(15, 23, 42, 0.08);
+  --color-border-strong: rgba(15, 23, 42, 0.16);
   --color-border-hover: rgba(99, 102, 241, 0.40);
 }
