@@ -75,16 +75,32 @@ export default function StudentSelectorModal({
       <button
         type="button"
         aria-label="关闭"
-        className="absolute inset-0 bg-black/50 transition-opacity"
+        className="absolute inset-0 transition-opacity"
+        style={{ backgroundColor: 'var(--color-bg-overlay)' }}
         onClick={onClose}
       />
-      <div className="relative flex max-h-[85vh] w-full max-w-md flex-col rounded-xl bg-white shadow-xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-5 py-4">
-          <h2 className="text-lg font-semibold text-gray-800">布置作业 — 选择学生</h2>
+      <div
+        className="relative flex max-h-[85vh] w-full max-w-md flex-col rounded-xl shadow-xl"
+        style={{ backgroundColor: 'var(--color-bg-card)' }}
+      >
+        <div
+          className="flex shrink-0 items-center justify-between px-5 py-4"
+          style={{ borderBottom: '1px solid var(--color-border-primary)' }}
+        >
+          <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>布置作业 — 选择学生</h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+            className="rounded-lg p-2 transition-colors"
+            style={{ color: 'var(--color-text-secondary)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+              e.currentTarget.style.color = 'var(--color-text-primary)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent'
+              e.currentTarget.style.color = 'var(--color-text-secondary)'
+            }}
             aria-label="关闭"
           >
             <X className="h-5 w-5" />
@@ -93,36 +109,56 @@ export default function StudentSelectorModal({
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {noContentHint && (
-            <div className="shrink-0 border-b border-amber-100 bg-amber-50/80 px-5 py-3 text-sm text-amber-800">
+            <div
+              className="shrink-0 px-5 py-3 text-sm"
+              style={{
+                borderBottom: '1px solid rgba(251, 191, 36, 0.2)',
+                backgroundColor: 'color-mix(in srgb, #fbbf24 10%, var(--color-bg-card))',
+                color: '#92400e'
+              }}
+            >
               当前页面暂无题目，请先生成题目后再确认布置，或前往「我的试卷」选择已有试卷进行布置。
             </div>
           )}
           {allowEditTitle && (
-            <div className="shrink-0 border-b border-gray-100 px-5 py-3">
-              <label className="mb-1 block text-xs font-medium text-gray-500">作业标题（可选）</label>
+            <div
+              className="shrink-0 px-5 py-3"
+              style={{ borderBottom: '1px solid var(--color-border-subtle)' }}
+            >
+              <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>作业标题（可选）</label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder={defaultTitle || '如：勾股定理练习'}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1"
+                style={{
+                  border: '1px solid var(--color-border-primary)',
+                  backgroundColor: 'var(--color-bg-input)',
+                  color: 'var(--color-text-primary)'
+                }}
               />
             </div>
           )}
-          <div className="shrink-0 flex items-center justify-between border-b border-gray-100 px-5 py-2">
-            <span className="text-sm text-gray-500">已选 {selectedIds.size} 人</span>
+          <div
+            className="shrink-0 flex items-center justify-between px-5 py-2"
+            style={{ borderBottom: '1px solid var(--color-border-subtle)' }}
+          >
+            <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>已选 {selectedIds.size} 人</span>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={selectAll}
-                className="text-sm text-blue-600 hover:underline"
+                className="text-sm hover:underline"
+                style={{ color: 'var(--color-primary-600)' }}
               >
                 全选
               </button>
               <button
                 type="button"
                 onClick={clearAll}
-                className="text-sm text-gray-500 hover:underline"
+                className="text-sm hover:underline"
+                style={{ color: 'var(--color-text-secondary)' }}
               >
                 清空
               </button>
@@ -132,27 +168,39 @@ export default function StudentSelectorModal({
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
             {loading ? (
               <div className="flex flex-col items-center justify-center py-16">
-                <Loader2 className="h-10 w-10 animate-spin text-indigo-600" />
-                <p className="mt-3 text-sm text-gray-500">加载学生列表...</p>
+                <Loader2 className="h-10 w-10 animate-spin" style={{ color: 'var(--color-primary-600)' }} />
+                <p className="mt-3 text-sm" style={{ color: 'var(--color-text-secondary)' }}>加载学生列表...</p>
               </div>
             ) : students.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
-                <Users className="h-12 w-12 text-gray-300" />
-                <p className="mt-3 text-sm text-gray-500">暂无学生，请先在「学生管理」中添加</p>
+                <Users className="h-12 w-12" style={{ color: 'var(--color-border-primary)' }} />
+                <p className="mt-3 text-sm" style={{ color: 'var(--color-text-secondary)' }}>暂无学生，请先在「学生管理」中添加</p>
               </div>
             ) : (
               <ul className="space-y-1">
                 {students.map((s) => (
                   <li key={s.id}>
-                    <label className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-gray-50">
+                    <label
+                      className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 transition-colors"
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent'
+                      }}
+                    >
                       <input
                         type="checkbox"
                         checked={selectedIds.has(s.id)}
                         onChange={() => toggle(s.id)}
-                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        className="h-4 w-4 rounded focus:ring-1"
+                        style={{
+                          borderColor: 'var(--color-border-primary)',
+                          color: 'var(--color-primary-600)'
+                        }}
                       />
-                      <span className="font-medium text-gray-800">{s.name}</span>
-                      <span className="text-sm text-gray-500">
+                      <span className="font-medium" style={{ color: 'var(--color-text-primary)' }}>{s.name}</span>
+                      <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                         {s.grade} · {s.class_name}
                       </span>
                     </label>
@@ -162,11 +210,24 @@ export default function StudentSelectorModal({
             )}
           </div>
 
-          <div className="shrink-0 flex justify-end gap-2 border-t border-gray-100 px-5 py-4">
+          <div
+            className="shrink-0 flex justify-end gap-2 px-5 py-4"
+            style={{ borderTop: '1px solid var(--color-border-subtle)' }}
+          >
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+              style={{
+                border: '1px solid var(--color-border-primary)',
+                color: 'var(--color-text-primary)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent'
+              }}
             >
               取消
             </button>
@@ -175,7 +236,18 @@ export default function StudentSelectorModal({
               onClick={handleConfirm}
               disabled={selectedIds.size === 0 || submitting}
               title={selectedIds.size === 0 ? '请至少选择一名学生' : undefined}
-              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+              style={{ backgroundColor: 'var(--color-primary-600)' }}
+              onMouseEnter={(e) => {
+                if (selectedIds.size > 0 && !submitting) {
+                  e.currentTarget.style.backgroundColor = 'var(--color-primary-700)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (selectedIds.size > 0 && !submitting) {
+                  e.currentTarget.style.backgroundColor = 'var(--color-primary-600)'
+                }
+              }}
             >
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
               {submitting ? '布置中…' : '确认布置'}
