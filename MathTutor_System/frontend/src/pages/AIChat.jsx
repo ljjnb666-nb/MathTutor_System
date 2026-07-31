@@ -324,10 +324,10 @@ export default function AIChat() {
       className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl pro-glass-card md:flex-row animate-fade-in-up"
     >
       {/* 会话列表：左侧面板 */}
-      <aside className="flex min-h-0 shrink-0 flex-col border-b border-slate-200/80 bg-white/60 md:w-64 md:border-b-0 md:border-r">
-        <div className="shrink-0 border-b border-slate-100 p-4">
+      <aside className="flex min-h-0 shrink-0 flex-col md:w-64 md:border-b-0 md:border-r border-b" style={{ backgroundColor: 'color-mix(in srgb, var(--color-bg-card) 60%, transparent)', borderColor: 'color-mix(in srgb, var(--color-border-primary) 80%, transparent)' }}>
+        <div className="shrink-0 p-4" style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-black uppercase tracking-wider text-slate-700">历史会话节点</span>
+            <span className="text-xs font-black uppercase tracking-wider" style={{ color: 'var(--color-text-primary)' }}>历史会话节点</span>
             <button
               type="button"
               onClick={() => loadSession(null)}
@@ -341,13 +341,13 @@ export default function AIChat() {
         <div className="min-h-0 flex-1 overflow-y-auto">
           {sessionsLoading ? (
             <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+              <Loader2 className="h-6 w-6 animate-spin" style={{ color: 'var(--color-primary-600)' }} />
             </div>
           ) : sessions.length === 0 ? (
             <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
-              <MessageCircle className="h-10 w-10 text-slate-300" />
-              <p className="mt-2 text-xs font-bold text-slate-500">暂无历史会话</p>
-              <p className="mt-0.5 text-[11px] text-slate-400">输入问题后系统自动归档保存</p>
+              <MessageCircle className="h-10 w-10" style={{ color: 'var(--color-border-primary)' }} />
+              <p className="mt-2 text-xs font-bold" style={{ color: 'var(--color-text-secondary)' }}>暂无历史会话</p>
+              <p className="mt-0.5 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>输入问题后系统自动归档保存</p>
             </div>
           ) : (
             <ul className="p-2 space-y-1">
@@ -358,12 +358,27 @@ export default function AIChat() {
                     onClick={() => loadSession(s.id)}
                     className={`min-w-0 flex-1 rounded-xl px-3 py-2.5 text-left transition-all ${
                       currentSessionId === s.id
-                        ? 'bg-[#0B0F17] text-white shadow-md font-bold'
-                        : 'text-slate-700 hover:bg-slate-100/80'
-                    } ${s.pinned ? 'border-l-2 border-indigo-400' : ''}`}
+                        ? 'shadow-md font-bold'
+                        : ''
+                    } ${s.pinned ? 'border-l-2' : ''}`}
+                    style={
+                      currentSessionId === s.id
+                        ? { backgroundColor: '#0B0F17', color: 'white', borderColor: s.pinned ? 'var(--color-primary-500)' : undefined }
+                        : { color: 'var(--color-text-primary)', borderColor: s.pinned ? 'var(--color-primary-500)' : undefined }
+                    }
+                    onMouseEnter={(e) => {
+                      if (currentSessionId !== s.id) {
+                        e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--color-bg-panel) 80%, transparent)'
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (currentSessionId !== s.id) {
+                        e.currentTarget.style.backgroundColor = 'transparent'
+                      }
+                    }}
                   >
                     <span className="line-clamp-2 flex items-center gap-1.5 text-xs font-extrabold leading-snug">
-                      {s.pinned && <Pin className="h-3.5 w-3.5 shrink-0 text-indigo-400" />}
+                      {s.pinned && <Pin className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--color-primary-500)' }} />}
                       {s.title || '新对话记录'}
                     </span>
                     <span className="mt-1 block text-[10px] opacity-60">
@@ -373,11 +388,20 @@ export default function AIChat() {
                   <button
                     type="button"
                     onClick={(e) => handleTogglePin(s.id, s.pinned, e)}
-                    className={`shrink-0 self-center rounded-xl p-2 transition-colors ${
-                      s.pinned
-                        ? 'text-indigo-600 hover:bg-indigo-50'
-                        : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'
-                    }`}
+                    className="shrink-0 self-center rounded-xl p-2 transition-colors"
+                    style={{
+                      color: s.pinned ? 'var(--color-primary-600)' : 'var(--color-text-muted)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = s.pinned ? 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)' : 'var(--color-bg-card-hover)'
+                      if (!s.pinned) {
+                        e.currentTarget.style.color = 'var(--color-text-secondary)'
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent'
+                      e.currentTarget.style.color = s.pinned ? 'var(--color-primary-600)' : 'var(--color-text-muted)'
+                    }}
                     title={s.pinned ? '取消固定' : '固定到顶部'}
                   >
                     {s.pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
@@ -385,7 +409,16 @@ export default function AIChat() {
                   <button
                     type="button"
                     onClick={(e) => handleDeleteSession(s.id, e)}
-                    className="shrink-0 self-center rounded-xl p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                    className="shrink-0 self-center rounded-xl p-2 transition-colors"
+                    style={{ color: 'var(--color-text-muted)' }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = 'color-mix(in srgb, #ef4444 10%, var(--color-bg-card))'
+                      e.currentTarget.style.color = '#dc2626'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent'
+                      e.currentTarget.style.color = 'var(--color-text-muted)'
+                    }}
                     title="删除会话"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -398,31 +431,32 @@ export default function AIChat() {
       </aside>
 
       {/* 主对话区 */}
-      <div className="flex min-h-0 flex-1 flex-col min-w-0 bg-slate-50/40">
+      <div className="flex min-h-0 flex-1 flex-col min-w-0" style={{ backgroundColor: 'color-mix(in srgb, var(--color-bg-panel) 40%, transparent)' }}>
         {/* 顶部：标题 + 选项 */}
-        <header className="shrink-0 border-b border-slate-200/80 bg-white/80 backdrop-blur-xl px-5 py-4">
+        <header className="shrink-0 px-5 py-4" style={{ borderBottom: '1px solid color-mix(in srgb, var(--color-border-primary) 80%, transparent)', backgroundColor: 'color-mix(in srgb, var(--color-bg-card) 80%, transparent)' }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-md shadow-indigo-500/20">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-white shadow-md" style={{ backgroundColor: 'var(--color-primary-600)', boxShadow: '0 4px 6px -1px color-mix(in srgb, var(--color-primary-500) 20%, transparent)' }}>
                 <MessageCircle className="h-5 w-5" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-base font-black tracking-tight text-slate-900">AI 智能辅导对话仓</h1>
-                  <span className="rounded-full bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-0.5 text-[10px] font-black text-indigo-600 uppercase">PRO TUTOR</span>
+                  <h1 className="text-base font-black tracking-tight" style={{ color: 'var(--color-text-primary)' }}>AI 智能辅导对话仓</h1>
+                  <span className="rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase" style={{ backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--color-primary-500) 20%, transparent)', color: 'var(--color-primary-600)' }}>PRO TUTOR</span>
                 </div>
-                <p className="text-xs text-slate-500">结合学生个案学情与向量知识库精准解疑答惑</p>
+                <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>结合学生个案学情与向量知识库精准解疑答惑</p>
               </div>
             </div>
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-4 rounded-2xl bg-slate-100/80 px-4 py-2.5 text-xs font-bold text-slate-700">
+          <div className="mt-3 flex flex-wrap items-center gap-4 rounded-2xl px-4 py-2.5 text-xs font-bold" style={{ backgroundColor: 'color-mix(in srgb, var(--color-bg-panel) 80%, transparent)', color: 'var(--color-text-primary)' }}>
             <label className="flex cursor-pointer items-center gap-2">
               <input
                 type="checkbox"
                 checked={useStream}
                 onChange={(e) => setUseStream(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                className="h-4 w-4 rounded focus:ring-2"
+                style={{ borderColor: 'var(--color-border-primary)', color: 'var(--color-primary-600)' }}
               />
               <span>实时流式极速回复</span>
             </label>
@@ -431,14 +465,15 @@ export default function AIChat() {
                 type="checkbox"
                 checked={useContext}
                 onChange={(e) => setUseContext(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                className="h-4 w-4 rounded focus:ring-2"
+                style={{ borderColor: 'var(--color-border-primary)', color: 'var(--color-primary-600)' }}
               />
               <span>导入学生画像与知识点</span>
             </label>
             {useContext && (
               <>
                 {currentStudent?.name && (
-                  <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-black text-indigo-700 border border-indigo-200/60">
+                  <span className="rounded-full px-3 py-1 text-xs font-black" style={{ backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--color-primary-500) 20%, transparent)', color: 'var(--color-primary-700)' }}>
                     {currentStudent.name}
                   </span>
                 )}
@@ -447,7 +482,8 @@ export default function AIChat() {
                   value={knowledgePoint}
                   onChange={(e) => setKnowledgePoint(e.target.value)}
                   placeholder="知识点，如：二次函数"
-                  className="w-40 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className="w-40 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-2"
+                  style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-input)', color: 'var(--color-text-primary)' }}
                 />
               </>
             )}
@@ -458,11 +494,11 @@ export default function AIChat() {
         <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-center px-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-indigo-500/10 text-indigo-600 ring-1 ring-indigo-500/20 mb-3">
+              <div className="flex h-14 w-14 items-center justify-center rounded-3xl ring-1 mb-3" style={{ backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)', color: 'var(--color-primary-600)', borderColor: 'color-mix(in srgb, var(--color-primary-500) 20%, transparent)' }}>
                 <Bot className="h-7 w-7" />
               </div>
-              <p className="text-sm font-extrabold text-slate-700">发送一条消息，开启 AI 智能辅导对话</p>
-              <p className="mt-1 text-xs text-slate-400">支持 LaTeX 公式呈现、错题变式拆解与精准点拨</p>
+              <p className="text-sm font-extrabold" style={{ color: 'var(--color-text-primary)' }}>发送一条消息，开启 AI 智能辅导对话</p>
+              <p className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>支持 LaTeX 公式呈现、错题变式拆解与精准点拨</p>
             </div>
           )}
           <div className="mx-auto max-w-3xl space-y-5">
@@ -470,10 +506,10 @@ export default function AIChat() {
               m.role === 'user' ? (
                 <div key={m.id ?? i} className="flex justify-end">
                   <div className="flex max-w-[88%] items-end gap-2 sm:max-w-[85%]">
-                    <div className="rounded-3xl rounded-br-none bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-3 text-xs font-bold leading-relaxed text-white shadow-md shadow-indigo-500/20">
+                    <div className="rounded-3xl rounded-br-none bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-3 text-xs font-bold leading-relaxed text-white shadow-md" style={{ boxShadow: '0 4px 6px -1px color-mix(in srgb, var(--color-primary-500) 20%, transparent)' }}>
                       {m.content}
                     </div>
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white font-bold">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-white font-bold" style={{ backgroundColor: 'var(--color-primary-600)' }}>
                       <User className="h-4 w-4" />
                     </span>
                   </div>
@@ -481,15 +517,15 @@ export default function AIChat() {
               ) : (
                 <div key={m.id ?? i} className="flex justify-start">
                   <div className="flex max-w-[88%] items-end gap-2 sm:max-w-[85%]">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#0B0F17] text-indigo-400 shadow-md">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl shadow-md" style={{ backgroundColor: '#0B0F17', color: 'var(--color-primary-400)' }}>
                       <Bot className="h-4 w-4" />
                     </span>
                     <div className="flex flex-col gap-1">
-                      <div className="pro-glass-card rounded-3xl rounded-bl-none px-5 py-3 text-xs font-medium leading-relaxed text-slate-800 shadow-sm border border-slate-200/80">
+                      <div className="pro-glass-card rounded-3xl rounded-bl-none px-5 py-3 text-xs font-medium leading-relaxed shadow-sm" style={{ border: '1px solid color-mix(in srgb, var(--color-border-primary) 80%, transparent)', color: 'var(--color-text-primary)' }}>
                         <Latex>{normalizeLatexForKaTeX(m.content ?? '')}</Latex>
                       </div>
                       {Array.isArray(m.rag_sources) && m.rag_sources.length > 0 && (
-                        <p className="text-[10px] font-bold text-indigo-600 px-2">
+                        <p className="text-[10px] font-bold px-2" style={{ color: 'var(--color-primary-600)' }}>
                           相关参考向量来源：{m.rag_sources.join(' · ')}
                         </p>
                       )}
@@ -500,9 +536,9 @@ export default function AIChat() {
             )}
             {loading && (
               <div className="flex justify-start">
-                <div className="flex items-center gap-2 rounded-3xl rounded-bl-none pro-glass-card px-4 py-3 shadow-sm border border-slate-200">
-                  <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
-                  <span className="text-xs font-bold text-slate-600">DeepSeek AI 思考分析中…</span>
+                <div className="flex items-center gap-2 rounded-3xl rounded-bl-none pro-glass-card px-4 py-3 shadow-sm" style={{ border: '1px solid var(--color-border-primary)' }}>
+                  <Loader2 className="h-4 w-4 animate-spin" style={{ color: 'var(--color-primary-600)' }} />
+                  <span className="text-xs font-bold" style={{ color: 'var(--color-text-secondary)' }}>DeepSeek AI 思考分析中…</span>
                 </div>
               </div>
             )}
@@ -510,7 +546,7 @@ export default function AIChat() {
         </div>
 
         {/* 输入区 */}
-        <div className="shrink-0 border-t border-slate-200/80 bg-white/90 backdrop-blur-xl px-5 py-4">
+        <div className="shrink-0 px-5 py-4" style={{ borderTop: '1px solid color-mix(in srgb, var(--color-border-primary) 80%, transparent)', backgroundColor: 'color-mix(in srgb, var(--color-bg-card) 90%, transparent)' }}>
           <div className="mx-auto flex max-w-3xl gap-3">
             <input
               type="text"
@@ -519,7 +555,8 @@ export default function AIChat() {
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
               placeholder={loading ? 'AI 思考回复中…' : '输入数学疑问或题目解法，按 Enter 发送…'}
               disabled={loading}
-              className="flex-1 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-xs font-bold text-slate-800 placeholder-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-60"
+              className="flex-1 rounded-2xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-2 disabled:opacity-60"
+              style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'color-mix(in srgb, var(--color-bg-panel) 80%, transparent)', color: 'var(--color-text-primary)' }}
             />
             <button
               type="button"
