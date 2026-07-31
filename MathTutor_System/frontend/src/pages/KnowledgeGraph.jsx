@@ -131,23 +131,45 @@ function TreeNode({ node, depth, weakPoints, masteredPoints, selectedLabel, onSe
   return (
     <div className="select-none">
       <div
-        className={`flex w-full items-center gap-1 rounded-lg px-2 py-1.5 text-left text-sm transition-colors ${
+        className="flex w-full items-center gap-1 rounded-lg px-2 py-1.5 text-left text-sm transition-colors"
+        style={
           isSelected
-            ? 'bg-blue-100 text-blue-800'
+            ? { backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 20%, var(--color-bg-card))', color: 'var(--color-primary-700)' }
             : weak
-              ? 'text-red-700 hover:bg-red-50'
+              ? { color: '#dc2626' }
               : mastered
-                ? 'text-green-700 hover:bg-green-50'
-                : 'text-gray-700 hover:bg-gray-100'
-        }`}
-        style={{ paddingLeft: `${12 + depth * 16}px` }}
+                ? { color: '#059669' }
+                : { color: 'var(--color-text-primary)' }
+        }
+        onMouseEnter={(e) => {
+          if (!isSelected) {
+            if (weak) e.currentTarget.style.backgroundColor = 'color-mix(in srgb, #dc2626 5%, var(--color-bg-card))'
+            else if (mastered) e.currentTarget.style.backgroundColor = 'color-mix(in srgb, #059669 5%, var(--color-bg-card))'
+            else e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isSelected) {
+            e.currentTarget.style.backgroundColor = 'transparent'
+          }
+        }}
+        {...{ style: { ...((isSelected && { backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 20%, var(--color-bg-card))', color: 'var(--color-primary-700)' }) || {}), paddingLeft: `${12 + depth * 16}px` } }}
       >
         <span className="flex h-5 w-5 shrink-0 items-center justify-center" aria-hidden>
           {!isLeaf ? (
             <button
               type="button"
               onClick={handleChevronClick}
-              className="flex items-center justify-center rounded p-0.5 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
+              className="flex items-center justify-center rounded p-0.5 transition-colors"
+              style={{ color: 'var(--color-text-muted)' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--color-bg-panel)'
+                e.currentTarget.style.color = 'var(--color-text-primary)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent'
+                e.currentTarget.style.color = 'var(--color-text-muted)'
+              }}
               aria-label={isExpanded ? '折叠' : '展开'}
             >
               {isExpanded ? (
@@ -167,21 +189,21 @@ function TreeNode({ node, depth, weakPoints, masteredPoints, selectedLabel, onSe
         >
           <span className="flex h-4 w-4 shrink-0 items-center justify-center" aria-hidden>
             {weak ? (
-              <span className="h-2.5 w-2.5 rounded-full bg-red-500" title="需加强" />
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: '#ef4444' }} title="需加强" />
             ) : mastered ? (
-              <span className="h-2.5 w-2.5 rounded-full bg-green-500" title="已掌握" />
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: '#10b981' }} title="已掌握" />
             ) : (
-              <span className="h-2.5 w-2.5 rounded-full bg-gray-300" title="正常" />
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: 'var(--color-border-primary)' }} title="正常" />
             )}
           </span>
           <span className="truncate">{label}</span>
           {weak && (
-            <span className="shrink-0 rounded bg-red-100 px-1.5 py-0.5 text-xs text-red-700">
+            <span className="shrink-0 rounded px-1.5 py-0.5 text-xs" style={{ backgroundColor: 'color-mix(in srgb, #ef4444 10%, transparent)', color: '#dc2626' }}>
               需加强
             </span>
           )}
           {mastered && (
-            <span className="shrink-0 rounded bg-green-100 px-1.5 py-0.5 text-xs text-green-700">
+            <span className="shrink-0 rounded px-1.5 py-0.5 text-xs" style={{ backgroundColor: 'color-mix(in srgb, #10b981 10%, transparent)', color: '#059669' }}>
               已掌握
             </span>
           )}
@@ -412,44 +434,62 @@ export default function KnowledgeGraph() {
 
   if (!currentStudent) {
     return (
-      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4 rounded-xl border border-amber-200 bg-amber-50/80 p-8 text-amber-800">
-        <AlertCircle className="h-12 w-12 text-amber-600" />
+      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4 rounded-xl p-8" style={{ border: '1px solid rgba(251, 191, 36, 0.3)', backgroundColor: 'color-mix(in srgb, #fbbf24 10%, var(--color-bg-card))', color: '#d97706' }}>
+        <AlertCircle className="h-12 w-12" style={{ color: '#f59e0b' }} />
         <p className="text-center font-medium">请先在左侧选择学生，再查看学情图谱。</p>
       </div>
     )
   }
 
   return (
-    <div className="flex h-[calc(100vh-2rem)] gap-4 overflow-hidden rounded-xl">
+    <div className="mx-auto max-w-6xl space-y-6 animate-fade-in-up flex h-[calc(100vh-5rem)] gap-4 overflow-hidden rounded-3xl">
       {/* 左侧：教材目录树 */}
-      <section className="flex w-80 shrink-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        <header className="border-b border-gray-200 px-4 py-3">
+      <section className="flex w-80 shrink-0 flex-col overflow-hidden rounded-xl shadow-sm" style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)' }}>
+        <header className="px-4 py-3" style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold text-gray-900">教材目录</h2>
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>教材目录</h2>
             <div className="flex gap-1">
               <button
                 type="button"
                 onClick={expandAll}
-                className="rounded px-2 py-1 text-xs text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800"
+                className="rounded px-2 py-1 text-xs transition-colors"
+                style={{ color: 'var(--color-text-secondary)' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+                  e.currentTarget.style.color = 'var(--color-text-primary)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                  e.currentTarget.style.color = 'var(--color-text-secondary)'
+                }}
               >
                 全部展开
               </button>
               <button
                 type="button"
                 onClick={collapseAll}
-                className="rounded px-2 py-1 text-xs text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800"
+                className="rounded px-2 py-1 text-xs transition-colors"
+                style={{ color: 'var(--color-text-secondary)' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+                  e.currentTarget.style.color = 'var(--color-text-primary)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                  e.currentTarget.style.color = 'var(--color-text-secondary)'
+                }}
               >
                 全部折叠
               </button>
             </div>
           </div>
-          <p className="mt-0.5 text-xs text-gray-500">
+          <p className="mt-0.5 text-xs" style={{ color: 'var(--color-text-muted)' }}>
             红色=需加强，绿色=已掌握；选中后在右侧可跳转错题本或生成强化题
             {(weakPoints.length > 0 || masteredPoints.length > 0) && (
               <span className="ml-1">
-                {weakPoints.length > 0 && <span className="font-medium text-red-600">需加强 {weakPoints.length}</span>}
+                {weakPoints.length > 0 && <span className="font-medium" style={{ color: '#dc2626' }}>需加强 {weakPoints.length}</span>}
                 {weakPoints.length > 0 && masteredPoints.length > 0 && ' · '}
-                {masteredPoints.length > 0 && <span className="font-medium text-green-600">已掌握 {masteredPoints.length}</span>}
+                {masteredPoints.length > 0 && <span className="font-medium" style={{ color: '#059669' }}>已掌握 {masteredPoints.length}</span>}
               </span>
             )}
           </p>
@@ -458,7 +498,18 @@ export default function KnowledgeGraph() {
               type="button"
               onClick={handleRefreshMastery}
               disabled={loadingMastery}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-colors disabled:opacity-50"
+              style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)', color: 'var(--color-text-secondary)' }}
+              onMouseEnter={(e) => {
+                if (!loadingMastery) {
+                  e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!loadingMastery) {
+                  e.currentTarget.style.backgroundColor = 'var(--color-bg-card)'
+                }
+              }}
             >
               <RefreshCcw className={`h-3.5 w-3.5 ${loadingMastery ? 'animate-spin' : ''}`} />
               刷新学情
@@ -468,8 +519,8 @@ export default function KnowledgeGraph() {
         <div className="flex-1 overflow-y-auto p-2">
           {loadingMastery ? (
             <div className="flex flex-col items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-              <p className="mt-2 text-sm text-gray-500">加载学情中…</p>
+              <Loader2 className="h-8 w-8 animate-spin" style={{ color: 'var(--color-text-muted)' }} />
+              <p className="mt-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>加载学情中…</p>
             </div>
           ) : (
             <>
@@ -487,19 +538,20 @@ export default function KnowledgeGraph() {
                 />
               ))}
               {unmappedWeakPoints.length > 0 && (
-                <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50/80 p-3">
-                  <p className="text-xs font-medium text-amber-800">未在教材目录中的弱项（来自错题本）</p>
+                <div className="mt-4 rounded-lg p-3" style={{ border: '1px solid rgba(251, 191, 36, 0.3)', backgroundColor: 'color-mix(in srgb, #fbbf24 10%, var(--color-bg-card))' }}>
+                  <p className="text-xs font-medium" style={{ color: '#d97706' }}>未在教材目录中的弱项（来自错题本）</p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {unmappedWeakPoints.map((wp) => (
                       <span
                         key={wp}
-                        className="inline-flex items-center rounded bg-amber-200/90 px-2 py-0.5 text-xs font-medium text-amber-900"
+                        className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium"
+                        style={{ backgroundColor: 'rgba(251, 191, 36, 0.4)', color: '#92400e' }}
                       >
                         {wp}
                       </span>
                     ))}
                   </div>
-                  <p className="mt-1.5 text-[11px] text-amber-700">
+                  <p className="mt-1.5 text-[11px]" style={{ color: '#b45309' }}>
                     这些知识点在错题本中有记录，但教材树中无对应章节，可继续在错题本中查看与出题
                   </p>
                 </div>
@@ -510,25 +562,36 @@ export default function KnowledgeGraph() {
       </section>
 
       {/* 右侧：该章节统计 / 操作面板 */}
-      <section className="flex flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-sm">
-        <header className="border-b border-gray-200 bg-white px-4 py-3">
-          <h2 className="text-lg font-semibold text-gray-900">章节详情</h2>
+      <section className="flex flex-1 flex-col overflow-hidden rounded-xl shadow-sm" style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-panel)' }}>
+        <header className="px-4 py-3" style={{ borderBottom: '1px solid var(--color-border-subtle)', backgroundColor: 'var(--color-bg-card)' }}>
+          <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>章节详情</h2>
         </header>
         <div className="flex-1 overflow-y-auto p-4">
           {selectedLabel ? (
             <div className="space-y-4">
-              <div className="rounded-lg border border-gray-200 bg-white p-4">
-                <p className="text-sm font-medium text-gray-500">当前选中</p>
-                <p className="mt-1 text-lg font-semibold text-gray-900">{selectedLabel}</p>
+              <div className="rounded-lg p-4" style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)' }}>
+                <p className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>当前选中</p>
+                <p className="mt-1 text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>{selectedLabel}</p>
               </div>
               {weakPoints.length > 0 && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                  <p className="text-sm font-medium text-amber-800">备课包</p>
+                <div className="rounded-lg p-4" style={{ border: '1px solid rgba(251, 191, 36, 0.3)', backgroundColor: 'color-mix(in srgb, #fbbf24 10%, var(--color-bg-card))' }}>
+                  <p className="text-sm font-medium" style={{ color: '#d97706' }}>备课包</p>
                   <button
                     type="button"
                     onClick={handleWeakPointGenerate}
                     disabled={weakPointGenerating}
-                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-amber-600 px-4 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-amber-700 disabled:opacity-60"
+                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white shadow-sm transition-colors disabled:opacity-60"
+                    style={{ backgroundColor: '#f59e0b' }}
+                    onMouseEnter={(e) => {
+                      if (!weakPointGenerating) {
+                        e.currentTarget.style.backgroundColor = '#d97706'
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!weakPointGenerating) {
+                        e.currentTarget.style.backgroundColor = '#f59e0b'
+                      }
+                    }}
                   >
                     {weakPointGenerating ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -537,29 +600,35 @@ export default function KnowledgeGraph() {
                     )}
                     按弱项一键出题（共 {weakPoints.length} 个弱项）
                   </button>
-                  <p className="mt-2 text-xs text-amber-700">
+                  <p className="mt-2 text-xs" style={{ color: '#b45309' }}>
                     根据该生错题本待掌握知识点生成巩固题，直接跳转智能出题页
                   </p>
                 </div>
               )}
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-                <p className="text-sm font-medium text-blue-800">快捷操作</p>
+              <div className="rounded-lg p-4" style={{ border: '1px solid color-mix(in srgb, var(--color-primary-500) 30%, transparent)', backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, var(--color-bg-card))' }}>
+                <p className="text-sm font-medium" style={{ color: 'var(--color-primary-700)' }}>快捷操作</p>
                 <button
                   type="button"
                   onClick={handleGenerateFive}
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700"
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white shadow-sm transition-colors"
+                  style={{ backgroundColor: 'var(--color-primary-600)' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-primary-700)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-primary-600)' }}
                 >
                   <Zap className="h-4 w-4" />
                   针对该知识点生成 5 道强化题
                 </button>
-                <p className="mt-2 text-xs text-blue-700">
+                <p className="mt-2 text-xs" style={{ color: 'var(--color-primary-700)' }}>
                   将跳转到智能出题页并自动填入知识点，点击「生成」即可出题
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => navigate('/')}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+                className="flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
+                style={{ border: '1px solid rgba(16, 185, 129, 0.3)', backgroundColor: 'color-mix(in srgb, #10b981 10%, var(--color-bg-card))', color: '#059669' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'color-mix(in srgb, #10b981 15%, var(--color-bg-card))' }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'color-mix(in srgb, #10b981 10%, var(--color-bg-card))' }}
               >
                 <TrendingUp className="h-4 w-4" />
                 查看学情趋势（近 8 周）
@@ -568,7 +637,10 @@ export default function KnowledgeGraph() {
                 <button
                   type="button"
                   onClick={() => handleNavigateMistake(selectedLabel)}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
+                  style={{ border: '1px solid rgba(239, 68, 68, 0.3)', backgroundColor: 'color-mix(in srgb, #ef4444 10%, var(--color-bg-card))', color: '#dc2626' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'color-mix(in srgb, #ef4444 15%, var(--color-bg-card))' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'color-mix(in srgb, #ef4444 10%, var(--color-bg-card))' }}
                 >
                   <BookOpen className="h-4 w-4" />
                   查看该知识点错题
@@ -576,8 +648,8 @@ export default function KnowledgeGraph() {
               )}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-500">
-              <BookOpen className="h-12 w-12 text-gray-300" />
+            <div className="flex flex-col items-center justify-center py-16" style={{ color: 'var(--color-text-muted)' }}>
+              <BookOpen className="h-12 w-12" style={{ color: 'var(--color-border-primary)' }} />
               <p className="mt-3 font-medium">点击左侧目录节点</p>
               <p className="mt-1 text-sm">查看章节详情并生成强化题</p>
             </div>
