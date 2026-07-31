@@ -49,10 +49,10 @@ export default function SmartGenView({
       <header className="shrink-0 flex items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-black tracking-tight text-slate-900">智能 AI 出题中心</h1>
-            <span className="rounded-full bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-0.5 text-[10px] font-black text-indigo-600 uppercase">DEEPSEEK-V3 GENERATOR</span>
+            <h1 className="text-xl font-black tracking-tight" style={{ color: 'var(--color-text-primary)' }}>智能 AI 出题中心</h1>
+            <span className="rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase" style={{ backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--color-primary-500) 20%, transparent)', color: 'var(--color-primary-600)' }}>DEEPSEEK-V3 GENERATOR</span>
           </div>
-          <p className="mt-0.5 text-xs text-slate-500">选择知识点、题型与难度梯度，一键精准生成数学练习题或完整试卷</p>
+          <p className="mt-0.5 text-xs" style={{ color: 'var(--color-text-secondary)' }}>选择知识点、题型与难度梯度，一键精准生成数学练习题或完整试卷</p>
         </div>
       </header>
 
@@ -60,7 +60,7 @@ export default function SmartGenView({
         className="pro-glass-card flex flex-col md:flex-row min-h-0 min-w-0 flex-1 overflow-y-auto md:overflow-hidden rounded-3xl"
         onWheel={(e) => e.stopPropagation()}
       >
-        <aside className="w-full md:w-80 shrink-0 max-h-none md:h-full md:min-h-0 overflow-visible md:overflow-y-auto overflow-x-hidden bg-gray-50/80 md:overscroll-contain border-b md:border-b-0 md:border-r border-gray-200 rounded-t-xl md:rounded-t-none md:rounded-l-xl pb-6 md:pb-0">
+        <aside className="w-full md:w-80 shrink-0 max-h-none md:h-full md:min-h-0 overflow-visible md:overflow-y-auto overflow-x-hidden md:overscroll-contain border-b md:border-b-0 md:border-r rounded-t-xl md:rounded-t-none md:rounded-l-xl pb-6 md:pb-0" style={{ backgroundColor: 'color-mix(in srgb, var(--color-bg-panel) 80%, transparent)', borderColor: 'var(--color-border-primary)' }}>
           <FilterPanel
             onFilterChange={handleFilterChange}
             onGenerate={handleGenerateClick}
@@ -90,16 +90,16 @@ export default function SmartGenView({
           onSelect={handleSelectReference}
         />
 
-        <main className="min-h-0 min-w-0 flex-none md:flex-1 overflow-visible md:overflow-y-auto overflow-x-hidden bg-gray-50 md:overscroll-contain rounded-b-xl md:rounded-b-none md:rounded-r-xl">
+        <main className="min-h-0 min-w-0 flex-none md:flex-1 overflow-visible md:overflow-y-auto overflow-x-hidden md:overscroll-contain rounded-b-xl md:rounded-b-none md:rounded-r-xl" style={{ backgroundColor: 'var(--color-bg-panel)' }}>
           <div className="mx-auto flex w-full min-w-0 max-w-4xl flex-col px-4 sm:px-6 py-4 sm:py-5">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-white px-4 py-3 shadow-sm border border-gray-100">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg px-4 py-3 shadow-sm" style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)' }}>
               <div className="flex items-center gap-3 min-w-0">
                 {currentStudent ? (
-                  <span className="inline-flex items-center rounded-full bg-indigo-100 px-3 py-1.5 text-sm font-medium text-indigo-700 ring-1 ring-indigo-200/60">
+                  <span className="inline-flex items-center rounded-full px-3 py-1.5 text-sm font-medium" style={{ backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)', color: 'var(--color-primary-700)', border: '1px solid color-mix(in srgb, var(--color-primary-500) 20%, transparent)' }}>
                     正在为 <span className="font-semibold ml-1">{currentStudent.name}</span> 生成题目
                   </span>
                 ) : (
-                  <span className="inline-flex items-center rounded-full bg-amber-50 px-3 py-1.5 text-sm text-amber-700 ring-1 ring-amber-200/60">
+                  <span className="inline-flex items-center rounded-full px-3 py-1.5 text-sm" style={{ backgroundColor: 'color-mix(in srgb, #fbbf24 10%, var(--color-bg-card))', color: '#92400e', border: '1px solid rgba(251, 191, 36, 0.3)' }}>
                     <span className="md:hidden">请先选择学生</span>
                     <span className="hidden md:inline">请先在左侧选择学生</span>
                   </span>
@@ -116,7 +116,24 @@ export default function SmartGenView({
                 type="button"
                 disabled={ragUploading}
                 onClick={() => ragFileInputRef.current?.click()}
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] disabled:opacity-50 transition-all"
+                className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium shadow-sm active:scale-[0.98] disabled:opacity-50 transition-all"
+                style={{
+                  border: '1px solid var(--color-border-primary)',
+                  backgroundColor: 'var(--color-bg-card)',
+                  color: 'var(--color-text-primary)'
+                }}
+                onMouseEnter={(e) => {
+                  if (!ragUploading) {
+                    e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+                    e.currentTarget.style.borderColor = 'var(--color-border-hover)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!ragUploading) {
+                    e.currentTarget.style.backgroundColor = 'var(--color-bg-card)'
+                    e.currentTarget.style.borderColor = 'var(--color-border-primary)'
+                  }
+                }}
               >
                 {ragUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                 上传资料
@@ -124,7 +141,7 @@ export default function SmartGenView({
             </div>
 
             {!loading && lastError && questions.length === 0 && (
-              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-800">
+              <div className="mb-4 rounded-lg px-4 py-3 text-sm" style={{ border: '1px solid rgba(251, 191, 36, 0.3)', backgroundColor: 'color-mix(in srgb, #fbbf24 10%, var(--color-bg-card))', color: '#92400e' }}>
                 <span className="font-medium">知识点：</span>
                 <span>{params.knowledge_point || '—'}</span>
               </div>
@@ -133,41 +150,51 @@ export default function SmartGenView({
             {loading && (
               <div className="flex flex-1 flex-col items-center justify-center py-24">
                 <div className="relative">
-                  <Loader2 className="h-14 w-14 animate-spin text-blue-600" />
-                  <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-blue-600/80">AI</span>
+                  <Loader2 className="h-14 w-14 animate-spin" style={{ color: 'var(--color-primary-600)' }} />
+                  <span className="absolute inset-0 flex items-center justify-center text-xs font-medium" style={{ color: 'color-mix(in srgb, var(--color-primary-600) 80%, transparent)' }}>AI</span>
                 </div>
-                <p className="mt-5 text-sm font-medium text-gray-700">
+                <p className="mt-5 text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
                   {params.count > 1 ? `正在生成 ${params.count} 道题…` : 'AI 正在思考中…'}
                 </p>
-                <p className="mt-1 text-xs text-gray-500">生成完成后题目将显示在下方</p>
+                <p className="mt-1 text-xs" style={{ color: 'var(--color-text-secondary)' }}>生成完成后题目将显示在下方</p>
               </div>
             )}
 
             {!loading && questions.length === 0 && !syncResult?.knowledge_card && (
-              <div className="flex flex-1 flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-gradient-to-b from-blue-50/50 to-white py-20 px-8 text-center">
+              <div className="flex flex-1 flex-col items-center justify-center rounded-xl border-2 border-dashed py-20 px-8 text-center" style={{ borderColor: 'var(--color-border-primary)', background: 'linear-gradient(to bottom, color-mix(in srgb, var(--color-primary-500) 5%, transparent), var(--color-bg-card))' }}>
                 {lastError ? (
                   <>
-                    <p className="text-sm font-medium text-amber-800">{lastError}</p>
-                    <p className="mt-3 text-xs text-gray-500 max-w-sm">
+                    <p className=”text-sm font-medium” style={{ color: '#92400e' }}>{lastError}</p>
+                    <p className=”mt-3 text-xs max-w-sm” style={{ color: 'var(--color-text-secondary)' }}>
                       {lastError.includes('API Key') || lastError.includes('未配置')
-                        ? '请打开左上角菜单，在侧栏底部点击“设置”并填写 API Key 后保存，再重新生成。'
+                        ? '请打开左上角菜单，在侧栏底部点击”设置”并填写 API Key 后保存，再重新生成。'
                         : '请检查网络或后端服务后重试。'}
                     </p>
                     <button
-                      type="button"
+                      type=”button”
                       onClick={() => handleGenerate()}
-                      className="mt-5 inline-flex items-center gap-2 rounded-lg bg-amber-100 px-4 py-2.5 text-sm font-medium text-amber-800 transition-colors hover:bg-amber-200 active:scale-[0.98]"
+                      className=”mt-5 inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors active:scale-[0.98]”
+                      style={{
+                        backgroundColor: 'color-mix(in srgb, #fbbf24 15%, var(--color-bg-card))',
+                        color: '#92400e'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'color-mix(in srgb, #fbbf24 25%, var(--color-bg-card))'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'color-mix(in srgb, #fbbf24 15%, var(--color-bg-card))'
+                      }}
                     >
                       重试
                     </button>
                   </>
                 ) : (
                   <>
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 text-blue-600 mb-4">
-                      <Sparkles className="h-7 w-7" />
+                    <div className=”flex h-14 w-14 items-center justify-center rounded-full mb-4” style={{ backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 15%, transparent)', color: 'var(--color-primary-600)' }}>
+                      <Sparkles className=”h-7 w-7” />
                     </div>
-                    <p className="text-base font-medium text-gray-700">在上方设置题型、难度与数量</p>
-                    <p className="mt-1 text-sm text-gray-500">点击“生成练习题”即可生成题目</p>
+                    <p className=”text-base font-medium” style={{ color: 'var(--color-text-primary)' }}>在上方设置题型、难度与数量</p>
+                    <p className=”mt-1 text-sm” style={{ color: 'var(--color-text-secondary)' }}>点击”生成练习题”即可生成题目</p>
                   </>
                 )}
               </div>
@@ -187,15 +214,15 @@ export default function SmartGenView({
                 )}
 
                 {questions.length > 0 && (
-                  <div className="mb-6 rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-                    <div className="px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="mb-6 rounded-xl shadow-sm overflow-hidden" style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)' }}>
+                    <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
                       <div>
-                        <h2 className="text-lg font-semibold text-gray-800">
+                        <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
                           8年级上册 · {(questions.length > 0 && questions[0]?.knowledge_point) || params.knowledge_point || '—'}
                         </h2>
-                        <p className="mt-1 text-sm text-gray-500">
+                        <p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                           难度 {difficultyLabel}
-                          <span className="text-gray-300 mx-1.5">·</span>
+                          <span style={{ color: 'var(--color-border-primary)' }} className="mx-1.5">·</span>
                           {questions.length} 题
                         </p>
                       </div>
@@ -203,26 +230,57 @@ export default function SmartGenView({
                         <button
                           type="button"
                           onClick={() => setExpandedIndices(new Set(questions.map((_, i) => i)))}
-                          className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                          className="rounded-md px-2.5 py-1.5 text-sm transition-colors"
+                          style={{
+                            border: '1px solid var(--color-border-primary)',
+                            backgroundColor: 'var(--color-bg-card)',
+                            color: 'var(--color-text-secondary)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+                            e.currentTarget.style.borderColor = 'var(--color-border-hover)'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--color-bg-card)'
+                            e.currentTarget.style.borderColor = 'var(--color-border-primary)'
+                          }}
                         >
                           展开全部
                         </button>
                         <button
                           type="button"
                           onClick={() => setExpandedIndices(new Set())}
-                          className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                          className="rounded-md px-2.5 py-1.5 text-sm transition-colors"
+                          style={{
+                            border: '1px solid var(--color-border-primary)',
+                            backgroundColor: 'var(--color-bg-card)',
+                            color: 'var(--color-text-secondary)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+                            e.currentTarget.style.borderColor = 'var(--color-border-hover)'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--color-bg-card)'
+                            e.currentTarget.style.borderColor = 'var(--color-border-primary)'
+                          }}
                         >
                           收起全部
                         </button>
                       </div>
                     </div>
-                    <div className="px-5 py-3.5 bg-gray-50/70 flex flex-wrap items-center gap-2">
+                    <div className="px-5 py-3.5 flex flex-wrap items-center gap-2" style={{ backgroundColor: 'color-mix(in srgb, var(--color-bg-panel) 70%, transparent)' }}>
                       <div className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
                           onClick={handleAddToTodayHomework}
                           disabled={addingToToday}
-                          className="inline-flex items-center gap-2 rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-sm font-medium text-green-800 shadow-sm hover:bg-green-100 active:scale-[0.98] transition-transform disabled:opacity-50"
+                          className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium shadow-sm active:scale-[0.98] transition-transform disabled:opacity-50"
+                          style={{
+                            border: '1px solid #86efac',
+                            backgroundColor: 'color-mix(in srgb, #10b981 8%, var(--color-bg-card))',
+                            color: '#047857'
+                          }}
                         >
                           {addingToToday ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarPlus className="h-4 w-4" />}
                           加入今日作业
@@ -231,31 +289,81 @@ export default function SmartGenView({
                           type="button"
                           onClick={handleSaveAsExam}
                           disabled={savingExam}
-                          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 transition-transform"
+                          className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white shadow-sm active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 transition-transform"
+                          style={{ backgroundColor: 'var(--color-primary-600)' }}
+                          onMouseEnter={(e) => {
+                            if (!savingExam) {
+                              e.currentTarget.style.backgroundColor = 'var(--color-primary-700)'
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!savingExam) {
+                              e.currentTarget.style.backgroundColor = 'var(--color-primary-600)'
+                            }
+                          }}
                         >
                           {savingExam ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                           保存为试卷
                         </button>
                       </div>
-                      <span className="w-px h-7 bg-gray-200 hidden sm:block" aria-hidden />
+                      <span className="w-px h-7 hidden sm:block" style={{ backgroundColor: 'var(--color-border-primary)' }} aria-hidden />
                       <div className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
-                          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] transition-transform"
+                          className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium shadow-sm active:scale-[0.98] transition-transform"
+                          style={{
+                            border: '1px solid var(--color-border-primary)',
+                            backgroundColor: 'var(--color-bg-card)',
+                            color: 'var(--color-text-primary)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+                            e.currentTarget.style.borderColor = 'var(--color-border-hover)'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--color-bg-card)'
+                            e.currentTarget.style.borderColor = 'var(--color-border-primary)'
+                          }}
                         >
                           <Copy className="h-4 w-4" />
                           复制文本
                         </button>
                         <button
                           type="button"
-                          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] transition-transform"
+                          className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium shadow-sm active:scale-[0.98] transition-transform"
+                          style={{
+                            border: '1px solid var(--color-border-primary)',
+                            backgroundColor: 'var(--color-bg-card)',
+                            color: 'var(--color-text-primary)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+                            e.currentTarget.style.borderColor = 'var(--color-border-hover)'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--color-bg-card)'
+                            e.currentTarget.style.borderColor = 'var(--color-border-primary)'
+                          }}
                         >
                           <FileText className="h-4 w-4" />
                           导出 Word
                         </button>
                         <button
                           type="button"
-                          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] transition-transform"
+                          className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium shadow-sm active:scale-[0.98] transition-transform"
+                          style={{
+                            border: '1px solid var(--color-border-primary)',
+                            backgroundColor: 'var(--color-bg-card)',
+                            color: 'var(--color-text-primary)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+                            e.currentTarget.style.borderColor = 'var(--color-border-hover)'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--color-bg-card)'
+                            e.currentTarget.style.borderColor = 'var(--color-border-primary)'
+                          }}
                         >
                           <Download className="h-4 w-4" />
                           导出 PDF
@@ -274,7 +382,7 @@ export default function SmartGenView({
                       return (
                         <li key={i}>
                           {showSectionHeader && (
-                            <div className="mb-4 mt-2 rounded-lg border border-purple-200 bg-purple-50 px-4 py-2.5 text-sm font-semibold text-purple-800">
+                            <div className="mb-4 mt-2 rounded-lg px-4 py-2.5 text-sm font-semibold" style={{ border: '1px solid rgba(168, 85, 247, 0.3)', backgroundColor: 'color-mix(in srgb, #a855f7 8%, var(--color-bg-card))', color: '#7e22ce' }}>
                               {sectionTitles[i]}
                             </div>
                           )}
