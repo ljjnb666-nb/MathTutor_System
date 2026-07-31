@@ -1,19 +1,27 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { Menu, Sparkles } from 'lucide-react'
 import Sidebar from './Sidebar'
+import TopHeader from './TopHeader'
 import ErrorBoundary from './ErrorBoundary'
+import { getLayoutMode } from '../config/route-meta'
 
 export default function Layout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const location = useLocation()
-  const isSmartGenPage = location.pathname === '/smart-gen' || location.pathname.endsWith('/smart-gen')
-  const isChatPage = location.pathname === '/chat' || location.pathname.endsWith('/chat')
-  const isFixedHeightPage = isSmartGenPage || isChatPage
+
+  // 使用路由元数据确定布局模式
+  const layoutMode = useMemo(() => getLayoutMode(location.pathname), [location.pathname])
+
+  // workspace 模式：固定高度，无双滚动条（智能出题、AI对话、AI教师助手）
+  const isWorkspaceMode = layoutMode === 'workspace'
+
+  // fullCanvas 模式：不限制宽度（Magic PPT、学情图谱）
+  const isFullCanvasMode = layoutMode === 'fullCanvas'
 
   return (
     <div
-      className={`layout-root flex bg-mesh-canvas min-h-screen text-slate-800 ${isFixedHeightPage ? 'h-screen max-h-screen overflow-hidden' : ''}`}
+      className={`layout-root flex bg-mesh-canvas min-h-screen text-slate-800 ${isWorkspaceMode ? 'h-screen max-h-screen overflow-hidden' : ''}`}
     >
       {/* 无障碍：跳过导航至主内容 */}
       <a
@@ -65,14 +73,34 @@ export default function Layout() {
       <main
         id="main-content"
         tabIndex={-1}
-        className={`flex flex-1 w-full min-w-0 flex-col pt-[calc(3.5rem+env(safe-area-inset-top))] md:pt-0 md:ml-60 p-4 sm:p-6 lg:p-8 pb-[calc(1.5rem+env(safe-area-inset-bottom))] ${isFixedHeightPage ? 'min-h-0 overflow-hidden' : 'min-h-screen'}`}
+        className={`flex flex-1 w-full min-w-0 flex-col pt-[calc(3.5rem+env(safe-area-inset-top))] md:pt-0 md:ml-60 ${
+          isWorkspaceMode ? 'min-h-0 overflow-hidden' : 'min-h-screen'
+        }`}
       >
+        {/* TopHeader - 只在 default 模式显示 */}
+        {layoutMode === 'default' && <TopHeader />}
+
+        {/* 内容区域 */}
         <div
-          className={`flex min-h-0 min-w-0 flex-1 flex-col ${isFixedHeightPage ? 'overflow-hidden' : 'overflow-y-auto'}`}
+          className={`flex flex-1 min-h-0 min-w-0 flex-col ${
+            isFullCanvasMode
+              ? 'p-0' // fullCanvas: 无内边距
+              : layoutMode === 'default'
+              ? 'p-4 sm:p-6 lg:p-8' // default: 标准内边距
+              : 'p-4 sm:p-6 lg:p-8' // workspace: 标准内边距
+          } ${layoutMode === 'default' ? 'pb-[calc(1.5rem+env(safe-area-inset-bottom))]' : 'pb-[calc(1.5rem+env(safe-area-inset-bottom))]'}`}
         >
-          <ErrorBoundary>
-            <Outlet />
-          </ErrorBoundary>
+          <div
+            className={`flex min-h-0 min-w-0 flex-1 flex-col ${
+              isWorkspaceMode ? 'overflow-hidden' : 'overflow-y-auto'
+            } ${
+              isFullCanvasMode ? 'max-w-none' : 'max-w-[1920px] mx-auto w-full'
+            }`}
+          >
+            <ErrorBoundary>
+              <Outlet />
+            </ErrorBoundary>
+          </div>
         </div>
       </main>
     </div>
