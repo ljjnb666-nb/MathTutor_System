@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Home, BookOpen, Users, Settings, ChevronDown, Search, Plus, FileStack, FileUp, Presentation, BookMarked, GitBranch, LogOut, UserCog, Database, MessageCircle, FileText, Calendar, CreditCard, ClipboardCheck, X, Sparkles } from 'lucide-react'
+import { LayoutDashboard, Home, BookOpen, Users, Settings, ChevronDown, Search, Plus, FileStack, FileUp, Presentation, BookMarked, GitBranch, LogOut, UserCog, Database, MessageCircle, FileText, Calendar, ClipboardCheck, X, Sparkles, CreditCard } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useStudent } from '../contexts/StudentContext'
 import { useSubscription } from '../contexts/SubscriptionContext'
-import SettingsModal from './SettingsModal'
 
 const AVATAR_COLORS = [
   'bg-blue-100 text-blue-700',
@@ -64,14 +63,13 @@ const navGroups = [
 ]
 
 export default function Sidebar({ onCloseDrawer }) {
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const [switcherOpen, setSwitcherOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const panelRef = useRef(null)
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const { currentStudent, students, selectStudent, refreshStudents } = useStudent()
-  const { subscription, atStudentLimit } = useSubscription()
+  const { atStudentLimit } = useSubscription()
 
   const visibleNavGroups = useMemo(
     () =>
@@ -278,66 +276,32 @@ export default function Sidebar({ onCloseDrawer }) {
           ))}
         </nav>
 
-        {/* 底部订阅卡片与设置 */}
-        <div className="border-t border-slate-800/80 p-3 space-y-2">
-          {subscription?.plan ? (
-            <NavLink
-              to="/pricing"
-              onClick={onCloseDrawer ?? undefined}
-              className="group flex w-full flex-col gap-1.5 rounded-xl border border-slate-800 bg-[#121826] p-2.5 text-xs font-medium transition-all hover:border-slate-700 hover:bg-[#182033]"
-            >
-              <div className="flex w-full items-center justify-between">
-                <span className="flex items-center gap-2 font-bold text-slate-200">
-                  <CreditCard className="h-3.5 w-3.5 text-indigo-400" />
-                  {subscription.plan.name}
-                </span>
-                <span className="text-[10px] font-bold text-slate-400">
-                  {subscription.student_count}/{subscription.max_students}人
-                </span>
-              </div>
-              {/* Mini 进度条 */}
-              <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-all duration-500"
-                  style={{
-                    width: `${Math.min(100, Math.round(((subscription.student_count ?? 0) / (subscription.max_students || 1)) * 100))}%`,
-                  }}
-                />
-              </div>
-            </NavLink>
-          ) : (
-            <NavLink
-              to="/pricing"
-              onClick={onCloseDrawer ?? undefined}
-              className="flex w-full items-center gap-2.5 rounded-xl border border-slate-800 bg-[#121826] p-2.5 text-xs font-medium text-slate-300 hover:bg-[#182033]"
-            >
-              <CreditCard className="h-4 w-4 text-indigo-400 shrink-0" />
-              <span>套餐与定价</span>
-            </NavLink>
-          )}
-          <div className="flex items-center gap-1.5 pt-1">
-            <button
-              type="button"
-              onClick={() => setSettingsOpen(true)}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-800/80 bg-[#121826] px-3 py-2 text-xs font-semibold text-slate-400 hover:border-slate-700 hover:bg-[#182033] hover:text-slate-200 transition-all"
-              aria-label="系统设置"
-            >
-              <Settings className="h-3.5 w-3.5 shrink-0" />
-              <span>设置</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-rose-950/40 bg-rose-950/20 px-3 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-950/40 transition-all"
-              aria-label="退出登录"
-            >
-              <LogOut className="h-3.5 w-3.5 shrink-0" />
-              <span>退出</span>
-            </button>
-          </div>
+        {/* 底部设置与退出 */}
+        <div className="border-t border-slate-800/80 p-3 space-y-1.5">
+          <NavLink
+            to="/settings"
+            onClick={onCloseDrawer ?? undefined}
+            className={({ isActive }) =>
+              `flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all ${
+                isActive
+                  ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-600/30'
+                  : 'border border-slate-800/80 bg-[#121826] text-slate-400 hover:border-slate-700 hover:bg-[#182033] hover:text-slate-200'
+              }`
+            }
+          >
+            <Settings className="h-4 w-4 shrink-0" />
+            <span>设置</span>
+          </NavLink>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex w-full items-center gap-2.5 rounded-xl border border-rose-950/40 bg-rose-950/20 px-3 py-2.5 text-xs font-semibold text-rose-400 hover:bg-rose-950/40 hover:border-rose-900/60 transition-all"
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            <span>退出登录</span>
+          </button>
         </div>
       </aside>
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </>
   )
 }
