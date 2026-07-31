@@ -240,13 +240,30 @@ export default function AdminUserPage() {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-semibold text-gray-800">用户管理</h1>
+    <div className="mx-auto max-w-6xl space-y-6 md:space-y-8 animate-fade-in-up">
+      <div className="rounded-3xl p-6 sm:p-8 shadow-sm flex items-center justify-between gap-4" style={{ border: '1px solid color-mix(in srgb, var(--color-border-primary) 90%, transparent)', backgroundColor: 'var(--color-bg-card)' }}>
+        <div className="flex items-center gap-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 text-white shadow-lg shrink-0" style={{ boxShadow: '0 10px 15px -3px color-mix(in srgb, var(--color-primary-500) 25%, transparent)' }}>
+            <UserPlus className="h-7 w-7" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-black tracking-tight" style={{ color: 'var(--color-text-primary)' }}>系统用户与权限管理</h1>
+              <span className="rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase" style={{ backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--color-primary-500) 20%, transparent)', color: 'var(--color-primary-600)' }}>
+                ADMIN CONSOLE
+              </span>
+            </div>
+            <p className="mt-1 text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+              新增教师账户、开通/变更订阅套餐、调整有效期与查看变更历史日志
+            </p>
+          </div>
+        </div>
+
         <button
           type="button"
           onClick={handleOpenAdd}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 active:bg-blue-800 transition"
+          className="btn-gradient-pro inline-flex items-center gap-2 px-5 py-3 text-xs font-black rounded-2xl shadow-lg"
+          style={{ boxShadow: '0 10px 15px -3px color-mix(in srgb, var(--color-primary-500) 25%, transparent)' }}
         >
           <UserPlus className="h-4 w-4" />
           添加用户
@@ -254,19 +271,30 @@ export default function AdminUserPage() {
       </div>
 
       {error && (
-        <p className="mb-4 text-sm text-red-500" role="alert">
+        <p className="mb-4 text-sm" style={{ color: '#ef4444' }} role="alert">
           {error}
         </p>
       )}
 
       {selectedIds.size > 0 && (
-        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
-          <span className="text-sm font-medium text-blue-800">已选 {selectedIds.size} 人</span>
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg px-4 py-3" style={{ border: '1px solid color-mix(in srgb, var(--color-primary-500) 30%, transparent)', backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, var(--color-bg-card))' }}>
+          <span className="text-sm font-medium" style={{ color: 'var(--color-primary-700)' }}>已选 {selectedIds.size} 人</span>
           <button
             type="button"
             onClick={() => handleBatchRenew(30)}
             disabled={batchLoading}
-            className="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-60"
+            className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm shadow-sm disabled:opacity-60"
+            style={{ backgroundColor: 'var(--color-bg-card)', color: 'var(--color-text-primary)', border: '1px solid var(--color-border-primary)' }}
+            onMouseEnter={(e) => {
+              if (!batchLoading) {
+                e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!batchLoading) {
+                e.currentTarget.style.backgroundColor = 'var(--color-bg-card)'
+              }
+            }}
           >
             <Calendar className="h-4 w-4" />
             批量续期 30 天
@@ -275,12 +303,23 @@ export default function AdminUserPage() {
             type="button"
             onClick={() => handleBatchRenew(90)}
             disabled={batchLoading}
-            className="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-60"
+            className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm shadow-sm disabled:opacity-60"
+            style={{ backgroundColor: 'var(--color-bg-card)', color: 'var(--color-text-primary)', border: '1px solid var(--color-border-primary)' }}
+            onMouseEnter={(e) => {
+              if (!batchLoading) {
+                e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!batchLoading) {
+                e.currentTarget.style.backgroundColor = 'var(--color-bg-card)'
+              }
+            }}
           >
             续期 90 天
           </button>
-          <span className="text-gray-400">|</span>
-          <span className="text-sm text-gray-600">设为套餐：</span>
+          <span style={{ color: 'var(--color-border-primary)' }}>|</span>
+          <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>设为套餐：</span>
           {PLAN_OPTIONS.map((p) => (
             <button
               key={p.code}
