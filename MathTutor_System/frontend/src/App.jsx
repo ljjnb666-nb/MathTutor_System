@@ -39,15 +39,51 @@ function RouteFallback() {
 }
 
 function App() {
-  // 初始化主题设置
+  // 初始化主题设置并支持系统主题检测
   useEffect(() => {
+    const applyTheme = (theme) => {
+      if (theme === 'auto') {
+        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        document.documentElement.dataset.theme = systemPrefersDark ? 'dark' : 'light'
+      } else {
+        document.documentElement.dataset.theme = theme
+      }
+    }
+
     const savedTheme = localStorage.getItem('ui_theme') || 'dark'
     const savedAccent = localStorage.getItem('ui_accent') || 'indigo'
     const savedDensity = localStorage.getItem('ui_density') || 'comfortable'
 
-    document.documentElement.dataset.theme = savedTheme
+    applyTheme(savedTheme)
     document.documentElement.dataset.accent = savedAccent
     document.documentElement.dataset.density = savedDensity
+
+    // 监听系统主题变化（当用户选择 auto 模式时）
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const handleSystemThemeChange = (e) => {
+      const currentTheme = localStorage.getItem('ui_theme') || 'dark'
+      if (currentTheme === 'auto') {
+        document.documentElement.dataset.theme = e.matches ? 'dark' : 'light'
+      }
+    }
+    mediaQuery.addEventListener('change', handleSystemThemeChange)
+
+    // 监听 localStorage 变化（跨标签页同步）
+    const handleStorageChange = (e) => {
+      if (e.key === 'ui_theme' && e.newValue) {
+        applyTheme(e.newValue)
+      } else if (e.key === 'ui_accent' && e.newValue) {
+        document.documentElement.dataset.accent = e.newValue
+      } else if (e.key === 'ui_density' && e.newValue) {
+        document.documentElement.dataset.density = e.newValue
+      }
+    }
+    window.addEventListener('storage', handleStorageChange)
+
+    return () => {
+      mediaQuery.removeEventListener('change', handleSystemThemeChange)
+      window.removeEventListener('storage', handleStorageChange)
+    }
   }, [])
 
   return (
