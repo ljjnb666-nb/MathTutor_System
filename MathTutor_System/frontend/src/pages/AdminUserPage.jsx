@@ -326,7 +326,18 @@ export default function AdminUserPage() {
               type="button"
               onClick={() => handleBatchSetPlan(p.code, p.code === 'free' ? undefined : 30)}
               disabled={batchLoading}
-              className="rounded-lg bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-60"
+              className="rounded-lg px-3 py-1.5 text-sm shadow-sm disabled:opacity-60 transition-all"
+              style={{ backgroundColor: 'var(--color-bg-card)', color: 'var(--color-text-primary)', border: '1px solid var(--color-border-primary)' }}
+              onMouseEnter={(e) => {
+                if (!batchLoading) {
+                  e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!batchLoading) {
+                  e.currentTarget.style.backgroundColor = 'var(--color-bg-card)'
+                }
+              }}
             >
               {p.name}
             </button>
@@ -334,21 +345,24 @@ export default function AdminUserPage() {
           <button
             type="button"
             onClick={() => setSelectedIds(new Set())}
-            className="ml-auto text-sm text-blue-600 hover:text-blue-700"
+            className="ml-auto text-sm transition-colors"
+            style={{ color: 'var(--color-primary-600)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-primary-700)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-primary-600)' }}
           >
             取消选择
           </button>
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="rounded-xl shadow-sm overflow-hidden" style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)' }}>
         {loading ? (
-          <div className="p-12 text-center text-gray-500">加载中...</div>
+          <div className="p-12 text-center" style={{ color: 'var(--color-text-secondary)' }}>加载中...</div>
         ) : users.length === 0 ? (
-          <div className="p-12 text-center text-gray-500">暂无用户</div>
+          <div className="p-12 text-center" style={{ color: 'var(--color-text-secondary)' }}>暂无用户</div>
         ) : (
           <table className="w-full text-left">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead style={{ backgroundColor: 'var(--color-bg-panel)', borderBottom: '1px solid var(--color-border-primary)' }}>
               <tr>
                 <th className="w-10 px-2 py-3">
                   {teachers.length > 0 && (
@@ -356,38 +370,46 @@ export default function AdminUserPage() {
                       type="checkbox"
                       checked={selectedIds.size === teachers.length && teachers.length > 0}
                       onChange={toggleSelectAllTeachers}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="rounded focus:ring-2"
+                      style={{ borderColor: 'var(--color-border-primary)', color: 'var(--color-primary-600)' }}
                       aria-label="全选教师"
                     />
                   )}
                 </th>
-                <th className="px-4 py-3 text-sm font-medium text-gray-700">ID</th>
-                <th className="px-4 py-3 text-sm font-medium text-gray-700">用户名</th>
-                <th className="px-4 py-3 text-sm font-medium text-gray-700">角色</th>
-                <th className="px-4 py-3 text-sm font-medium text-gray-700">套餐</th>
-                <th className="px-4 py-3 text-sm font-medium text-gray-700">到期日</th>
-                <th className="px-4 py-3 text-sm font-medium text-gray-700">状态</th>
-                <th className="px-4 py-3 text-sm font-medium text-gray-700 w-28">操作</th>
+                <th className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>ID</th>
+                <th className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>用户名</th>
+                <th className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>角色</th>
+                <th className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>套餐</th>
+                <th className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>到期日</th>
+                <th className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>状态</th>
+                <th className="px-4 py-3 text-sm font-medium w-28" style={{ color: 'var(--color-text-primary)' }}>操作</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody style={{ borderTop: '1px solid var(--color-border-subtle)' }}>
               {users.map((u) => (
-                <tr key={u.id} className="hover:bg-gray-50/50">
+                <tr
+                  key={u.id}
+                  className="transition-colors"
+                  style={{ borderBottom: '1px solid var(--color-border-subtle)' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                >
                   <td className="w-10 px-2 py-3">
                     {u.role === 'teacher' && (
                       <input
                         type="checkbox"
                         checked={selectedIds.has(u.id)}
                         onChange={() => toggleSelect(u.id)}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        className="rounded focus:ring-2"
+                        style={{ borderColor: 'var(--color-border-primary)', color: 'var(--color-primary-600)' }}
                         aria-label={`选择 ${u.username}`}
                       />
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-800">{u.id}</td>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-800">{u.username}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{u.role === 'admin' ? '管理员' : '教师'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-4 py-3 text-sm" style={{ color: 'var(--color-text-primary)' }}>{u.id}</td>
+                  <td className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{u.username}</td>
+                  <td className="px-4 py-3 text-sm" style={{ color: 'var(--color-text-secondary)' }}>{u.role === 'admin' ? '管理员' : '教师'}</td>
+                  <td className="px-4 py-3 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                     {u.role === 'admin' ? (
                       '—'
                     ) : (
@@ -396,7 +418,8 @@ export default function AdminUserPage() {
                           value={u.plan_code || 'free'}
                           onChange={(e) => handlePlanChange(u.id, e.target.value, 30)}
                           disabled={updatingPlanId === u.id}
-                          className="rounded border border-gray-200 bg-white px-2 py-1 text-sm text-gray-800 disabled:opacity-60"
+                          className="rounded px-2 py-1 text-sm disabled:opacity-60"
+                          style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-input)', color: 'var(--color-text-primary)' }}
                           aria-label={`${u.username} 套餐`}
                         >
                           {PLAN_OPTIONS.map((p) => (
@@ -410,7 +433,8 @@ export default function AdminUserPage() {
                             value={defaultPeriodDays(u.period_end)}
                             onChange={(e) => handlePeriodDaysChange(u.id, u.plan_code || 'basic', Number(e.target.value))}
                             disabled={updatingPlanId === u.id}
-                            className="rounded border border-gray-200 bg-white px-2 py-1 text-sm text-gray-600 disabled:opacity-60"
+                            className="rounded px-2 py-1 text-sm disabled:opacity-60"
+                            style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-input)', color: 'var(--color-text-secondary)' }}
                             aria-label={`${u.username} 有效天数`}
                           >
                             {PERIOD_DAYS_OPTIONS.map((o) => (
@@ -421,12 +445,12 @@ export default function AdminUserPage() {
                           </select>
                         )}
                         {updatingPlanId === u.id && (
-                          <span className="text-xs text-gray-500">保存中...</span>
+                          <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>保存中...</span>
                         )}
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-4 py-3 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                     {u.role === 'admin' ? '—' : (formatPeriodEnd(u.period_end) ?? '—')}
                   </td>
                   <td className="px-4 py-3">
@@ -442,7 +466,10 @@ export default function AdminUserPage() {
                     <button
                       type="button"
                       onClick={() => openHistory(u.id)}
-                      className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800"
+                      className="inline-flex items-center gap-1 text-sm transition-colors"
+                      style={{ color: 'var(--color-text-secondary)' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text-primary)' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-secondary)' }}
                       aria-label={`${u.username} 订阅历史`}
                     >
                       <History className="h-4 w-4" />
@@ -452,7 +479,10 @@ export default function AdminUserPage() {
                       type="button"
                       onClick={() => handleDelete(u.id)}
                       disabled={u.id === currentUser?.id || deletingId === u.id}
-                      className="inline-flex items-center gap-1 text-sm text-red-600 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-1 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      style={{ color: '#dc2626' }}
+                      onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.color = '#b91c1c' }}
+                      onMouseLeave={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.color = '#dc2626' }}
                       aria-label={`删除 ${u.username}`}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -468,15 +498,16 @@ export default function AdminUserPage() {
 
       {/* 添加用户弹窗 */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={handleCloseModal}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.4)' }} onClick={handleCloseModal}>
           <div
-            className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6"
+            className="rounded-xl shadow-xl w-full max-w-sm p-6"
+            style={{ backgroundColor: 'var(--color-bg-card)' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">添加用户</h2>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-text-primary)' }}>添加用户</h2>
             <form onSubmit={handleAddUser} className="space-y-4">
               <div>
-                <label htmlFor="add-username" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="add-username" className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-primary)' }}>
                   用户名
                 </label>
                 <input
@@ -484,13 +515,20 @@ export default function AdminUserPage() {
                   type="text"
                   value={formUsername}
                   onChange={(e) => setFormUsername(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full px-3 py-2 rounded-lg outline-none focus:ring-2 transition-all"
+                  style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-input)', color: 'var(--color-text-primary)' }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--color-primary-500)'
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--color-border-primary)'
+                  }}
                   placeholder="请输入用户名"
                   disabled={submitLoading}
                 />
               </div>
               <div>
-                <label htmlFor="add-password" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="add-password" className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-primary)' }}>
                   密码
                 </label>
                 <div className="relative">
@@ -499,14 +537,24 @@ export default function AdminUserPage() {
                     type={showPassword ? 'text' : 'password'}
                     value={formPassword}
                     onChange={(e) => setFormPassword(e.target.value)}
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full px-3 py-2 pr-10 rounded-lg outline-none focus:ring-2 transition-all"
+                    style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-input)', color: 'var(--color-text-primary)' }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--color-primary-500)'
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--color-border-primary)'
+                    }}
                     placeholder="至少 6 位"
                     disabled={submitLoading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 transition-colors"
+                    style={{ color: 'var(--color-text-muted)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text-secondary)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-muted)' }}
                     aria-label={showPassword ? '隐藏密码' : '显示密码'}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -514,34 +562,56 @@ export default function AdminUserPage() {
                 </div>
               </div>
               <div>
-                <span className="block text-sm font-medium text-gray-700 mb-2">角色</span>
+                <span className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>角色</span>
                 <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => setFormRole('teacher')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition ${
+                    className="flex-1 py-2 px-3 rounded-lg text-sm font-medium transition"
+                    style={
                       formRole === 'teacher'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                        ? { background: 'linear-gradient(to right, var(--color-primary-600), var(--color-primary-700))', color: 'white' }
+                        : { backgroundColor: 'var(--color-bg-panel)', color: 'var(--color-text-primary)' }
+                    }
+                    onMouseEnter={(e) => {
+                      if (formRole !== 'teacher') {
+                        e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (formRole !== 'teacher') {
+                        e.currentTarget.style.backgroundColor = 'var(--color-bg-panel)'
+                      }
+                    }}
                   >
                     教师
                   </button>
                   <button
                     type="button"
                     onClick={() => setFormRole('admin')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition ${
+                    className="flex-1 py-2 px-3 rounded-lg text-sm font-medium transition"
+                    style={
                       formRole === 'admin'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                        ? { background: 'linear-gradient(to right, var(--color-primary-600), var(--color-primary-700))', color: 'white' }
+                        : { backgroundColor: 'var(--color-bg-panel)', color: 'var(--color-text-primary)' }
+                    }
+                    onMouseEnter={(e) => {
+                      if (formRole !== 'admin') {
+                        e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (formRole !== 'admin') {
+                        e.currentTarget.style.backgroundColor = 'var(--color-bg-panel)'
+                      }
+                    }}
                   >
                     管理员
                   </button>
                 </div>
               </div>
               {formError && (
-                <p className="text-sm text-red-500" role="alert">
+                <p className="text-sm" style={{ color: '#dc2626' }} role="alert">
                   {formError}
                 </p>
               )}
@@ -550,14 +620,36 @@ export default function AdminUserPage() {
                   type="button"
                   onClick={handleCloseModal}
                   disabled={submitLoading}
-                  className="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                  className="flex-1 py-2 px-4 rounded-lg disabled:opacity-60 transition-all"
+                  style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-panel)', color: 'var(--color-text-primary)' }}
+                  onMouseEnter={(e) => {
+                    if (!submitLoading) {
+                      e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!submitLoading) {
+                      e.currentTarget.style.backgroundColor = 'var(--color-bg-panel)'
+                    }
+                  }}
                 >
                   取消
                 </button>
                 <button
                   type="submit"
                   disabled={submitLoading}
-                  className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60"
+                  className="flex-1 py-2 px-4 rounded-lg text-white disabled:opacity-60 transition-all"
+                  style={{ background: 'linear-gradient(to right, var(--color-primary-600), var(--color-primary-700))' }}
+                  onMouseEnter={(e) => {
+                    if (!submitLoading) {
+                      e.currentTarget.style.opacity = '0.9'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!submitLoading) {
+                      e.currentTarget.style.opacity = '1'
+                    }
+                  }}
                 >
                   {submitLoading ? '提交中...' : '确定'}
                 </button>
@@ -570,47 +662,52 @@ export default function AdminUserPage() {
       {/* 订阅历史弹窗 */}
       {historyModalUserId != null && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.4)' }}
           onClick={() => setHistoryModalUserId(null)}
         >
           <div
-            className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col"
+            className="rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col"
+            style={{ backgroundColor: 'var(--color-bg-card)' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-              <h2 className="text-lg font-semibold text-gray-800">
+            <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
+              <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
                 {users.find((u) => u.id === historyModalUserId)?.username ?? ''} 订阅历史
               </h2>
               <button
                 type="button"
                 onClick={() => setHistoryModalUserId(null)}
-                className="text-gray-400 hover:text-gray-600"
+                className="transition-colors"
+                style={{ color: 'var(--color-text-muted)' }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text-secondary)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-muted)' }}
               >
                 ×
               </button>
             </div>
             <div className="flex-1 overflow-auto px-6 py-4">
               {historyLoading ? (
-                <p className="text-gray-500">加载中...</p>
+                <p style={{ color: 'var(--color-text-secondary)' }}>加载中...</p>
               ) : historyList.length === 0 ? (
-                <p className="text-gray-500">暂无记录</p>
+                <p style={{ color: 'var(--color-text-secondary)' }}>暂无记录</p>
               ) : (
                 <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="border-b border-gray-200 text-gray-600">
+                    <tr style={{ borderBottom: '1px solid var(--color-border-primary)', color: 'var(--color-text-secondary)' }}>
                       <th className="py-2 pr-4">套餐</th>
                       <th className="py-2 pr-4">周期开始</th>
                       <th className="py-2 pr-4">周期结束</th>
                       <th className="py-2">变更时间</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody style={{ borderTop: '1px solid var(--color-border-subtle)' }}>
                     {historyList.map((h) => (
-                      <tr key={h.id}>
-                        <td className="py-2 pr-4 font-medium">{h.plan_name}</td>
-                        <td className="py-2 pr-4 text-gray-600">{formatHistoryDate(h.period_start)}</td>
-                        <td className="py-2 pr-4 text-gray-600">{formatHistoryDate(h.period_end)}</td>
-                        <td className="py-2 text-gray-500">{formatHistoryDate(h.created_at)}</td>
+                      <tr key={h.id} style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
+                        <td className="py-2 pr-4 font-medium" style={{ color: 'var(--color-text-primary)' }}>{h.plan_name}</td>
+                        <td className="py-2 pr-4" style={{ color: 'var(--color-text-secondary)' }}>{formatHistoryDate(h.period_start)}</td>
+                        <td className="py-2 pr-4" style={{ color: 'var(--color-text-secondary)' }}>{formatHistoryDate(h.period_end)}</td>
+                        <td className="py-2" style={{ color: 'var(--color-text-muted)' }}>{formatHistoryDate(h.created_at)}</td>
                       </tr>
                     ))}
                   </tbody>
