@@ -20,8 +20,8 @@ from-white|to-white
 **Priority: HIGH**
 
 1. `frontend/src/pages/Dashboard.jsx` ⚠️ **PARTIALLY MIGRATED** - some cards remain
-2. `frontend/src/pages/AIChat.jsx` ⚠️ **NOT MIGRATED**
-3. `frontend/src/pages/TeacherAgent.jsx` ⚠️ **NOT MIGRATED**
+2. `frontend/src/pages/AIChat.jsx` ✅ **MIGRATED** (Commit d79b58c)
+3. `frontend/src/pages/TeacherAgent.jsx` ✅ **MIGRATED** (Commit 423e5e0)
 4. `frontend/src/pages/StudentMgmt.jsx`
 5. `frontend/src/pages/Reports.jsx`
 6. `frontend/src/pages/Pricing.jsx`
@@ -118,18 +118,26 @@ These areas should be wrapped in specific classes and excluded from theme migrat
 - ✅ `Settings.jsx`: Migrate to CSS tokens
 - ✅ `App.jsx`: Theme switching with system detection
 
-### Phase 2: Shared Components (CURRENT)
-1. Add semantic tokens to `design-tokens.css`
-2. Migrate `QuestionCard.jsx`
-3. Migrate `FilterPanel.jsx`
-4. Migrate `KnowledgeCard.jsx`
-5. Migrate `ExampleList.jsx`
-6. Migrate all modals and dialogs
+### Phase 2: Shared Components (COMPLETED ✅)
+1. ✅ Add semantic tokens to `design-tokens.css`
+2. ✅ Migrate `QuestionCard.jsx` (Commit 60f5a52)
+3. ✅ Migrate `FilterPanel.jsx` (Commit afe50ad)
+4. ✅ Migrate `KnowledgeCard.jsx` (Commit 838708f)
+5. ✅ Migrate `ExampleList.jsx` (Commit f9cab18)
+6. ✅ Migrate `QuestionSelectModal.jsx` (Commit 99d7e5a)
+7. ✅ Migrate `TextbookSelector.jsx` (Commit 99d7e5a)
+8. ✅ Migrate `StudentSelectorModal.jsx` (Commit 81eb97b)
+9. ✅ Migrate `SettingsModal.jsx` (Commit cb74a3e)
+10. ✅ Migrate Teacher Agent components (Commit 297392c)
+    - AgentActionStatus.jsx
+    - ConfirmPracticeSaveDialog.jsx
+    - PracticeDraftPanel.jsx
+    - PracticeQuestionEditor.jsx
 
-### Phase 3: Critical Workspaces
-1. Migrate `SmartGenView.jsx`
-2. Migrate `AIChat.jsx`
-3. Migrate `TeacherAgent.jsx` + all sub-components
+### Phase 3: Critical Workspaces (COMPLETED ✅)
+1. ✅ Migrate `SmartGenView.jsx` (Commit e445bd1)
+2. ✅ Migrate `AIChat.jsx` (Commit d79b58c)
+3. ✅ Migrate `TeacherAgent.jsx` (Commit 423e5e0)
 
 ### Phase 4: Remaining Pages
 1. Migrate all other pages in Category 1
