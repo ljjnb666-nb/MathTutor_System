@@ -126,59 +126,59 @@ export default function Settings() {
   return (
     <div className="space-y-6 max-w-5xl animate-fade-in-up">
       {/* 页面说明 */}
-      <div className="pro-glass-card rounded-2xl p-6">
-        <h2 className="text-lg font-black text-slate-900 mb-2">系统设置</h2>
-        <p className="text-sm text-slate-600">
+      <div className="pro-glass-card rounded-2xl p-6 bg-[#111726] border border-slate-700/80">
+        <h2 className="text-lg font-black text-slate-100 mb-2">系统设置</h2>
+        <p className="text-sm text-slate-400">
           管理您的个人资料、系统外观、通知提醒、AI 偏好和集成配置。
         </p>
       </div>
 
       {/* 1. 个人资料（只读） */}
-      <section className="pro-glass-card rounded-2xl p-6">
+      <section className="pro-glass-card rounded-2xl p-6 bg-[#111726] border border-slate-700/80">
         <div className="flex items-center gap-3 mb-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-400">
             <User className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-900">个人资料</h3>
-            <p className="text-xs text-slate-500">查看您的账号信息</p>
+            <h3 className="text-base font-bold text-slate-100">个人资料</h3>
+            <p className="text-xs text-slate-400">查看您的账号信息</p>
           </div>
         </div>
         <div className="space-y-3">
-          <div className="flex items-center justify-between py-2 border-b border-slate-100">
-            <span className="text-sm font-medium text-slate-600">用户名</span>
-            <span className="text-sm font-bold text-slate-900">{user?.username || '—'}</span>
+          <div className="flex items-center justify-between py-2 border-b border-slate-800">
+            <span className="text-sm font-medium text-slate-400">用户名</span>
+            <span className="text-sm font-bold text-slate-200">{user?.username || '—'}</span>
           </div>
-          <div className="flex items-center justify-between py-2 border-b border-slate-100">
-            <span className="text-sm font-medium text-slate-600">角色</span>
-            <span className="text-sm font-bold text-slate-900">
+          <div className="flex items-center justify-between py-2 border-b border-slate-800">
+            <span className="text-sm font-medium text-slate-400">角色</span>
+            <span className="text-sm font-bold text-slate-200">
               {user?.role === 'admin' ? '管理员' : '教师'}
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-3">
+          <p className="text-xs text-slate-500 mt-3">
             个人资料由管理员管理，当前无法自助修改。
           </p>
         </div>
       </section>
 
       {/* 2. 系统外观 */}
-      <section className="pro-glass-card rounded-2xl p-6">
+      <section className="pro-glass-card rounded-2xl p-6 bg-[#111726] border border-slate-700/80">
         <div className="flex items-center gap-3 mb-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/10 text-purple-600">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/20 text-purple-400">
             <Palette className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-900">系统外观</h3>
-            <p className="text-xs text-slate-500">自定义界面主题和布局</p>
+            <h3 className="text-base font-bold text-slate-100">系统外观</h3>
+            <p className="text-xs text-slate-400">自定义界面主题和布局</p>
           </div>
         </div>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">主题模式</label>
+            <label className="block text-sm font-medium text-slate-300 mb-2">主题模式</label>
             <select
               value={theme}
               onChange={(e) => setTheme(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2.5 text-sm text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
             >
               <option value="light">浅色</option>
               <option value="dark">深色</option>
@@ -186,11 +186,11 @@ export default function Settings() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">强调色</label>
+            <label className="block text-sm font-medium text-slate-300 mb-2">强调色</label>
             <select
               value={accentColor}
               onChange={(e) => setAccentColor(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2.5 text-sm text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
             >
               <option value="indigo">靛蓝</option>
               <option value="purple">紫色</option>
@@ -199,11 +199,11 @@ export default function Settings() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">布局密度</label>
+            <label className="block text-sm font-medium text-slate-300 mb-2">布局密度</label>
             <select
               value={density}
               onChange={(e) => setDensity(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2.5 text-sm text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
             >
               <option value="compact">紧凑</option>
               <option value="comfortable">舒适</option>
@@ -222,41 +222,41 @@ export default function Settings() {
       </section>
 
       {/* 3. 通知提醒 */}
-      <section className="pro-glass-card rounded-2xl p-6">
+      <section className="pro-glass-card rounded-2xl p-6 bg-[#111726] border border-slate-700/80">
         <div className="flex items-center gap-3 mb-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400">
             <Bell className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-900">通知提醒</h3>
-            <p className="text-xs text-slate-500">管理通知接收偏好</p>
+            <h3 className="text-base font-bold text-slate-100">通知提醒</h3>
+            <p className="text-xs text-slate-400">管理通知接收偏好</p>
           </div>
         </div>
-        <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
-          <p className="text-sm font-medium text-amber-800">
+        <div className="rounded-xl bg-amber-950/30 border border-amber-800/40 p-4">
+          <p className="text-sm font-medium text-amber-300">
             通知服务尚未接入，敬请期待。
           </p>
         </div>
       </section>
 
       {/* 4. AI 偏好 */}
-      <section className="pro-glass-card rounded-2xl p-6">
+      <section className="pro-glass-card rounded-2xl p-6 bg-[#111726] border border-slate-700/80">
         <div className="flex items-center gap-3 mb-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-400">
             <Key className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-900">AI 偏好</h3>
-            <p className="text-xs text-slate-500">配置默认 AI 提供商和模型</p>
+            <h3 className="text-base font-bold text-slate-100">AI 偏好</h3>
+            <p className="text-xs text-slate-400">配置默认 AI 提供商和模型</p>
           </div>
         </div>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">默认 Provider</label>
+            <label className="block text-sm font-medium text-slate-300 mb-2">默认 Provider</label>
             <select
               value={providerValue}
               onChange={(e) => handleProviderChange(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2.5 text-sm text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
             >
               {PROVIDERS.map((p) => (
                 <option key={p.value} value={p.value}>
@@ -266,11 +266,11 @@ export default function Settings() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">默认模型</label>
+            <label className="block text-sm font-medium text-slate-300 mb-2">默认模型</label>
             <select
               value={model}
               onChange={(e) => setModel(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2.5 text-sm text-slate-200 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
             >
               {provider.models?.map((m) => (
                 <option key={m.value} value={m.value}>
@@ -285,9 +285,9 @@ export default function Settings() {
                 type="checkbox"
                 checked={showThinking}
                 onChange={(e) => setShowThinking(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                className="h-4 w-4 rounded border-slate-600 bg-slate-900/60 text-indigo-600 focus:ring-indigo-500"
               />
-              <span className="text-sm font-medium text-slate-700">显示 AI 思考过程</span>
+              <span className="text-sm font-medium text-slate-300">显示 AI 思考过程</span>
             </label>
           </div>
           <button
@@ -302,24 +302,24 @@ export default function Settings() {
       </section>
 
       {/* 5. 数据与隐私 */}
-      <section className="pro-glass-card rounded-2xl p-6">
+      <section className="pro-glass-card rounded-2xl p-6 bg-[#111726] border border-slate-700/80">
         <div className="flex items-center gap-3 mb-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400">
             <Database className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-900">数据与隐私</h3>
-            <p className="text-xs text-slate-500">管理本地存储数据</p>
+            <h3 className="text-base font-bold text-slate-100">数据与隐私</h3>
+            <p className="text-xs text-slate-400">管理本地存储数据</p>
           </div>
         </div>
         <div className="space-y-3">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-400">
             您的 API Key 和偏好设置仅保存在当前浏览器的本地存储中，不会上传到服务器。
           </p>
           <button
             type="button"
             onClick={handleClearLocalConfig}
-            className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-bold text-rose-700 hover:bg-rose-100 transition-colors"
+            className="flex items-center gap-2 rounded-xl border border-rose-800/40 bg-rose-950/30 px-4 py-2.5 text-sm font-bold text-rose-400 hover:bg-rose-950/50 transition-colors"
           >
             <Trash2 className="h-4 w-4" />
             清除所有本地配置
@@ -328,49 +328,49 @@ export default function Settings() {
       </section>
 
       {/* 6. 账号安全 */}
-      <section className="pro-glass-card rounded-2xl p-6">
+      <section className="pro-glass-card rounded-2xl p-6 bg-[#111726] border border-slate-700/80">
         <div className="flex items-center gap-3 mb-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/10 text-rose-600">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/20 text-rose-400">
             <Lock className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-900">账号安全</h3>
-            <p className="text-xs text-slate-500">密码和登录安全</p>
+            <h3 className="text-base font-bold text-slate-100">账号安全</h3>
+            <p className="text-xs text-slate-400">密码和登录安全</p>
           </div>
         </div>
-        <div className="rounded-xl bg-slate-50 border border-slate-200 p-4">
-          <p className="text-sm font-medium text-slate-600">
+        <div className="rounded-xl bg-slate-800/50 border border-slate-700 p-4">
+          <p className="text-sm font-medium text-slate-400">
             密码修改和双因素认证服务尚未接入。
           </p>
         </div>
       </section>
 
       {/* 7. 集成与 API */}
-      <section className="pro-glass-card rounded-2xl p-6">
+      <section className="pro-glass-card rounded-2xl p-6 bg-[#111726] border border-slate-700/80">
         <div className="flex items-center gap-3 mb-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-600">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/20 text-cyan-400">
             <Key className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-900">集成与 API</h3>
-            <p className="text-xs text-slate-500">配置外部服务 API Key</p>
+            <h3 className="text-base font-bold text-slate-100">集成与 API</h3>
+            <p className="text-xs text-slate-400">配置外部服务 API Key</p>
           </div>
         </div>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">API Key</label>
+            <label className="block text-sm font-medium text-slate-300 mb-2">API Key</label>
             <div className="relative">
               <input
                 type={showApiKey ? 'text' : 'password'}
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder={`输入 ${provider.label} API Key`}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 pr-12 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2.5 pr-12 text-sm text-slate-200 placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
               />
               <button
                 type="button"
                 onClick={() => setShowApiKey(!showApiKey)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
               >
                 {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -378,25 +378,25 @@ export default function Settings() {
           </div>
           {provider.needBaseUrl && (
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Base URL</label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Base URL</label>
               <input
                 type="text"
                 value={baseUrl}
                 onChange={(e) => setBaseUrl(e.target.value)}
                 placeholder={provider.baseUrl || ''}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
               />
             </div>
           )}
           {provider.needApiVersion && (
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">API Version</label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">API Version</label>
               <input
                 type="text"
                 value={apiVersion}
                 onChange={(e) => setApiVersion(e.target.value)}
                 placeholder={provider.apiVersion || ''}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
               />
             </div>
           )}
@@ -405,7 +405,7 @@ export default function Settings() {
               type="button"
               onClick={handleTestApiKey}
               disabled={!apiKey.trim() || testingKey}
-              className="flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-bold text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-2 rounded-xl border border-indigo-700/60 bg-indigo-950/40 px-4 py-2.5 text-sm font-bold text-indigo-300 hover:bg-indigo-950/60 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {testingKey ? (
                 <>
@@ -429,15 +429,15 @@ export default function Settings() {
             <div
               className={`rounded-xl border p-3 ${
                 testStatus.ok
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                  : 'border-rose-200 bg-rose-50 text-rose-800'
+                  ? 'border-emerald-800/60 bg-emerald-950/40 text-emerald-300'
+                  : 'border-rose-800/60 bg-rose-950/40 text-rose-300'
               }`}
             >
               <p className="text-sm font-medium">{testStatus.message}</p>
             </div>
           )}
-          <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
-            <p className="text-xs font-medium text-amber-800">
+          <div className="rounded-xl bg-amber-950/30 border border-amber-800/40 p-4">
+            <p className="text-xs font-medium text-amber-300">
               ⚠️ API Key 仅保存在当前浏览器本地，不会上传到服务器。切换浏览器或清除缓存后需要重新配置。
             </p>
           </div>

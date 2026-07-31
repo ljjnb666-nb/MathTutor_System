@@ -101,10 +101,10 @@ export default function TopHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-slate-200/80 bg-white/95 backdrop-blur-xl px-4 sm:px-6 lg:px-8 shadow-sm">
+    <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-slate-800/80 bg-[#0B0F17]/95 backdrop-blur-xl px-4 sm:px-6 lg:px-8 shadow-lg">
       {/* 左侧：页面标题 */}
       <div className="flex items-center gap-4">
-        <h1 className="text-lg font-black text-slate-900 tracking-tight">
+        <h1 className="text-lg font-black text-slate-100 tracking-tight">
           {pageTitle}
         </h1>
       </div>
@@ -122,21 +122,21 @@ export default function TopHeader() {
                 onFocus={() => setSearchOpen(true)}
                 onBlur={() => setTimeout(() => setSearchOpen(false), 200)}
                 placeholder="搜索功能..."
-                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                className="w-full rounded-xl border border-slate-700 bg-slate-900/60 py-2 pl-10 pr-4 text-sm text-slate-200 placeholder:text-slate-500 focus:border-indigo-500 focus:bg-slate-900/80 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
               />
             </div>
           </form>
 
           {/* 搜索结果下拉 */}
           {searchOpen && searchTerm.trim() && (
-            <div className="absolute top-full left-0 right-0 mt-2 max-h-80 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl animate-fade-in-up">
+            <div className="absolute top-full left-0 right-0 mt-2 max-h-80 overflow-y-auto rounded-xl border border-slate-700 bg-[#111726] shadow-2xl animate-fade-in-up">
               {filteredFeatures.length > 0 ? (
                 <ul className="py-1">
                   {filteredFeatures.map((feature) => (
                     <li key={feature.path}>
                       <a
                         href={feature.path}
-                        className="block px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                        className="block px-4 py-2.5 text-sm font-medium text-slate-300 hover:bg-indigo-600/20 hover:text-indigo-300 transition-colors"
                       >
                         {feature.label}
                       </a>
@@ -144,7 +144,7 @@ export default function TopHeader() {
                   ))}
                 </ul>
               ) : (
-                <div className="px-4 py-8 text-center text-sm text-slate-400">
+                <div className="px-4 py-8 text-center text-sm text-slate-500">
                   未找到匹配的功能
                 </div>
               )}
@@ -156,7 +156,7 @@ export default function TopHeader() {
       {/* 右侧：日期、通知、用户 */}
       <div className="flex items-center gap-3">
         {/* 当前日期（桌面端） */}
-        <div className="hidden lg:block text-xs font-medium text-slate-500">
+        <div className="hidden lg:block text-xs font-medium text-slate-400">
           {currentDate}
         </div>
 
@@ -165,7 +165,7 @@ export default function TopHeader() {
           <button
             type="button"
             onClick={() => setNotificationOpen(!notificationOpen)}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50/50 text-slate-600 hover:bg-slate-100 hover:border-slate-300 transition-all"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:border-slate-600 transition-all"
             aria-label="通知"
           >
             <Bell className="h-4 w-4" />
@@ -173,11 +173,11 @@ export default function TopHeader() {
 
           {/* 通知下拉（暂无通知） */}
           {notificationOpen && (
-            <div className="absolute right-0 top-full mt-2 w-80 rounded-xl border border-slate-200 bg-white shadow-xl animate-fade-in-up">
-              <div className="border-b border-slate-100 px-4 py-3">
-                <h3 className="text-sm font-bold text-slate-900">通知</h3>
+            <div className="absolute right-0 top-full mt-2 w-80 rounded-xl border border-slate-700 bg-[#111726] shadow-2xl animate-fade-in-up">
+              <div className="border-b border-slate-800 px-4 py-3">
+                <h3 className="text-sm font-bold text-slate-200">通知</h3>
               </div>
-              <div className="px-4 py-8 text-center text-sm text-slate-400">
+              <div className="px-4 py-8 text-center text-sm text-slate-500">
                 暂无通知
               </div>
             </div>
@@ -188,16 +188,16 @@ export default function TopHeader() {
         <div className="flex items-center gap-2.5">
           <div
             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-              user ? getAvatarStyle(user.username) : 'bg-slate-200 text-slate-500'
+              user ? getAvatarStyle(user.username) : 'bg-slate-700 text-slate-400'
             }`}
           >
             {user ? getInitial(user.username) : '?'}
           </div>
           <div className="hidden sm:block">
-            <p className="text-sm font-bold text-slate-900">
+            <p className="text-sm font-bold text-slate-200">
               {user?.username || '未登录'}
             </p>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-400">
               {user?.role === 'admin' ? '管理员' : '教师'}
             </p>
           </div>
