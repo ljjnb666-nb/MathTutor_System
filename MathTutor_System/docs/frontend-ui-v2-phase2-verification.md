@@ -76,10 +76,11 @@ Full teacher frontend tests:
 
 ```powershell
 cd MathTutor_System/frontend
+npm ci
 npm test -- --run
 ```
 
-Result: passed, 23 files and 87 tests. Non-blocking Browserslist `caniuse-lite` stale warning and React Router future-flag warnings observed.
+Result: `npm ci` passed after stopping the local Vite dev server that held native module files; tests passed, 23 files and 87 tests. Non-blocking `npm ci` deprecation warning for `whatwg-encoding`, Browserslist `caniuse-lite` stale warning, and React Router future-flag warnings observed.
 
 Second-batch teacher frontend tests from previous checkpoint:
 
@@ -112,10 +113,11 @@ Student frontend build:
 
 ```powershell
 cd MathTutor_System/frontend-student
+npm ci
 npm run build
 ```
 
-Result: passed. Non-blocking Browserslist `caniuse-lite` stale warning observed.
+Result: `npm ci` passed and build passed. Non-blocking Browserslist `caniuse-lite` stale warning observed.
 
 ## Scope Audit
 
