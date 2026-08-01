@@ -201,13 +201,13 @@ export default function HomeworkProgressPanel({
       </div>
 
       {assignedExams.length === 0 ? (
-        <div className=”rounded-xl border border-dashed py-16 text-center shadow-sm” style={{ borderColor: 'var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)' }}>
-          <ClipboardCheck className=”mx-auto h-12 w-12” style={{ color: 'var(--color-border-strong)' }} />
-          <p className=”mt-4 text-sm font-medium” style={{ color: 'var(--color-text-muted)' }}>暂无布置给学生的题目</p>
-          <p className=”mt-1 text-xs” style={{ color: 'var(--color-text-muted)' }}>在”作业管理”中组卷并布置后，这里会展示作答情况。</p>
+        <div className="rounded-xl border border-dashed py-16 text-center shadow-sm" style={{ borderColor: 'var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)' }}>
+          <ClipboardCheck className="mx-auto h-12 w-12" style={{ color: 'var(--color-border-strong)' }} />
+          <p className="mt-4 text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>暂无布置给学生的题目</p>
+          <p className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>在"作业管理"中组卷并布置后，这里会展示作答情况。</p>
           <Link
-            to=”/smart-gen”
-            className=”mt-4 inline-block rounded-lg px-4 py-2 text-sm font-medium text-white transition-all”
+            to="/smart-gen"
+            className="mt-4 inline-block rounded-lg px-4 py-2 text-sm font-medium text-white transition-all"
             style={{ background: 'linear-gradient(to right, var(--color-primary-600), var(--color-primary-700))' }}
             onMouseEnter={(e) => {
               e.currentTarget.style.opacity = '0.9'
@@ -220,10 +220,10 @@ export default function HomeworkProgressPanel({
           </Link>
         </div>
       ) : filtered.length === 0 ? (
-        <div className=”rounded-xl py-12 text-center shadow-sm” style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)' }}>
-          <Filter className=”mx-auto h-10 w-10” style={{ color: 'var(--color-border-strong)' }} />
-          <p className=”mt-3 text-sm” style={{ color: 'var(--color-text-muted)' }}>没有符合筛选条件的结果</p>
-          <button type=”button” onClick={onClearFilters} className=”mt-3 text-sm hover:underline” style={{ color: 'var(--color-primary-600)' }}>
+        <div className="rounded-xl py-12 text-center shadow-sm" style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)' }}>
+          <Filter className="mx-auto h-10 w-10" style={{ color: 'var(--color-border-strong)' }} />
+          <p className="mt-3 text-sm" style={{ color: 'var(--color-text-muted)' }}>没有符合筛选条件的结果</p>
+          <button type="button" onClick={onClearFilters} className="mt-3 text-sm hover:underline" style={{ color: 'var(--color-primary-600)' }}>
             清空筛选
           </button>
         </div>

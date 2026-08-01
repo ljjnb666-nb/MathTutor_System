@@ -29,23 +29,23 @@ export default function StudentGrid({
 }) {
   if (loading) {
     return (
-      <div className=”flex flex-col items-center justify-center py-16” style={{ color: 'var(--color-text-muted)' }}>
-        <Loader2 className=”h-10 w-10 animate-spin” style={{ color: 'var(--color-primary-500)' }} />
-        <p className=”mt-3 text-sm”>加载中…</p>
+      <div className="flex flex-col items-center justify-center py-16" style={{ color: 'var(--color-text-muted)' }}>
+        <Loader2 className="h-10 w-10 animate-spin" style={{ color: 'var(--color-primary-500)' }} />
+        <p className="mt-3 text-sm">加载中…</p>
       </div>
     )
   }
 
   if (filtered.length === 0) {
     return (
-      <div className=”flex flex-col items-center justify-center rounded-xl py-16 shadow-sm” style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)' }}>
-        <Users className=”h-14 w-14” style={{ color: 'var(--color-border-strong)' }} />
-        <p className=”mt-3 text-sm font-medium” style={{ color: 'var(--color-text-muted)' }}>暂无学生</p>
-        <p className=”mt-1 text-xs” style={{ color: 'var(--color-text-muted)' }}>
-          {searchTerm.trim() ? '试试调整搜索条件' : '点击”添加学生”录入'}
+      <div className="flex flex-col items-center justify-center rounded-xl py-16 shadow-sm" style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)' }}>
+        <Users className="h-14 w-14" style={{ color: 'var(--color-border-strong)' }} />
+        <p className="mt-3 text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>暂无学生</p>
+        <p className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+          {searchTerm.trim() ? '试试调整搜索条件' : '点击"添加学生"录入'}
         </p>
         {searchTerm.trim() && (
-          <button type=”button” onClick={onSearchClear} className=”mt-3 text-sm hover:underline” style={{ color: 'var(--color-primary-600)' }}>
+          <button type="button" onClick={onSearchClear} className="mt-3 text-sm hover:underline" style={{ color: 'var(--color-primary-600)' }}>
             清空搜索
           </button>
         )}
