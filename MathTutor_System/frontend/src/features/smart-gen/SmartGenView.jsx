@@ -1,4 +1,4 @@
-import { CalendarPlus, Copy, Download, FileText, Loader2, Save, Sparkles, Upload } from 'lucide-react'
+﻿import { CalendarPlus, Copy, Download, FileText, Loader2, Save, Sparkles, Upload } from 'lucide-react'
 import FilterPanel from '../../components/FilterPanel'
 import KnowledgeCard from '../../components/KnowledgeCard'
 import ExampleList from '../../components/ExampleList'
