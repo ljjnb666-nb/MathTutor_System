@@ -52,9 +52,9 @@ from-white|to-white
 
 **Priority: HIGH**
 
-1. `frontend/src/features/student-mgmt/components/StudentFormModal.jsx`
-2. `frontend/src/features/homework/components/QuestionPickerModal.jsx`
-3. `frontend/src/features/schedule/components/ScheduleFormModal.jsx`
+1. `frontend/src/features/student-mgmt/components/StudentFormModal.jsx` ✅ **MIGRATED** (Commit 041ba21)
+2. `frontend/src/features/homework/components/QuestionPickerModal.jsx` ✅ **MIGRATED** (Commit 98b6834)
+3. `frontend/src/features/schedule/components/ScheduleFormModal.jsx` ✅ **MIGRATED** (Commit 7e57f2a)
 
 ### Category 4: Teacher Agent 组件 (需要迁移)
 
@@ -75,11 +75,11 @@ from-white|to-white
 
 **Priority: MEDIUM**
 
-1. `frontend/src/features/student-mgmt/components/StudentGrid.jsx`
-2. `frontend/src/features/homework/components/HomeworkProgressPanel.jsx`
-3. `frontend/src/features/homework/components/HomeworkManagePanel.jsx`
-4. `frontend/src/features/schedule/components/ScheduleList.jsx`
-5. `frontend/src/features/schedule/components/ScheduleToolbar.jsx`
+1. `frontend/src/features/student-mgmt/components/StudentGrid.jsx` ✅ **MIGRATED** (Commit 3307655)
+2. `frontend/src/features/homework/components/HomeworkProgressPanel.jsx` ✅ **MIGRATED** (Commit 314e28e)
+3. `frontend/src/features/homework/components/HomeworkManagePanel.jsx` ✅ **MIGRATED** (Commit 861ce22)
+4. `frontend/src/features/schedule/components/ScheduleList.jsx` ✅ **MIGRATED** (Commit 8d466df)
+5. `frontend/src/features/schedule/components/ScheduleToolbar.jsx` ✅ **MIGRATED** (Commit bedd5a6)
 
 ### Category 7: 试卷预览和报告 (需检查是否应保留白色)
 
@@ -139,10 +139,15 @@ These areas should be wrapped in specific classes and excluded from theme migrat
 2. ✅ Migrate `AIChat.jsx` (Commit d79b58c)
 3. ✅ Migrate `TeacherAgent.jsx` (Commit 423e5e0)
 
-### Phase 4: Remaining Pages
-1. Migrate all other pages in Category 1
-2. Migrate all feature components in Category 6
-3. Review and handle Category 7 (print/paper areas)
+### Phase 4: Remaining Pages (COMPLETED ✅)
+1. ✅ Migrate all other pages in Category 1
+2. ✅ Migrate all feature components in Category 6
+   - StudentGrid.jsx (Commit 3307655)
+   - HomeworkProgressPanel.jsx (Commit 314e28e)
+   - HomeworkManagePanel.jsx (Commit 861ce22)
+   - ScheduleList.jsx (Commit 8d466df)
+   - ScheduleToolbar.jsx (Commit bedd5a6)
+3. ⏳ Review and handle Category 7 (print/paper areas) - NEXT
 
 ### Phase 5: Verification
 1. Browser computed style checks
