@@ -1,11 +1,69 @@
-import { Plus, Search } from 'lucide-react'
+import {
+  AlertTriangle,
+  BarChart3,
+  Download,
+  Edit,
+  GitBranch,
+  LayoutDashboard,
+  Plus,
+  Search,
+  Trash2,
+  Users,
+} from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 import { useSubscription } from '../contexts/SubscriptionContext'
 import { useStudent } from '../contexts/StudentContext'
 import StudentFormModal from '../features/student-mgmt/components/StudentFormModal'
-import StudentGrid from '../features/student-mgmt/components/StudentGrid'
+import { getAvatarStyle, getInitial } from '../features/student-mgmt/utils/studentMgmtUtils'
 import { useStudentMgmtState } from '../features/student-mgmt/hooks/useStudentMgmtState'
+import {
+  EmptyState,
+  LoadingState,
+  MetricCard,
+  PageHeader,
+  PageShell,
+  ResponsiveTable,
+  SearchInput,
+  SectionCard,
+  StatusBadge,
+  Toolbar,
+} from '../components/UiV2'
+
+function getRisk(student, overview) {
+  const score = Number(student.performance_score ?? student.average_accuracy ?? 0)
+  const weak = Number(overview?.weak_point_count ?? 0)
+  const pending = Number(overview?.pending_mistake_count ?? 0)
+  if ((score > 0 && score < 60) || weak >= 5 || pending >= 10) return { label: '高风险', tone: 'danger' }
+  if ((score > 0 && score < 78) || weak >= 3 || pending >= 4) return { label: '中风险', tone: 'warning' }
+  return { label: '低风险', tone: 'success' }
+}
+
+function pct(value, total) {
+  if (!total) return 0
+  return Math.round((value / total) * 100)
+}
+
+function gradeLabel(student) {
+  return [student.grade, student.class_name].filter(Boolean).join(' / ') || '未设置'
+}
+
+function StudentIdentity({ student, current }) {
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black ${getAvatarStyle(student.name)}`}>
+        {getInitial(student.name)}
+      </div>
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <p className="truncate text-sm font-bold text-[var(--color-text-primary)]">{student.name || '未命名'}</p>
+          {current && <StatusBadge tone="info">当前</StatusBadge>}
+        </div>
+        <p className="truncate text-xs text-[var(--color-text-secondary)]">{student.student_no || student.login_code || '无学号'}</p>
+      </div>
+    </div>
+  )
+}
 
 export default function StudentMgmt() {
   const navigate = useNavigate()
@@ -19,67 +77,245 @@ export default function StudentMgmt() {
     selectStudent,
   })
 
-  return (
-    <div className="mx-auto max-w-6xl space-y-6 md:space-y-8 animate-fade-in-up min-h-full flex flex-col">
-      <div className="rounded-3xl p-6 sm:p-8 shadow-sm flex flex-wrap items-center justify-between gap-4" style={{ border: '1px solid color-mix(in srgb, var(--color-border-primary) 90%, transparent)', backgroundColor: 'var(--color-bg-card)' }}>
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl font-black shrink-0" style={{ backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)', color: 'var(--color-primary-600)' }}>
-            👥
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-black tracking-tight" style={{ color: 'var(--color-text-primary)' }}>学生管理与学情档案</h1>
-              <span className="rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase" style={{ backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--color-primary-500) 20%, transparent)', color: 'var(--color-primary-600)' }}>
-                STUDENTS
-              </span>
-            </div>
-            <p className="mt-1 text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>
-              管理已录入学生档案（共 {state.students.length} 人{state.searchTerm.trim() && ` / 筛选后 ${derived.filtered.length} 人`}）并下载全量学情报告
-            </p>
-          </div>
-        </div>
+  const total = state.students.length
+  const filteredTotal = derived.filtered.length
+  const activeCount = state.students.filter((student) => Number(student.performance_score ?? 0) >= 80).length
+  const watched = state.students.filter((student) => {
+    const overview = state.overviewMap[student.id]
+    return getRisk(student, overview).tone !== 'success'
+  })
+  const newThisWeek = state.students.filter((student) => {
+    if (!student.created_at) return false
+    const createdAt = new Date(student.created_at).getTime()
+    return Number.isFinite(createdAt) && Date.now() - createdAt <= 7 * 24 * 60 * 60 * 1000
+  }).length
+  const gradeCounts = state.students.reduce((acc, student) => {
+    const key = student.grade || '未设置'
+    acc[key] = (acc[key] ?? 0) + 1
+    return acc
+  }, {})
+  const topClasses = Object.entries(
+    state.students.reduce((acc, student) => {
+      const key = gradeLabel(student)
+      acc[key] = (acc[key] ?? 0) + 1
+      return acc
+    }, {})
+  ).sort((a, b) => b[1] - a[1]).slice(0, 5)
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: 'var(--color-text-muted)' }} />
-            <input
-              type="text"
-              placeholder="搜索姓名或班级…"
-              value={state.searchTerm}
-              onChange={(e) => actions.setSearchTerm(e.target.value)}
-              className="h-10 w-64 rounded-2xl pl-10 pr-4 text-xs font-bold placeholder:font-normal focus:outline-none focus:ring-4 sm:w-72"
-              style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'color-mix(in srgb, var(--color-bg-panel) 80%, transparent)', color: 'var(--color-text-primary)' }}
-            />
+  const columns = [
+    {
+      key: 'student',
+      title: '学生',
+      render: (student) => <StudentIdentity student={student} current={currentStudent?.id === student.id} />,
+    },
+    { key: 'class', title: '班级', render: (student) => gradeLabel(student) },
+    {
+      key: 'activity',
+      title: '学情活跃',
+      render: (student) => {
+        const overview = state.overviewMap[student.id] || {}
+        const score = Number(student.performance_score ?? 0)
+        return (
+          <div className="min-w-[8rem] space-y-1">
+            <div className="flex justify-between text-xs">
+              <span>{score ? `${score}%` : '暂无'}</span>
+              <span className="text-[var(--color-text-secondary)]">{overview.today_review_count ?? 0} 待复习</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-[var(--color-bg-panel-muted)]">
+              <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(score || 0, 100)}%` }} />
+            </div>
           </div>
+        )
+      },
+    },
+    {
+      key: 'risk',
+      title: '风险等级',
+      render: (student) => {
+        const risk = getRisk(student, state.overviewMap[student.id])
+        return <StatusBadge tone={risk.tone}>{risk.label}</StatusBadge>
+      },
+    },
+    {
+      key: 'actions',
+      title: '操作',
+      render: (student) => (
+        <div className="flex items-center gap-1">
+          <button type="button" className="v2-icon-button" title="学情图谱" onClick={() => actions.handleSelectAndGo(student.id, '/knowledge-graph')}>
+            <GitBranch className="h-4 w-4" />
+          </button>
+          <button type="button" className="v2-icon-button" title="首页" onClick={() => actions.handleSelectAndGo(student.id, '/')}>
+            <LayoutDashboard className="h-4 w-4" />
+          </button>
+          <button type="button" className="v2-icon-button" title="下载学习报告" onClick={() => actions.handleDownloadReport(student)} disabled={state.reportDownloadingId === student.id}>
+            <Download className="h-4 w-4" />
+          </button>
+          <button type="button" className="v2-icon-button" title="编辑" onClick={() => actions.openEdit(student)}>
+            <Edit className="h-4 w-4" />
+          </button>
+          <button type="button" className="v2-icon-button text-rose-400" title="删除" onClick={() => actions.handleDelete(student)}>
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      ),
+    },
+  ]
+
+  return (
+    <PageShell>
+      <PageHeader
+        title="学生管理与总览"
+        description="集中查看学生档案、学情风险和常用管理入口。"
+        icon={Users}
+        actions={(
           <button
             type="button"
             onClick={actions.openAdd}
             disabled={state.atStudentLimit}
             title={state.atStudentLimit ? '当前套餐学生数已满，请升级' : undefined}
-            className={`btn-gradient-pro inline-flex h-10 items-center gap-2 rounded-2xl px-5 text-xs font-black shadow-lg ${
-              state.atStudentLimit ? 'cursor-not-allowed opacity-60' : ''
-            }`}
+            className="v2-button v2-button-primary"
           >
             <Plus className="h-4 w-4" />
             {state.atStudentLimit ? '已达上限' : '添加学生'}
           </button>
-        </div>
-      </div>
+        )}
+      />
 
-      <div className="flex-1 px-4 py-6">
-        <StudentGrid
-          currentStudentId={currentStudent?.id ?? null}
-          filtered={derived.filtered}
-          loading={state.loading}
-          onDelete={actions.handleDelete}
-          onDownloadReport={actions.handleDownloadReport}
-          onEdit={actions.openEdit}
-          onSearchClear={() => actions.setSearchTerm('')}
-          onSelectAndGo={actions.handleSelectAndGo}
-          overviewMap={state.overviewMap}
-          reportDownloadingId={state.reportDownloadingId}
-          searchTerm={state.searchTerm}
+      <Toolbar>
+        <SearchInput
+          value={state.searchTerm}
+          onChange={(event) => actions.setSearchTerm(event.target.value)}
+          placeholder="搜索学生姓名、学号或班级..."
+          label="搜索学生"
+          className="md:min-w-[24rem]"
         />
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="v2-button v2-button-secondary" onClick={() => actions.setSearchTerm('')} disabled={!state.searchTerm.trim()}>
+            <Search className="h-4 w-4" />
+            重置
+          </button>
+        </div>
+      </Toolbar>
+
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="学生总数" value={state.loading ? '...' : total} hint={state.searchTerm.trim() ? `筛选后 ${filteredTotal} 人` : '当前档案'} icon={Users} tone="primary" />
+        <MetricCard label="活跃学生" value={state.loading ? '...' : activeCount} hint="按真实表现分统计" icon={BarChart3} tone="success" />
+        <MetricCard label="待关注学生" value={state.loading ? '...' : watched.length} hint="由分数、错题和弱项推导" icon={AlertTriangle} tone="warning" />
+        <MetricCard label="本周新增" value={state.loading ? '...' : newThisWeek} hint="按 created_at 统计" icon={Plus} tone="info" />
+      </section>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <SectionCard title="全部学生" actions={<StatusBadge tone="neutral">共 {filteredTotal} 条</StatusBadge>}>
+          {state.loading ? (
+            <LoadingState title="正在加载学生" description="正在读取学生档案和学情概览。" />
+          ) : (
+            <ResponsiveTable
+              columns={columns}
+              rows={derived.filtered}
+              rowKey={(student) => student.id}
+              empty={(
+                <EmptyState
+                  icon={Users}
+                  title="暂无学生"
+                  description={state.searchTerm.trim() ? '没有符合搜索条件的学生。' : '点击添加学生录入新档案。'}
+                  action={state.searchTerm.trim() ? (
+                    <button type="button" className="v2-button v2-button-secondary" onClick={() => actions.setSearchTerm('')}>清空搜索</button>
+                  ) : null}
+                />
+              )}
+              renderMobile={(student) => {
+                const overview = state.overviewMap[student.id]
+                const risk = getRisk(student, overview)
+                return (
+                  <div className="space-y-3">
+                    <StudentIdentity student={student} current={currentStudent?.id === student.id} />
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <span className="text-[var(--color-text-secondary)]">班级</span>
+                      <span className="text-right font-semibold">{gradeLabel(student)}</span>
+                      <span className="text-[var(--color-text-secondary)]">待复习</span>
+                      <span className="text-right font-semibold">{overview?.today_review_count ?? 0}</span>
+                      <span className="text-[var(--color-text-secondary)]">弱项</span>
+                      <span className="text-right font-semibold">{overview?.weak_point_count ?? 0}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <StatusBadge tone={risk.tone}>{risk.label}</StatusBadge>
+                      {columns.find((column) => column.key === 'actions').render(student)}
+                    </div>
+                  </div>
+                )
+              }}
+            />
+          )}
+        </SectionCard>
+
+        <aside className="space-y-4">
+          <SectionCard title="学生分布">
+            {total ? (
+              <div className="space-y-3">
+                {Object.entries(gradeCounts).map(([label, value]) => (
+                  <div key={label} className="space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="font-semibold text-[var(--color-text-primary)]">{label}</span>
+                      <span className="text-[var(--color-text-secondary)]">{value} 人 · {pct(value, total)}%</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-[var(--color-bg-panel-muted)]">
+                      <div className="h-full rounded-full bg-indigo-500" style={{ width: `${pct(value, total)}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState title="暂无分布" description="录入学生后按真实年级统计。" />
+            )}
+          </SectionCard>
+
+          <SectionCard title="风险预警">
+            {watched.length ? (
+              <ul className="space-y-3">
+                {watched.slice(0, 5).map((student) => {
+                  const overview = state.overviewMap[student.id] || {}
+                  const risk = getRisk(student, overview)
+                  return (
+                    <li key={student.id} className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-panel)] p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <StudentIdentity student={student} current={currentStudent?.id === student.id} />
+                        <StatusBadge tone={risk.tone}>{risk.label}</StatusBadge>
+                      </div>
+                      <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+                        错题 {overview.pending_mistake_count ?? 0} · 弱项 {overview.weak_point_count ?? 0}
+                      </p>
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : (
+              <EmptyState title="暂无风险预警" description="当前没有可由真实数据推导出的风险项。" />
+            )}
+          </SectionCard>
+
+          <SectionCard title="班级活跃排行">
+            {topClasses.length ? (
+              <div className="space-y-3">
+                {topClasses.map(([label, value], index) => (
+                  <div key={label} className="flex items-center gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[var(--color-bg-panel)] text-xs font-black text-[var(--color-text-primary)]">{index + 1}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="truncate font-semibold text-[var(--color-text-primary)]">{label}</span>
+                        <span className="text-[var(--color-text-secondary)]">{value} 人</span>
+                      </div>
+                      <div className="mt-1 h-2 overflow-hidden rounded-full bg-[var(--color-bg-panel-muted)]">
+                        <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct(value, total)}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState title="暂无排行" description="录入学生后显示真实班级分布。" />
+            )}
+          </SectionCard>
+        </aside>
       </div>
 
       <StudentFormModal
@@ -91,6 +327,6 @@ export default function StudentMgmt() {
         onSubmit={actions.handleSubmit}
         saving={state.saving}
       />
-    </div>
+    </PageShell>
   )
 }

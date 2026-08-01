@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Check, Loader2, CreditCard, Smartphone } from 'lucide-react'
+import { Check, CreditCard, Loader2, RefreshCw, Smartphone, WalletCards, X } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
-import { getPlans, getPaymentConfig, createOrder } from '../services/api'
+import { createOrder, getPaymentConfig, getPlans } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import { useSubscription } from '../contexts/SubscriptionContext'
+import { EmptyState, ErrorState, LoadingState, MetricCard, PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
 
 export default function Pricing() {
   const { user } = useAuth()
@@ -11,6 +12,7 @@ export default function Pricing() {
   const isTeacher = user?.role !== 'admin'
   const [plans, setPlans] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [alipayEnabled, setAlipayEnabled] = useState(false)
   const [wechatEnabled, setWechatEnabled] = useState(false)
   const [payModal, setPayModal] = useState(null)
@@ -19,319 +21,177 @@ export default function Pricing() {
   const [wechatQr, setWechatQr] = useState(null)
   const [selectedMonths, setSelectedMonths] = useState(12)
 
-  useEffect(() => {
-    let cancelled = false
-    getPlans()
-      .then((planList) => {
-        if (!cancelled) setPlans(Array.isArray(planList) ? planList : [])
-      })
-      .catch(() => {
-        if (!cancelled) setPlans([])
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => { cancelled = true }
-  }, [])
+  const loadPricing = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const [planList, paymentConfig] = await Promise.all([
+        getPlans(),
+        getPaymentConfig().catch(() => ({})),
+      ])
+      setPlans(Array.isArray(planList) ? planList : [])
+      setAlipayEnabled(!!paymentConfig?.alipay_enabled)
+      setWechatEnabled(!!paymentConfig?.wechat_enabled)
+    } catch (err) {
+      setPlans([])
+      setError(err?.response?.data?.detail || err?.message || '套餐加载失败')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    let cancelled = false
-    getPaymentConfig()
-      .then((c) => {
-        if (!cancelled) {
-          setAlipayEnabled(!!c?.alipay_enabled)
-          setWechatEnabled(!!c?.wechat_enabled)
-        }
-      })
-      .catch(() => { if (!cancelled) setAlipayEnabled(false); setWechatEnabled(false) })
-    return () => { cancelled = true }
+    loadPricing()
   }, [])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.get('paid') === '1' || params.get('from') === 'alipay') {
       refreshSubscription?.()
-      if (params.get('paid') === '1') {
-        window.history.replaceState({}, '', window.location.pathname)
-      }
+      if (params.get('paid') === '1') window.history.replaceState({}, '', window.location.pathname)
     }
   }, [refreshSubscription])
+
+  const currentPlanCode = subscription?.plan?.code
+  const periodEnd = subscription?.period_end
+  const periodEndDate = periodEnd ? (typeof periodEnd === 'string' ? new Date(periodEnd) : periodEnd) : null
+  const daysLeft = periodEndDate ? Math.ceil((periodEndDate.getTime() - Date.now()) / 86400000) : null
+  const paymentEnabled = alipayEnabled || wechatEnabled
+  const formatDate = (date) => (date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : '未设置')
 
   const handlePay = async (plan, periodMonths, paymentMethod = 'alipay') => {
     setPaying(true)
     setPayError('')
     setWechatQr(null)
     try {
-      const res = await createOrder({
-        plan_code: plan.code,
-        payment_method: paymentMethod,
-        period_months: periodMonths,
-      })
-      if (res.pay_url) {
-        window.open(res.pay_url, '_blank', 'noopener,noreferrer')
+      const result = await createOrder({ plan_code: plan.code, payment_method: paymentMethod, period_months: periodMonths })
+      if (result.pay_url) {
+        window.open(result.pay_url, '_blank', 'noopener,noreferrer')
         setPayModal(null)
-      } else if (res.code_url) {
-        setWechatQr({ codeUrl: res.code_url, message: res.message || '请使用微信扫码支付' })
+      } else if (result.code_url) {
+        setWechatQr({ codeUrl: result.code_url, message: result.message || '请使用微信扫码支付' })
       } else {
-        setPayError(res.message || '创建订单失败')
+        setPayError(result.message || '创建订单失败')
       }
-    } catch (e) {
-      setPayError(e.response?.data?.detail || e.message || '请求失败')
+    } catch (err) {
+      setPayError(err.response?.data?.detail || err.message || '请求失败')
     } finally {
       setPaying(false)
     }
   }
 
-  const currentPlanCode = subscription?.plan?.code
-  const periodEnd = subscription?.period_end
-  const periodEndDate = periodEnd ? (typeof periodEnd === 'string' ? new Date(periodEnd) : periodEnd) : null
-  const daysLeft = periodEndDate
-    ? Math.ceil((periodEndDate.getTime() - Date.now()) / (24 * 60 * 60 * 1000))
-    : null
-  const isExpiringSoon = daysLeft != null && daysLeft >= 0 && daysLeft <= 7
-  const formatDate = (d) => (d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : '')
-
   if (loading) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" style={{ color: 'var(--color-primary-600)' }} />
-      </div>
-    )
+    return <PageShell><LoadingState title="正在加载套餐" description="读取真实套餐与支付配置。" /></PageShell>
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 md:space-y-8 animate-fade-in-up">
-      <header className="rounded-3xl p-6 sm:p-8 shadow-sm flex flex-col gap-2" style={{ border: '1px solid color-mix(in srgb, var(--color-border-primary) 90%, transparent)', backgroundColor: 'var(--color-bg-card)' }}>
-        <div className="flex items-center gap-2">
-          <h1 className="text-xl font-black tracking-tight" style={{ color: 'var(--color-text-primary)' }}>订阅套餐与专业服务权益</h1>
-          <span className="rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase" style={{ backgroundColor: 'color-mix(in srgb, #f59e0b 10%, transparent)', border: '1px solid rgba(245, 158, 11, 0.2)', color: '#d97706' }}>SUBSCRIBE PRO</span>
-        </div>
-        <p className="text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>
-          当前已生效套餐：<strong className="font-black" style={{ color: 'var(--color-primary-600)' }}>{subscription?.plan?.name ?? '免费试用版'}</strong> · 学生席位已占用 {subscription?.student_count ?? 0} / {subscription?.max_students ?? 0} 人
-          {isTeacher && periodEndDate && (
-            <span className="ml-2 font-bold" style={{ color: 'var(--color-text-primary)' }}>
-              · 服务有效期至 {formatDate(periodEndDate)}
-              {isExpiringSoon && (
-                <span className="ml-1 font-extrabold" style={{ color: '#e11d48' }}>（仅剩 {daysLeft} 天到期）</span>
-              )}
-            </span>
-          )}
-        </p>
-      </header>
+    <PageShell className="space-y-5">
+      <PageHeader
+        title="套餐与定价"
+        description="展示后端返回的套餐、当前订阅和真实可用支付方式。"
+        icon={WalletCards}
+        meta={<StatusBadge tone={paymentEnabled ? 'success' : 'warning'}>{paymentEnabled ? '在线支付已启用' : '在线支付未启用'}</StatusBadge>}
+        actions={<button type="button" className="v2-btn-secondary" onClick={loadPricing}><RefreshCw className="h-4 w-4" />刷新</button>}
+      />
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {plans.map((plan) => {
-          const isCurrent = plan.code === currentPlanCode
-          const features = plan.features || {}
-          return (
-            <div
-              key={plan.id}
-              className="pro-glass-card flex flex-col justify-between rounded-3xl p-6 transition-all"
-              style={
-                isCurrent
-                  ? { border: '2px solid var(--color-primary-500)', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }
-                  : {}
-              }
-            >
-              <div>
-                {isCurrent && (
-                  <span className="mb-3 inline-block rounded-full px-3 py-1 text-[10px] font-black text-white uppercase tracking-wider shadow-sm" style={{ backgroundColor: 'var(--color-primary-600)' }}>
-                    当前使用中
-                  </span>
-                )}
-                <h2 className="text-base font-black" style={{ color: 'var(--color-text-primary)' }}>{plan.name}</h2>
-                <div className="mt-3 flex items-baseline gap-1">
-                  {plan.price_monthly != null && plan.price_monthly > 0 ? (
-                    <>
-                      <span className="text-3xl font-black" style={{ color: 'var(--color-text-primary)' }}>¥{plan.price_monthly}</span>
-                      <span className="text-xs font-bold" style={{ color: 'var(--color-text-muted)' }}>/ 月</span>
-                    </>
-                  ) : (
-                    <span className="text-3xl font-black" style={{ color: 'var(--color-text-primary)' }}>免费体验</span>
-                  )}
-                </div>
-                <p className="mt-1 text-xs font-bold" style={{ color: 'var(--color-text-secondary)' }}>
-                  支持最多 <span style={{ color: 'var(--color-primary-600)' }}>{plan.max_students}</span> 名在籍辅导学生
-                </p>
-                <ul className="mt-6 space-y-3 pt-4" style={{ borderTop: '1px solid var(--color-border-subtle)' }}>
-                  <li className="flex items-center gap-2 text-xs font-bold" style={{ color: 'var(--color-text-primary)' }}>
-                    <Check className="h-4 w-4 shrink-0" style={{ color: '#059669' }} />
-                    学生席位：{plan.max_students} 名
-                  </li>
-                  <li className="flex items-center gap-2 text-xs font-bold" style={{ color: 'var(--color-text-primary)' }}>
-                    {features.rag ? (
-                      <Check className="h-4 w-4 shrink-0" style={{ color: '#059669' }} />
-                    ) : (
-                      <span className="h-4 w-4 shrink-0" style={{ color: 'var(--color-border-primary)' }}>—</span>
-                    )}
-                    向量本地知识库 (RAG 检索)
-                  </li>
-                  <li className="flex items-center gap-2 text-xs font-bold" style={{ color: 'var(--color-text-primary)' }}>
-                    {features.magic_ppt ? (
-                      <Check className="h-4 w-4 shrink-0" style={{ color: '#059669' }} />
-                    ) : (
-                      <span className="h-4 w-4 shrink-0" style={{ color: 'var(--color-border-primary)' }}>—</span>
-                    )}
-                    Magic PPT 一键课件生成
-                  </li>
-                </ul>
-              </div>
-
-              {plan.price_monthly != null && plan.price_monthly > 0 && !isCurrent && (
-                <div className="mt-6 pt-4" style={{ borderTop: '1px solid var(--color-border-subtle)' }}>
-                  {(alipayEnabled || wechatEnabled) ? (
-                    <button
-                      onClick={() => { setSelectedMonths(12); setPayModal(plan); setWechatQr(null); setPayError('') }}
-                      className="btn-gradient-pro flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-xs font-black"
-                    >
-                      <CreditCard className="h-4 w-4" />
-                      升级解锁专业版
-                    </button>
-                  ) : (
-                    <p className="text-[11px] font-bold text-center" style={{ color: 'var(--color-text-muted)' }}>
-                      在线收银系统接入中
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-      <p className="mt-4 text-center text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
-        {(alipayEnabled || wechatEnabled)
-          ? '支付完成刷新页面后，专业版所有权益将自动秒级开通激活。'
-          : '如需定制机构批量席位或企业级部署，请联系客服团队获得专人辅导开通。'}
-      </p>
-
-        {payModal && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
-            onClick={() => !paying && !wechatQr && setPayModal(null)}
-          >
-            <div
-              className="w-full max-w-sm rounded-xl p-6 shadow-xl"
-              style={{ backgroundColor: 'var(--color-bg-card)' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {wechatQr ? (
-                <>
-                  <h3 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>微信扫码支付</h3>
-                  <p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>{wechatQr.message}</p>
-                  <div className="mt-4 flex justify-center rounded-lg p-4" style={{ backgroundColor: 'white' }}>
-                    <QRCodeSVG value={wechatQr.codeUrl} size={200} level="M" />
-                  </div>
-                  <button
-                    onClick={() => { setWechatQr(null) }}
-                    className="mt-4 w-full text-sm"
-                    style={{ color: 'var(--color-text-secondary)' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text-primary)' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-secondary)' }}
-                  >
-                    关闭
-                  </button>
-                </>
-              ) : (
-                <>
-                  <h3 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>购买 {payModal.name}</h3>
-                  <p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                    ¥{payModal.price_monthly}/月
-                    {payModal.price_yearly != null && payModal.price_yearly > 0
-                      ? ` · 年付 ¥${payModal.price_yearly}（省约 ${Math.round((1 - payModal.price_yearly / (payModal.price_monthly * 12)) * 100)}%）`
-                      : ` · 年付 ¥${(payModal.price_monthly * 12).toFixed(0)}`}
-                  </p>
-                  <div className="mt-4 flex gap-2">
-                    <button
-                      onClick={() => setSelectedMonths(1)}
-                      disabled={paying}
-                      className="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-60"
-                      style={
-                        selectedMonths === 1
-                          ? { border: '1px solid var(--color-primary-600)', backgroundColor: 'var(--color-primary-600)', color: 'white' }
-                          : { border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)', color: 'var(--color-text-primary)' }
-                      }
-                      onMouseEnter={(e) => {
-                        if (selectedMonths !== 1) {
-                          e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (selectedMonths !== 1) {
-                          e.currentTarget.style.backgroundColor = 'var(--color-bg-card)'
-                        }
-                      }}
-                    >
-                      1 个月
-                    </button>
-                    <button
-                      onClick={() => setSelectedMonths(12)}
-                      disabled={paying}
-                      className="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-60"
-                      style={
-                        selectedMonths === 12
-                          ? { border: '1px solid var(--color-primary-600)', backgroundColor: 'var(--color-primary-600)', color: 'white' }
-                          : { border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)', color: 'var(--color-text-primary)' }
-                      }
-                      onMouseEnter={(e) => {
-                        if (selectedMonths !== 12) {
-                          e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (selectedMonths !== 12) {
-                          e.currentTarget.style.backgroundColor = 'var(--color-bg-card)'
-                        }
-                      }}
-                    >
-                      12 个月（推荐）
-                    </button>
-                  </div>
-                  <div className="mt-3 flex gap-2">
-                    {alipayEnabled && (
-                      <button
-                        onClick={() => handlePay(payModal, selectedMonths, 'alipay')}
-                        disabled={paying}
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium disabled:opacity-60"
-                        style={{ border: '1px solid #1677ff', backgroundColor: 'var(--color-bg-card)', color: '#1677ff' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'color-mix(in srgb, #1677ff 10%, var(--color-bg-card))' }}
-                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-bg-card)' }}
-                      >
-                        <CreditCard className="h-4 w-4" />
-                        支付宝
-                      </button>
-                    )}
-                    {wechatEnabled && (
-                      <button
-                        onClick={() => handlePay(payModal, selectedMonths, 'wechat')}
-                        disabled={paying}
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium disabled:opacity-60"
-                        style={{ border: '1px solid #07c160', backgroundColor: 'var(--color-bg-card)', color: '#07c160' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'color-mix(in srgb, #07c160 10%, var(--color-bg-card))' }}
-                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-bg-card)' }}
-                      >
-                        <Smartphone className="h-4 w-4" />
-                        微信扫码
-                      </button>
-                    )}
-                  </div>
-                  {payError && (
-                    <p className="mt-3 text-sm" style={{ color: '#ef4444' }}>{payError}</p>
-                  )}
-                  <button
-                    onClick={() => !paying && setPayModal(null)}
-                    className="mt-4 w-full text-sm"
-                    style={{ color: 'var(--color-text-secondary)' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text-primary)' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-secondary)' }}
-                  >
-                    取消
-                  </button>
-                </>
-              )}
-            </div>
+      {error ? (
+        <ErrorState title="套餐加载失败" description={error} onRetry={loadPricing} />
+      ) : (
+        <>
+          <div className="grid gap-3 md:grid-cols-3">
+            <MetricCard label="当前套餐" value={subscription?.plan?.name ?? '免费试用版'} hint={`账号角色：${user?.role || 'teacher'}`} icon={WalletCards} />
+            <MetricCard label="学生席位" value={`${subscription?.student_count ?? 0} / ${subscription?.max_students ?? 0}`} hint="来自订阅状态" icon={Check} tone="success" />
+            <MetricCard label="服务有效期" value={isTeacher ? formatDate(periodEndDate) : '管理员'} hint={daysLeft != null && daysLeft >= 0 ? `剩余 ${daysLeft} 天` : '按真实订阅返回'} icon={CreditCard} tone="warning" />
           </div>
-        )}
-    </div>
+
+          <section className="v2-pricing-layout">
+            <main className="v2-pricing-plans">
+              {plans.length === 0 ? (
+                <EmptyState icon={WalletCards} title="暂无套餐" description="后端未返回套餐列表，页面不填充默认价格。" />
+              ) : plans.map((plan) => {
+                const isCurrent = plan.code === currentPlanCode
+                const features = plan.features || {}
+                const canBuy = plan.price_monthly > 0 && !isCurrent && paymentEnabled
+                return (
+                  <article key={plan.id ?? plan.code} className={`v2-pricing-card ${isCurrent ? 'current' : ''}`}>
+                    <div className="v2-pricing-card-head">
+                      <div>
+                        <h2>{plan.name}</h2>
+                        <p>最多 {plan.max_students} 名学生</p>
+                      </div>
+                      {isCurrent && <StatusBadge tone="success">当前使用中</StatusBadge>}
+                    </div>
+                    <div className="v2-pricing-price">
+                      {plan.price_monthly > 0 ? <><strong>¥{plan.price_monthly}</strong><span>/ 月</span></> : <strong>免费体验</strong>}
+                    </div>
+                    <ul className="v2-pricing-features">
+                      <li><Check className="h-4 w-4" />学生席位：{plan.max_students} 名</li>
+                      <li className={features.rag ? '' : 'disabled'}>{features.rag ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}向量知识库</li>
+                      <li className={features.magic_ppt ? '' : 'disabled'}>{features.magic_ppt ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}Magic PPT</li>
+                    </ul>
+                    {plan.price_monthly > 0 && !isCurrent && (
+                      <div className="v2-pricing-action">
+                        {canBuy ? (
+                          <button type="button" className="v2-btn-primary" onClick={() => { setSelectedMonths(12); setPayModal(plan); setWechatQr(null); setPayError('') }}>
+                            <CreditCard className="h-4 w-4" />升级
+                          </button>
+                        ) : (
+                          <p>在线收银系统未启用，暂不显示购买入口。</p>
+                        )}
+                      </div>
+                    )}
+                  </article>
+                )
+              })}
+            </main>
+
+            <aside className="v2-pricing-side">
+              <SectionCard title="支付状态" description="由真实支付配置控制。">
+                <div className="v2-pricing-payments">
+                  <div className={alipayEnabled ? 'enabled' : ''}><CreditCard className="h-4 w-4" /><span>支付宝</span><strong>{alipayEnabled ? '可用' : '未启用'}</strong></div>
+                  <div className={wechatEnabled ? 'enabled' : ''}><Smartphone className="h-4 w-4" /><span>微信支付</span><strong>{wechatEnabled ? '可用' : '未启用'}</strong></div>
+                </div>
+              </SectionCard>
+              <SectionCard title="说明" description="页面不伪造已付款或当前套餐。">
+                <div className="v2-pricing-note">
+                  <p>支付完成后通过现有订阅刷新逻辑更新状态。</p>
+                  <p>如果支付未启用，升级按钮不会出现。</p>
+                </div>
+              </SectionCard>
+            </aside>
+          </section>
+        </>
+      )}
+
+      {payModal && (
+        <div className="v2-modal-backdrop" onClick={() => !paying && !wechatQr && setPayModal(null)}>
+          <div className="v2-payment-modal" onClick={(event) => event.stopPropagation()}>
+            {wechatQr ? (
+              <>
+                <h2>微信扫码支付</h2>
+                <p>{wechatQr.message}</p>
+                <div className="v2-payment-qr"><QRCodeSVG value={wechatQr.codeUrl} size={200} level="M" /></div>
+                <button type="button" className="v2-btn-secondary" onClick={() => setWechatQr(null)}>关闭</button>
+              </>
+            ) : (
+              <>
+                <h2>购买 {payModal.name}</h2>
+                <p>¥{payModal.price_monthly}/月</p>
+                <div className="v2-payment-periods">
+                  <button type="button" className={selectedMonths === 1 ? 'active' : ''} disabled={paying} onClick={() => setSelectedMonths(1)}>1 个月</button>
+                  <button type="button" className={selectedMonths === 12 ? 'active' : ''} disabled={paying} onClick={() => setSelectedMonths(12)}>12 个月</button>
+                </div>
+                <div className="v2-payment-actions">
+                  {alipayEnabled && <button type="button" disabled={paying} onClick={() => handlePay(payModal, selectedMonths, 'alipay')}><CreditCard className="h-4 w-4" />支付宝</button>}
+                  {wechatEnabled && <button type="button" disabled={paying} onClick={() => handlePay(payModal, selectedMonths, 'wechat')}><Smartphone className="h-4 w-4" />微信扫码</button>}
+                </div>
+                {payError && <p className="v2-inline-error" role="alert">{payError}</p>}
+                <button type="button" className="v2-btn-secondary" disabled={paying} onClick={() => setPayModal(null)}>取消</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </PageShell>
   )
 }

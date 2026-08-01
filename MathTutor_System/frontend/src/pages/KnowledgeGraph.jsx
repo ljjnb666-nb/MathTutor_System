@@ -1,228 +1,187 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
-import { Loader2, AlertCircle, BookOpen, Zap, ChevronRight, ChevronDown, RefreshCcw, TrendingUp } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import {
+  AlertCircle,
+  BookOpen,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  GitBranch,
+  Layers3,
+  Loader2,
+  RefreshCcw,
+  Sparkles,
+  Target,
+  TrendingUp,
+  Zap,
+} from 'lucide-react'
 import toast from 'react-hot-toast'
-import { getStudentMastery, generateWeakPointQuestions } from '../services/api'
+import { generateWeakPointQuestions, getStudentMastery } from '../services/api'
 import { useStudent } from '../contexts/StudentContext'
 import { useSmartGen } from '../contexts/SmartGenContext'
 import { TEXTBOOK_DATA } from '../constants/textbooks'
+import { EmptyState, ErrorState, LoadingState, MetricCard, PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
 
 const EXPANDED_KEYS_STORAGE = 'knowledge_graph_expanded'
 
-/** 规范化字符串：去首尾空白、合并连续空白，便于匹配 */
-function normalizeForMatch(s) {
-  if (s == null || typeof s !== 'string') return ''
-  return s.replace(/\s+/g, ' ').replace(/\u3000/g, ' ').trim()
+function normalizeForMatch(value) {
+  if (value == null || typeof value !== 'string') return ''
+  return value.replace(/\u3000/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
-/** 判断节点是否为弱项：精确或模糊匹配 weak_points（错题本 topic 与教材目录 label） */
-function isWeakPoint(label, weakPoints) {
-  if (!label || !Array.isArray(weakPoints) || weakPoints.length === 0) return false
-  const a = normalizeForMatch(String(label))
-  if (!a) return false
-  return weakPoints.some((wp) => {
-    const b = normalizeForMatch(String(wp))
-    if (!b) return false
-    return a === b || a.includes(b) || b.includes(a)
+function matchesPoint(label, points) {
+  if (!label || !Array.isArray(points) || points.length === 0) return false
+  const source = normalizeForMatch(String(label))
+  if (!source) return false
+  return points.some((point) => {
+    const target = normalizeForMatch(String(point))
+    return target && (source === target || source.includes(target) || target.includes(source))
   })
 }
 
-/** 判断节点是否为已掌握：与 mastered_points 同规则匹配；若同时为弱项则视为弱项优先 */
-function isMasteredPoint(label, masteredPoints) {
-  if (!label || !Array.isArray(masteredPoints) || masteredPoints.length === 0) return false
-  const a = normalizeForMatch(String(label))
-  if (!a) return false
-  return masteredPoints.some((mp) => {
-    const b = normalizeForMatch(String(mp))
-    if (!b) return false
-    return a === b || a.includes(b) || b.includes(a)
-  })
-}
-
-/** 在树中查找包含 targetLabel 的节点，返回从根到该节点的 key 路径（用于自动展开） */
 function findPathToLabel(nodes, targetLabel, path = []) {
   if (!targetLabel || !Array.isArray(nodes)) return null
   const query = normalizeForMatch(String(targetLabel))
   if (!query) return null
-  for (const n of nodes) {
-    const key = n.value ?? n.label
-    const label = (n.label ?? n.value ?? '').toString()
+
+  for (const node of nodes) {
+    const key = node.value ?? node.label
+    const label = String(node.label ?? node.value ?? '')
     const nextPath = [...path, key]
-    const normLabel = normalizeForMatch(label)
-    if (normLabel === query || normLabel.includes(query) || query.includes(normLabel)) return nextPath
-    const inChild = findPathToLabel(n.children, targetLabel, nextPath)
-    if (inChild) return inChild
+    const normalizedLabel = normalizeForMatch(label)
+    if (normalizedLabel === query || normalizedLabel.includes(query) || query.includes(normalizedLabel)) return nextPath
+
+    const childPath = findPathToLabel(node.children, targetLabel, nextPath)
+    if (childPath) return childPath
   }
+
   return null
 }
 
-/** 收集需要展开的节点 key，使所有弱项节点可见（展开其所有祖先） */
-function collectKeysToExpandForWeakPoints(nodes, weakPoints, ancestorKeys = new Set()) {
-  if (!Array.isArray(nodes) || !Array.isArray(weakPoints) || weakPoints.length === 0) return new Set()
-  const toExpand = new Set()
-  for (const n of nodes) {
-    const key = n.value ?? n.label
-    const label = n.label ?? n.value ?? ''
-    const nextAncestors = new Set(ancestorKeys)
-    nextAncestors.add(key)
-    if (isWeakPoint(label, weakPoints)) {
-      ancestorKeys.forEach((k) => toExpand.add(k))
+function collectExpandableKeys(nodes, acc = new Set()) {
+  if (!Array.isArray(nodes)) return acc
+  nodes.forEach((node) => {
+    const key = node.value ?? node.label
+    if (key && node.children?.length) {
+      acc.add(key)
+      collectExpandableKeys(node.children, acc)
     }
-    const fromChild = collectKeysToExpandForWeakPoints(n.children, weakPoints, nextAncestors)
-    fromChild.forEach((k) => toExpand.add(k))
-  }
-  return toExpand
+  })
+  return acc
 }
 
-/** 收集树中所有节点的 label，用于判断弱项是否能在教材中匹配到 */
+function collectKeysToExpandForWeakPoints(nodes, weakPoints, ancestorKeys = new Set()) {
+  if (!Array.isArray(nodes) || !Array.isArray(weakPoints) || weakPoints.length === 0) return new Set()
+  const keys = new Set()
+
+  nodes.forEach((node) => {
+    const key = node.value ?? node.label
+    const label = node.label ?? node.value ?? ''
+    const nextAncestors = new Set(ancestorKeys)
+    nextAncestors.add(key)
+    if (matchesPoint(label, weakPoints)) ancestorKeys.forEach((item) => keys.add(item))
+    collectKeysToExpandForWeakPoints(node.children, weakPoints, nextAncestors).forEach((item) => keys.add(item))
+  })
+
+  return keys
+}
+
+function flattenTextbook(nodes, depth = 0, acc = []) {
+  if (!Array.isArray(nodes)) return acc
+  nodes.forEach((node) => {
+    const label = String(node.label ?? node.value ?? '').trim()
+    if (label) acc.push({ key: node.value ?? node.label, label, depth, hasChildren: Boolean(node.children?.length) })
+    flattenTextbook(node.children, depth + 1, acc)
+  })
+  return acc
+}
+
 function collectAllLabels(nodes, out = new Set()) {
   if (!Array.isArray(nodes)) return out
-  for (const n of nodes) {
-    const label = (n.label ?? n.value ?? '').toString().trim()
+  nodes.forEach((node) => {
+    const label = String(node.label ?? node.value ?? '').trim()
     if (label) out.add(label)
-    collectAllLabels(n.children, out)
-  }
+    collectAllLabels(node.children, out)
+  })
   return out
 }
 
-/** 返回在 weakPoints 中但未与任何教材节点匹配的项（用于展示「未映射弱项」） */
 function getUnmappedWeakPoints(weakPoints, allLabels) {
   if (!Array.isArray(weakPoints) || weakPoints.length === 0) return []
-  return weakPoints.filter((wp) => {
-    const b = normalizeForMatch(String(wp))
-    if (!b) return false
+  return weakPoints.filter((point) => {
+    const target = normalizeForMatch(String(point))
+    if (!target) return false
     return ![...allLabels].some((label) => {
-      const a = normalizeForMatch(label)
-      return a === b || a.includes(b) || b.includes(a)
+      const source = normalizeForMatch(label)
+      return source === target || source.includes(target) || target.includes(source)
     })
   })
 }
 
-function loadExpandedKeysFromStorage() {
+function readExpandedKeys() {
   try {
     const raw = localStorage.getItem(EXPANDED_KEYS_STORAGE)
     if (!raw) return null
-    const arr = JSON.parse(raw)
-    return Array.isArray(arr) ? new Set(arr) : null
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? new Set(parsed) : null
   } catch {
     return null
   }
 }
 
-function TreeNode({ node, depth, weakPoints, masteredPoints, selectedLabel, onSelect, expandedKeys, onToggleExpand }) {
+function unpackGeneratedQuestions(response) {
+  if (Array.isArray(response?.data)) return response.data
+  if (Array.isArray(response?.data?.questions)) return response.data.questions
+  if (Array.isArray(response?.questions)) return response.questions
+  if (Array.isArray(response)) return response
+  return []
+}
+
+function TreeNode({ node, depth, weakPoints, masteredPoints, selectedLabel, expandedKeys, onSelect, onToggleExpand }) {
   const label = node.label ?? node.value ?? ''
   const nodeKey = node.value ?? node.label ?? ''
   const children = node.children
-  const isLeaf = !children || children.length === 0
-  const isExpanded = expandedKeys.has(nodeKey)
-  const weak = isWeakPoint(label, weakPoints)
-  const mastered = !weak && isMasteredPoint(label, masteredPoints)
-  const isSelected = selectedLabel === label
-
-  const handleRowClick = () => {
-    onSelect(label)
-  }
-
-  const handleChevronClick = (e) => {
-    e.stopPropagation()
-    onToggleExpand(nodeKey)
-  }
+  const hasChildren = Array.isArray(children) && children.length > 0
+  const expanded = expandedKeys.has(nodeKey)
+  const weak = matchesPoint(label, weakPoints)
+  const mastered = !weak && matchesPoint(label, masteredPoints)
+  const selected = selectedLabel === label
 
   return (
-    <div className="select-none">
-      <div
-        className="flex w-full items-center gap-1 rounded-lg px-2 py-1.5 text-left text-sm transition-colors"
-        style={
-          isSelected
-            ? { backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 20%, var(--color-bg-card))', color: 'var(--color-primary-700)' }
-            : weak
-              ? { color: '#dc2626' }
-              : mastered
-                ? { color: '#059669' }
-                : { color: 'var(--color-text-primary)' }
-        }
-        onMouseEnter={(e) => {
-          if (!isSelected) {
-            if (weak) e.currentTarget.style.backgroundColor = 'color-mix(in srgb, #dc2626 5%, var(--color-bg-card))'
-            else if (mastered) e.currentTarget.style.backgroundColor = 'color-mix(in srgb, #059669 5%, var(--color-bg-card))'
-            else e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!isSelected) {
-            e.currentTarget.style.backgroundColor = 'transparent'
-          }
-        }}
-        {...{ style: { ...((isSelected && { backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 20%, var(--color-bg-card))', color: 'var(--color-primary-700)' }) || {}), paddingLeft: `${12 + depth * 16}px` } }}
-      >
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center" aria-hidden>
-          {!isLeaf ? (
-            <button
-              type="button"
-              onClick={handleChevronClick}
-              className="flex items-center justify-center rounded p-0.5 transition-colors"
-              style={{ color: 'var(--color-text-muted)' }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'var(--color-bg-panel)'
-                e.currentTarget.style.color = 'var(--color-text-primary)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent'
-                e.currentTarget.style.color = 'var(--color-text-muted)'
-              }}
-              aria-label={isExpanded ? '折叠' : '展开'}
-            >
-              {isExpanded ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-            </button>
-          ) : (
-            <span className="inline-block w-5" aria-hidden />
-          )}
-        </span>
+    <div className="v2-graph-tree-branch">
+      <div className={`v2-graph-tree-node ${selected ? 'selected' : ''} ${weak ? 'weak' : ''} ${mastered ? 'mastered' : ''}`} style={{ '--depth': depth }}>
         <button
           type="button"
-          onClick={handleRowClick}
-          className="flex min-w-0 flex-1 items-center gap-2 rounded py-0.5 text-left"
+          className="v2-graph-expander"
+          aria-label={expanded ? '折叠' : '展开'}
+          disabled={!hasChildren}
+          onClick={(event) => {
+            event.stopPropagation()
+            if (hasChildren) onToggleExpand(nodeKey)
+          }}
         >
-          <span className="flex h-4 w-4 shrink-0 items-center justify-center" aria-hidden>
-            {weak ? (
-              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: '#ef4444' }} title="需加强" />
-            ) : mastered ? (
-              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: '#10b981' }} title="已掌握" />
-            ) : (
-              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: 'var(--color-border-primary)' }} title="正常" />
-            )}
-          </span>
-          <span className="truncate">{label}</span>
-          {weak && (
-            <span className="shrink-0 rounded px-1.5 py-0.5 text-xs" style={{ backgroundColor: 'color-mix(in srgb, #ef4444 10%, transparent)', color: '#dc2626' }}>
-              需加强
-            </span>
-          )}
-          {mastered && (
-            <span className="shrink-0 rounded px-1.5 py-0.5 text-xs" style={{ backgroundColor: 'color-mix(in srgb, #10b981 10%, transparent)', color: '#059669' }}>
-              已掌握
-            </span>
-          )}
+          {hasChildren ? (expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />) : null}
+        </button>
+        <button type="button" className="v2-graph-node-label" onClick={() => onSelect(label)}>
+          <span className="v2-graph-node-dot" />
+          <span className="min-w-0 flex-1 truncate">{label}</span>
+          {weak && <StatusBadge tone="danger">需加强</StatusBadge>}
+          {mastered && <StatusBadge tone="success">已掌握</StatusBadge>}
         </button>
       </div>
-      {!isLeaf && isExpanded && Array.isArray(children) &&
-        children.map((child) => (
-          <TreeNode
-            key={child.value ?? child.label}
-            node={child}
-            depth={depth + 1}
-            weakPoints={weakPoints}
-            masteredPoints={masteredPoints}
-            selectedLabel={selectedLabel}
-            onSelect={onSelect}
-            expandedKeys={expandedKeys}
-            onToggleExpand={onToggleExpand}
-          />
-        ))}
+      {hasChildren && expanded && children.map((child) => (
+        <TreeNode
+          key={child.value ?? child.label}
+          node={child}
+          depth={depth + 1}
+          weakPoints={weakPoints}
+          masteredPoints={masteredPoints}
+          selectedLabel={selectedLabel}
+          expandedKeys={expandedKeys}
+          onSelect={onSelect}
+          onToggleExpand={onToggleExpand}
+        />
+      ))}
     </div>
   )
 }
@@ -230,85 +189,54 @@ function TreeNode({ node, depth, weakPoints, masteredPoints, selectedLabel, onSe
 export default function KnowledgeGraph() {
   const { currentStudent } = useStudent()
   const { setQuestions, setParams, setSavedIndices, setBatchSaved, setLoading } = useSmartGen()
-  const [weakPointGenerating, setWeakPointGenerating] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams] = useSearchParams()
+
   const [weakPoints, setWeakPoints] = useState([])
   const [masteredPoints, setMasteredPoints] = useState([])
+  const [selectedLabel, setSelectedLabel] = useState('')
   const [loadingMastery, setLoadingMastery] = useState(false)
-  const [selectedLabel, setSelectedLabel] = useState(null)
+  const [error, setError] = useState('')
+  const [weakPointGenerating, setWeakPointGenerating] = useState(false)
   const fromGradingHandled = useRef(false)
   const urlKnowledgePointApplied = useRef(false)
-  // 教材目录折叠：优先从 localStorage 恢复，否则默认展开第一层
   const [expandedKeys, setExpandedKeys] = useState(() => {
-    const stored = loadExpandedKeysFromStorage()
+    const stored = readExpandedKeys()
     if (stored && stored.size > 0) return stored
-    return new Set(TEXTBOOK_DATA.map((r) => r.value))
+    return new Set(TEXTBOOK_DATA.map((root) => root.value))
   })
 
-  const onToggleExpand = useCallback((nodeKey) => {
-    setExpandedKeys((prev) => {
-      const next = new Set(prev)
-      if (next.has(nodeKey)) next.delete(nodeKey)
-      else next.add(nodeKey)
-      return next
-    })
-  }, [])
-
-  // 持久化折叠状态到 localStorage（包括全部折叠）
-  useEffect(() => {
-    try {
-      localStorage.setItem(EXPANDED_KEYS_STORAGE, JSON.stringify([...expandedKeys]))
-    } catch {
-      // ignore
-    }
-  }, [expandedKeys])
-
-  /** 收集树中所有有子节点的 key（用于全部展开） */
-  const collectExpandableKeys = useCallback((nodes, acc = new Set()) => {
-    if (!Array.isArray(nodes)) return acc
-    for (const n of nodes) {
-      const key = n.value ?? n.label
-      if (key && n.children?.length) {
-        acc.add(key)
-        collectExpandableKeys(n.children, acc)
-      }
-    }
-    return acc
-  }, [])
-
-  const expandAll = useCallback(() => {
-    setExpandedKeys(collectExpandableKeys(TEXTBOOK_DATA))
-  }, [collectExpandableKeys])
-
-  const collapseAll = useCallback(() => {
-    setExpandedKeys(new Set())
-  }, [])
-
-  const allTextbookLabels = useMemo(() => collectAllLabels(TEXTBOOK_DATA), [])
-  const unmappedWeakPoints = useMemo(
-    () => getUnmappedWeakPoints(weakPoints, allTextbookLabels),
-    [weakPoints, allTextbookLabels]
-  )
+  const textbookLabels = useMemo(() => collectAllLabels(TEXTBOOK_DATA), [])
+  const flatTextbook = useMemo(() => flattenTextbook(TEXTBOOK_DATA), [])
+  const unmappedWeakPoints = useMemo(() => getUnmappedWeakPoints(weakPoints, textbookLabels), [textbookLabels, weakPoints])
+  const visibleWeakPoints = useMemo(() => weakPoints.filter((point) => !unmappedWeakPoints.includes(point)), [unmappedWeakPoints, weakPoints])
+  const selectedState = matchesPoint(selectedLabel, weakPoints) ? 'weak' : matchesPoint(selectedLabel, masteredPoints) ? 'mastered' : 'normal'
+  const coveragePercent = Math.round((masteredPoints.length / Math.max(1, masteredPoints.length + weakPoints.length)) * 100)
 
   const fetchMastery = useCallback(async () => {
     if (currentStudent?.id == null) {
       setWeakPoints([])
       setMasteredPoints([])
+      setLoadingMastery(false)
+      setError('')
       return
     }
+
     setLoadingMastery(true)
+    setError('')
     try {
-      const res = await getStudentMastery(currentStudent.id)
-      const weak = res.data?.weak_points ?? []
-      const mastered = res.data?.mastered_points ?? []
+      const response = await getStudentMastery(currentStudent.id)
+      const weak = response?.data?.weak_points ?? response?.weak_points ?? []
+      const mastered = response?.data?.mastered_points ?? response?.mastered_points ?? []
       setWeakPoints(Array.isArray(weak) ? weak : [])
       setMasteredPoints(Array.isArray(mastered) ? mastered : [])
-    } catch (e) {
-      toast.error('加载学情失败：' + (e.response?.data?.detail ?? e.message))
+    } catch (err) {
+      const message = err?.response?.data?.detail || err?.message || '加载学情失败'
+      setError(message)
       setWeakPoints([])
       setMasteredPoints([])
+      toast.error(message)
     } finally {
       setLoadingMastery(false)
     }
@@ -318,92 +246,80 @@ export default function KnowledgeGraph() {
     fetchMastery()
   }, [fetchMastery])
 
-  // 有弱项时自动展开包含弱项的节点路径，便于在树中直接看到标红的知识点
   useEffect(() => {
-    if (!Array.isArray(weakPoints) || weakPoints.length === 0) return
-    const keysToExpand = collectKeysToExpandForWeakPoints(TEXTBOOK_DATA, weakPoints)
-    if (keysToExpand.size > 0) {
-      setExpandedKeys((prev) => new Set([...prev, ...keysToExpand]))
+    try {
+      localStorage.setItem(EXPANDED_KEYS_STORAGE, JSON.stringify([...expandedKeys]))
+    } catch {
+      // localStorage may be unavailable in test or private contexts.
     }
+  }, [expandedKeys])
+
+  useEffect(() => {
+    if (weakPoints.length === 0) return
+    const keys = collectKeysToExpandForWeakPoints(TEXTBOOK_DATA, weakPoints)
+    if (keys.size > 0) setExpandedKeys((prev) => new Set([...prev, ...keys]))
   }, [weakPoints])
 
-  // 从批改页跳转过来：刷新学情数据并提示，让用户看到图谱颜色变化
   useEffect(() => {
     const fromGrading = location.state?.fromGrading === true
     if (!fromGrading || fromGradingHandled.current) return
     fromGradingHandled.current = true
-    fetchMastery().then(() => {
-      toast.success('学情已更新，请查看图谱变化')
-    })
+    fetchMastery().then(() => toast.success('学情已更新，请查看图谱变化'))
     navigate(location.pathname, { replace: true, state: {} })
-  }, [location.state?.fromGrading, location.pathname, navigate, fetchMastery])
+  }, [fetchMastery, location.pathname, location.state?.fromGrading, navigate])
 
-  // URL 的 knowledge_point 变化时允许再次应用（例如从错题本带不同知识点返回）
-  const urlKp = searchParams.get('knowledge_point')?.trim() ?? ''
+  const urlKnowledgePoint = searchParams.get('knowledge_point')?.trim() ?? ''
   useEffect(() => {
     urlKnowledgePointApplied.current = false
-  }, [urlKp])
+  }, [urlKnowledgePoint])
 
-  // URL 带 knowledge_point 时：学情加载完成后自动展开到该节点并选中
   useEffect(() => {
-    const kp = searchParams.get('knowledge_point')?.trim()
-    if (!kp || !currentStudent || loadingMastery || urlKnowledgePointApplied.current) return
+    if (!urlKnowledgePoint || !currentStudent || loadingMastery || urlKnowledgePointApplied.current) return
     urlKnowledgePointApplied.current = true
-    setSelectedLabel(kp)
-    const path = findPathToLabel(TEXTBOOK_DATA, kp)
-    if (path && path.length > 0) {
-      setExpandedKeys((prev) => new Set([...prev, ...path]))
-    }
-  }, [currentStudent, loadingMastery, searchParams])
+    setSelectedLabel(urlKnowledgePoint)
+    const path = findPathToLabel(TEXTBOOK_DATA, urlKnowledgePoint)
+    if (path?.length) setExpandedKeys((prev) => new Set([...prev, ...path]))
+  }, [currentStudent, loadingMastery, urlKnowledgePoint])
 
-  const handleRefreshMastery = useCallback(() => {
+  const onToggleExpand = (nodeKey) => {
+    setExpandedKeys((prev) => {
+      const next = new Set(prev)
+      if (next.has(nodeKey)) next.delete(nodeKey)
+      else next.add(nodeKey)
+      return next
+    })
+  }
+
+  const handleRefreshMastery = () => {
     fetchMastery().then(() => toast.success('学情已刷新'))
-  }, [fetchMastery])
+  }
 
-  const handleNavigateMistake = useCallback(
-    (label) => {
-      if (!label) return
-      navigate(`/mistake-book?knowledge_point=${encodeURIComponent(label)}`)
-    },
-    [navigate]
-  )
-
-  const handleGenerateFive = useCallback(() => {
+  const handleGenerateFive = () => {
     if (!currentStudent || !selectedLabel) {
       toast.error('请先选择学生和知识点')
       return
     }
-    setParams((prev) => ({
-      ...prev,
+    const nextParams = {
       knowledge_point: selectedLabel,
       count: 5,
       scenario: 'default',
       difficulty: 'L3',
       question_type: '综合',
-    }))
-    navigate('/smart-gen', {
-      state: {
-        autoGenerate: true,
-        knowledge_point: selectedLabel,
-        scenario: 'default',
-        count: 5,
-        question_type: '综合',
-        difficulty: 'L3',
-      },
-    })
-  }, [currentStudent, selectedLabel, setParams, navigate])
+    }
+    setParams((prev) => ({ ...prev, ...nextParams }))
+    navigate('/smart-gen', { state: { autoGenerate: true, ...nextParams } })
+  }
 
-  /** 一键按弱项出题：根据该生错题本弱项生成巩固题，并跳转智能出题页（通过路由 state 传题，避免 context 更新滞后） */
-  const handleWeakPointGenerate = useCallback(async () => {
+  const handleWeakPointGenerate = async () => {
     if (!currentStudent?.id) {
       toast.error('请先选择学生')
       return
     }
     setWeakPointGenerating(true)
-    setLoading(true)
+    setLoading?.(true)
     try {
-      const res = await generateWeakPointQuestions({ student_id: currentStudent.id, count: 5 })
-      const list = Array.isArray(res?.data) ? res.data : []
+      const response = await generateWeakPointQuestions({ student_id: currentStudent.id, count: 5 })
+      const list = unpackGeneratedQuestions(response)
       if (list.length === 0) {
         toast.error('未生成到题目，请重试')
         return
@@ -415,115 +331,78 @@ export default function KnowledgeGraph() {
         question_type: '综合',
         scenario: 'default',
       }
-      setQuestions(list)
-      setParams((prev) => ({ ...prev, ...nextParams }))
-      setSavedIndices(new Set())
-      setBatchSaved(false)
+      setQuestions?.(list)
+      setParams?.((prev) => ({ ...prev, ...nextParams }))
+      setSavedIndices?.(new Set())
+      setBatchSaved?.(false)
       toast.success(`已生成 ${list.length} 道弱项巩固题，可保存到题库`)
-      navigate('/smart-gen', {
-        state: { fromWeakPoint: true, weakPointQuestions: list, weakPointParams: nextParams },
-      })
+      navigate('/smart-gen', { state: { fromWeakPoint: true, weakPointQuestions: list, weakPointParams: nextParams } })
     } catch (err) {
-      const detail = err.response?.data?.detail
+      const detail = err?.response?.data?.detail
       toast.error(typeof detail === 'string' ? detail : '按弱项出题失败，请检查设置与网络')
     } finally {
       setWeakPointGenerating(false)
-      setLoading(false)
+      setLoading?.(false)
     }
-  }, [currentStudent?.id, weakPoints, setQuestions, setParams, setSavedIndices, setBatchSaved, setLoading, navigate])
+  }
 
   if (!currentStudent) {
     return (
-      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4 rounded-xl p-8" style={{ border: '1px solid rgba(251, 191, 36, 0.3)', backgroundColor: 'color-mix(in srgb, #fbbf24 10%, var(--color-bg-card))', color: '#d97706' }}>
-        <AlertCircle className="h-12 w-12" style={{ color: '#f59e0b' }} />
-        <p className="text-center font-medium">请先在左侧选择学生，再查看学情图谱。</p>
-      </div>
+      <PageShell>
+        <EmptyState
+          icon={AlertCircle}
+          title="请先选择学生"
+          description="选择左侧学生档案后，即可查看教材目录中的弱项、掌握点和强化入口。"
+        />
+      </PageShell>
     )
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 animate-fade-in-up flex h-[calc(100vh-5rem)] gap-4 overflow-hidden rounded-3xl">
-      {/* 左侧：教材目录树 */}
-      <section className="flex w-80 shrink-0 flex-col overflow-hidden rounded-xl shadow-sm" style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)' }}>
-        <header className="px-4 py-3" style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>教材目录</h2>
-            <div className="flex gap-1">
-              <button
-                type="button"
-                onClick={expandAll}
-                className="rounded px-2 py-1 text-xs transition-colors"
-                style={{ color: 'var(--color-text-secondary)' }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
-                  e.currentTarget.style.color = 'var(--color-text-primary)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent'
-                  e.currentTarget.style.color = 'var(--color-text-secondary)'
-                }}
-              >
-                全部展开
-              </button>
-              <button
-                type="button"
-                onClick={collapseAll}
-                className="rounded px-2 py-1 text-xs transition-colors"
-                style={{ color: 'var(--color-text-secondary)' }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
-                  e.currentTarget.style.color = 'var(--color-text-primary)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent'
-                  e.currentTarget.style.color = 'var(--color-text-secondary)'
-                }}
-              >
-                全部折叠
-              </button>
-            </div>
-          </div>
-          <p className="mt-0.5 text-xs" style={{ color: 'var(--color-text-muted)' }}>
-            红色=需加强，绿色=已掌握；选中后在右侧可跳转错题本或生成强化题
-            {(weakPoints.length > 0 || masteredPoints.length > 0) && (
-              <span className="ml-1">
-                {weakPoints.length > 0 && <span className="font-medium" style={{ color: '#dc2626' }}>需加强 {weakPoints.length}</span>}
-                {weakPoints.length > 0 && masteredPoints.length > 0 && ' · '}
-                {masteredPoints.length > 0 && <span className="font-medium" style={{ color: '#059669' }}>已掌握 {masteredPoints.length}</span>}
-              </span>
-            )}
-          </p>
-          <div className="mt-2 flex justify-end">
-            <button
-              type="button"
-              onClick={handleRefreshMastery}
-              disabled={loadingMastery}
-              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs transition-colors disabled:opacity-50"
-              style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)', color: 'var(--color-text-secondary)' }}
-              onMouseEnter={(e) => {
-                if (!loadingMastery) {
-                  e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!loadingMastery) {
-                  e.currentTarget.style.backgroundColor = 'var(--color-bg-card)'
-                }
-              }}
-            >
-              <RefreshCcw className={`h-3.5 w-3.5 ${loadingMastery ? 'animate-spin' : ''}`} />
+    <PageShell className="space-y-5" fit>
+      <PageHeader
+        title="学情图谱"
+        description="把学生错题弱项映射到教材目录，快速定位薄弱章节并生成强化题。"
+        icon={GitBranch}
+        meta={<StatusBadge tone="primary">{currentStudent.name}</StatusBadge>}
+        actions={(
+          <>
+            <button type="button" className="v2-btn-secondary" onClick={() => setExpandedKeys(collectExpandableKeys(TEXTBOOK_DATA))}>
+              <Layers3 className="h-4 w-4" />
+              展开全部
+            </button>
+            <button type="button" className="v2-btn-secondary" onClick={() => setExpandedKeys(new Set(TEXTBOOK_DATA.map((root) => root.value)))}>
+              <ChevronDown className="h-4 w-4" />
+              收起章节
+            </button>
+            <button type="button" className="v2-btn-primary" disabled={loadingMastery} onClick={handleRefreshMastery}>
+              <RefreshCcw className={`h-4 w-4 ${loadingMastery ? 'animate-spin' : ''}`} />
               刷新学情
             </button>
-          </div>
-        </header>
-        <div className="flex-1 overflow-y-auto p-2">
-          {loadingMastery ? (
-            <div className="flex flex-col items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin" style={{ color: 'var(--color-text-muted)' }} />
-              <p className="mt-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>加载学情中…</p>
-            </div>
+          </>
+        )}
+      />
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="需加强" value={weakPoints.length} hint="由错题本聚合" icon={Target} tone="danger" loading={loadingMastery} />
+        <MetricCard label="已掌握" value={masteredPoints.length} hint="批改和复习闭环" icon={CheckCircle2} tone="success" loading={loadingMastery} />
+        <MetricCard label="教材映射" value={visibleWeakPoints.length} hint={`${unmappedWeakPoints.length} 个未映射`} icon={GitBranch} tone="primary" loading={loadingMastery} />
+        <MetricCard label="掌握占比" value={`${coveragePercent}%`} hint="仅按当前图谱数据估算" icon={TrendingUp} tone="warning" loading={loadingMastery} />
+      </div>
+
+      <div className="v2-graph-layout">
+        <SectionCard
+          title="教材目录"
+          description="红色节点为需加强，绿色节点为已掌握。"
+          className="v2-graph-tree-panel"
+          actions={loadingMastery && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
+        >
+          {error ? (
+            <ErrorState title="加载学情失败" description={error} onRetry={fetchMastery} />
+          ) : loadingMastery ? (
+            <LoadingState title="正在加载学情图谱" description="同步当前学生的弱项和掌握点。" />
           ) : (
-            <>
+            <div className="v2-graph-tree">
               {TEXTBOOK_DATA.map((root) => (
                 <TreeNode
                   key={root.value ?? root.label}
@@ -532,130 +411,95 @@ export default function KnowledgeGraph() {
                   weakPoints={weakPoints}
                   masteredPoints={masteredPoints}
                   selectedLabel={selectedLabel}
-                  onSelect={setSelectedLabel}
                   expandedKeys={expandedKeys}
+                  onSelect={setSelectedLabel}
                   onToggleExpand={onToggleExpand}
                 />
               ))}
-              {unmappedWeakPoints.length > 0 && (
-                <div className="mt-4 rounded-lg p-3" style={{ border: '1px solid rgba(251, 191, 36, 0.3)', backgroundColor: 'color-mix(in srgb, #fbbf24 10%, var(--color-bg-card))' }}>
-                  <p className="text-xs font-medium" style={{ color: '#d97706' }}>未在教材目录中的弱项（来自错题本）</p>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {unmappedWeakPoints.map((wp) => (
-                      <span
-                        key={wp}
-                        className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium"
-                        style={{ backgroundColor: 'rgba(251, 191, 36, 0.4)', color: '#92400e' }}
-                      >
-                        {wp}
-                      </span>
-                    ))}
-                  </div>
-                  <p className="mt-1.5 text-[11px]" style={{ color: '#b45309' }}>
-                    这些知识点在错题本中有记录，但教材树中无对应章节，可继续在错题本中查看与出题
-                  </p>
-                </div>
-              )}
-            </>
+            </div>
           )}
-        </div>
-      </section>
+        </SectionCard>
 
-      {/* 右侧：该章节统计 / 操作面板 */}
-      <section className="flex flex-1 flex-col overflow-hidden rounded-xl shadow-sm" style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-panel)' }}>
-        <header className="px-4 py-3" style={{ borderBottom: '1px solid var(--color-border-subtle)', backgroundColor: 'var(--color-bg-card)' }}>
-          <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>章节详情</h2>
-        </header>
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="v2-graph-side">
+          <section className={`v2-graph-focus v2-graph-focus-${selectedState}`}>
+            <div>
+              <p className="text-xs font-black uppercase text-slate-400">当前定位</p>
+              <h2>{selectedLabel || '未选择知识点'}</h2>
+              <p>{selectedLabel ? '可直接跳转错题本查看真实错题，或进入智能出题生成强化练习。' : '从左侧教材树选择一个章节或知识点，右侧会显示状态和操作入口。'}</p>
+            </div>
+            <div className="v2-graph-ring" style={{ '--score': coveragePercent }}>
+              <strong>{coveragePercent}%</strong>
+              <span>掌握占比</span>
+            </div>
+          </section>
+
           {selectedLabel ? (
-            <div className="space-y-4">
-              <div className="rounded-lg p-4" style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)' }}>
-                <p className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>当前选中</p>
-                <p className="mt-1 text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>{selectedLabel}</p>
-              </div>
-              {weakPoints.length > 0 && (
-                <div className="rounded-lg p-4" style={{ border: '1px solid rgba(251, 191, 36, 0.3)', backgroundColor: 'color-mix(in srgb, #fbbf24 10%, var(--color-bg-card))' }}>
-                  <p className="text-sm font-medium" style={{ color: '#d97706' }}>备课包</p>
-                  <button
-                    type="button"
-                    onClick={handleWeakPointGenerate}
-                    disabled={weakPointGenerating}
-                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white shadow-sm transition-colors disabled:opacity-60"
-                    style={{ backgroundColor: '#f59e0b' }}
-                    onMouseEnter={(e) => {
-                      if (!weakPointGenerating) {
-                        e.currentTarget.style.backgroundColor = '#d97706'
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!weakPointGenerating) {
-                        e.currentTarget.style.backgroundColor = '#f59e0b'
-                      }
-                    }}
-                  >
-                    {weakPointGenerating ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Zap className="h-4 w-4" />
-                    )}
-                    按弱项一键出题（共 {weakPoints.length} 个弱项）
-                  </button>
-                  <p className="mt-2 text-xs" style={{ color: '#b45309' }}>
-                    根据该生错题本待掌握知识点生成巩固题，直接跳转智能出题页
-                  </p>
-                </div>
-              )}
-              <div className="rounded-lg p-4" style={{ border: '1px solid color-mix(in srgb, var(--color-primary-500) 30%, transparent)', backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, var(--color-bg-card))' }}>
-                <p className="text-sm font-medium" style={{ color: 'var(--color-primary-700)' }}>快捷操作</p>
-                <button
-                  type="button"
-                  onClick={handleGenerateFive}
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white shadow-sm transition-colors"
-                  style={{ backgroundColor: 'var(--color-primary-600)' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-primary-700)' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-primary-600)' }}
-                >
+            <SectionCard title="教学动作" description="仅串联现有错题本、智能出题和趋势入口。">
+              <div className="grid gap-2">
+                <button type="button" className="v2-btn-primary justify-center" onClick={handleGenerateFive}>
                   <Zap className="h-4 w-4" />
                   针对该知识点生成 5 道强化题
                 </button>
-                <p className="mt-2 text-xs" style={{ color: 'var(--color-primary-700)' }}>
-                  将跳转到智能出题页并自动填入知识点，点击「生成」即可出题
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => navigate('/')}
-                className="flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
-                style={{ border: '1px solid rgba(16, 185, 129, 0.3)', backgroundColor: 'color-mix(in srgb, #10b981 10%, var(--color-bg-card))', color: '#059669' }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'color-mix(in srgb, #10b981 15%, var(--color-bg-card))' }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'color-mix(in srgb, #10b981 10%, var(--color-bg-card))' }}
-              >
-                <TrendingUp className="h-4 w-4" />
-                查看学情趋势（近 8 周）
-              </button>
-              {isWeakPoint(selectedLabel, weakPoints) && (
-                <button
-                  type="button"
-                  onClick={() => handleNavigateMistake(selectedLabel)}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-colors"
-                  style={{ border: '1px solid rgba(239, 68, 68, 0.3)', backgroundColor: 'color-mix(in srgb, #ef4444 10%, var(--color-bg-card))', color: '#dc2626' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'color-mix(in srgb, #ef4444 15%, var(--color-bg-card))' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'color-mix(in srgb, #ef4444 10%, var(--color-bg-card))' }}
-                >
+                <button type="button" className="v2-btn-secondary justify-center" onClick={() => navigate(`/mistake-book?knowledge_point=${encodeURIComponent(selectedLabel)}`)}>
                   <BookOpen className="h-4 w-4" />
                   查看该知识点错题
                 </button>
-              )}
-            </div>
+                <button type="button" className="v2-btn-secondary justify-center" onClick={() => navigate('/')}>
+                  <TrendingUp className="h-4 w-4" />
+                  查看学情趋势
+                </button>
+              </div>
+            </SectionCard>
           ) : (
-            <div className="flex flex-col items-center justify-center py-16" style={{ color: 'var(--color-text-muted)' }}>
-              <BookOpen className="h-12 w-12" style={{ color: 'var(--color-border-primary)' }} />
-              <p className="mt-3 font-medium">点击左侧目录节点</p>
-              <p className="mt-1 text-sm">查看章节详情并生成强化题</p>
-            </div>
+            <SectionCard>
+              <EmptyState icon={BookOpen} title="等待选择节点" description="选中教材节点后，会显示强化题和错题入口。" />
+            </SectionCard>
           )}
+
+          <SectionCard
+            title="弱项备课包"
+            description="按当前学生所有待加强知识点生成巩固题。"
+            actions={<StatusBadge tone={weakPoints.length ? 'danger' : 'neutral'}>{weakPoints.length} 个弱项</StatusBadge>}
+          >
+            {weakPoints.length > 0 ? (
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {weakPoints.slice(0, 8).map((point) => (
+                    <button key={point} type="button" className="v2-chip active" onClick={() => setSelectedLabel(point)}>
+                      {point}
+                    </button>
+                  ))}
+                </div>
+                <button type="button" className="v2-btn-secondary w-full justify-center" disabled={weakPointGenerating} onClick={handleWeakPointGenerate}>
+                  {weakPointGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  按弱项一键出题
+                </button>
+              </div>
+            ) : (
+              <EmptyState icon={CheckCircle2} title="暂无弱项" description="当前学生没有待加强知识点记录。" />
+            )}
+          </SectionCard>
+
+          {unmappedWeakPoints.length > 0 && (
+            <SectionCard title="未映射弱项" description="这些错题知识点暂未匹配到教材目录。">
+              <div className="flex flex-wrap gap-2">
+                {unmappedWeakPoints.map((point) => <StatusBadge key={point} tone="warning">{point}</StatusBadge>)}
+              </div>
+            </SectionCard>
+          )}
+
+          <SectionCard title="目录概览" description={`${flatTextbook.length} 个教材节点，支持章节折叠和状态标记。`}>
+            <div className="v2-graph-outline">
+              {flatTextbook.slice(0, 8).map((node) => (
+                <button key={node.key} type="button" onClick={() => setSelectedLabel(node.label)} style={{ '--depth': Math.min(node.depth, 3) }}>
+                  <span>{node.hasChildren ? '章节' : '知识点'}</span>
+                  <strong>{node.label}</strong>
+                </button>
+              ))}
+            </div>
+          </SectionCard>
         </div>
-      </section>
-    </div>
+      </div>
+    </PageShell>
   )
 }

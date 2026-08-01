@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { AlertTriangle, Bot, CheckCircle2, Circle, Loader2, ShieldCheck } from 'lucide-react'
 import { createTeacherAgentRun, getTeacherAgentRun, getTeacherAgentRuns } from '../services/teacherAgentApi'
 import { useStudent } from '../contexts/StudentContext'
+import { EmptyState, PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
 
 const STEPS = ['理解目标', '读取学生', '分析薄弱点', '读取错题', '检索知识库', '生成计划', '完成']
 
@@ -85,54 +86,47 @@ export default function TeacherAgent() {
   const activeStep = loading ? 5 : run?.status === 'completed' ? 7 : run?.status === 'needs_input' ? 2 : 0
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 md:space-y-8 animate-fade-in-up">
-      <header
-        className="flex flex-col gap-4 rounded-2xl p-6 shadow-sm md:flex-row md:items-center md:justify-between"
-        style={{
-          border: '1px solid color-mix(in srgb, var(--color-border-primary) 90%, transparent)',
-          backgroundColor: 'var(--color-bg-card)',
-        }}
-      >
-        <div className="flex items-center gap-4">
-          <div
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 text-white shadow-lg"
-            style={{ boxShadow: '0 10px 18px -8px color-mix(in srgb, var(--color-primary-500) 45%, transparent)' }}
-          >
-            <Bot className="h-7 w-7" />
-          </div>
-          <div>
-            <p className="text-xs font-black uppercase tracking-wider" style={{ color: 'var(--color-primary-600)' }}>
-              AI Teacher Assistant
-            </p>
-            <h1 className="mt-1 text-xl font-black tracking-normal" style={{ color: 'var(--color-text-primary)' }}>
-              只读教学计划工作台
-            </h1>
-            <p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-              基于学生、错题与知识库上下文生成教学计划，不写入题库或发布作业。
-            </p>
-          </div>
-        </div>
+    <PageShell className="flex flex-col">
+      <PageHeader
+        title="AI 教师助手"
+        description="只读教学计划工作台：基于学生、错题与知识库上下文生成计划，不写入题库或发布作业。"
+        icon={Bot}
+        actions={
+          <StatusBadge tone="success">
+            <ShieldCheck className="mr-1 h-3.5 w-3.5" />
+            只读规划模式
+          </StatusBadge>
+        }
+      />
 
-        <div
-          className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold"
-          style={{
-            border: '1px solid rgba(16, 185, 129, 0.24)',
-            backgroundColor: 'color-mix(in srgb, #10b981 9%, var(--color-bg-card))',
-            color: '#047857',
-          }}
-        >
-          <ShieldCheck className="h-4 w-4" />
-          只读规划模式
-        </div>
-      </header>
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-[18rem_minmax(0,1fr)_22rem]">
+        <aside className="min-h-0 space-y-4 xl:overflow-auto">
+          <SectionCard title="最近运行" description="读取当前后端运行记录">
+            <div className="space-y-2">
+              {history.length === 0 && <EmptyState icon={Bot} title="暂无运行记录" description="提交目标后会显示历史记录" />}
+              {history.map((item) => (
+                <button
+                  type="button"
+                  key={item.id}
+                  onClick={() => openHistory(item.id)}
+                  className="v2-mobile-row w-full text-left"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="line-clamp-2 text-sm font-bold text-slate-100">{item.goal}</span>
+                    <StatusBadge tone={item.status === 'completed' ? 'success' : item.status === 'failed' ? 'danger' : 'warning'}>
+                      {statusLabel(item.status)}
+                    </StatusBadge>
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-500">{new Date(item.created_at).toLocaleString()}</p>
+                </button>
+              ))}
+            </div>
+          </SectionCard>
+        </aside>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <main className="space-y-6">
-          <form
-            onSubmit={handleSubmit}
-            className="space-y-5 rounded-2xl p-6 shadow-sm"
-            style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)' }}
-          >
+        <main className="min-h-0 space-y-4 xl:overflow-auto">
+          <form onSubmit={handleSubmit}>
+            <SectionCard title="直接告诉 AI 教师助手你想做什么" description="用自然语言描述教学需求，助手会规划可执行的只读教学方案。">
             <label className="block text-sm font-bold" style={{ color: 'var(--color-text-primary)' }} htmlFor="agent-goal">
               教学目标
             </label>
@@ -200,24 +194,18 @@ export default function TeacherAgent() {
               </label>
             </div>
 
-            <button
-              type="submit"
-              disabled={!canSubmit}
-              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
-              style={{ backgroundColor: 'var(--color-primary-600)' }}
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4" />}
-              生成教学计划
-            </button>
+              <div className="mt-5 flex flex-wrap items-center gap-2">
+                <button type="submit" disabled={!canSubmit} className="v2-btn-primary">
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4" />}
+                  生成教学计划
+                </button>
+                <StatusBadge tone="neutral">不保存题库</StatusBadge>
+                <StatusBadge tone="neutral">不发布作业</StatusBadge>
+              </div>
+            </SectionCard>
           </form>
 
-          <section
-            className="rounded-2xl p-5 shadow-sm"
-            style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)' }}
-          >
-            <h2 className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>
-              执行状态
-            </h2>
+          <SectionCard title="执行状态" description="展示当前后端运行阶段">
             <div className="mt-3 grid gap-2 md:grid-cols-4">
               {STEPS.map((step, index) => {
                 const done = index + 1 <= activeStep
@@ -235,7 +223,7 @@ export default function TeacherAgent() {
                 )
               })}
             </div>
-          </section>
+          </SectionCard>
 
           {error && <StateNotice tone="error" text={error} />}
           {run?.status === 'failed' && <StateNotice tone="error" text={run.error_message || '运行失败'} />}
@@ -243,42 +231,33 @@ export default function TeacherAgent() {
           {plan && <PlanResult plan={plan} warnings={warnings} />}
         </main>
 
-        <aside
-          className="h-fit rounded-2xl p-5 shadow-sm"
-          style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)' }}
-        >
-          <h2 className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>
-            历史运行
-          </h2>
-          <div className="mt-3 space-y-2">
-            {history.length === 0 && <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>暂无运行记录</p>}
-            {history.map((item) => (
-              <button
-                type="button"
-                key={item.id}
-                onClick={() => openHistory(item.id)}
-                className="w-full rounded-lg px-3 py-2 text-left transition-colors"
-                style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'transparent' }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--color-primary-300)'
-                  e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--color-primary-500) 9%, transparent)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--color-border-primary)'
-                  e.currentTarget.style.backgroundColor = 'transparent'
-                }}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>{item.goal}</span>
-                  <span className="shrink-0 text-xs" style={{ color: 'var(--color-text-secondary)' }}>{statusLabel(item.status)}</span>
-                </div>
-                <p className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>{new Date(item.created_at).toLocaleString()}</p>
-              </button>
-            ))}
-          </div>
+        <aside className="min-h-0 space-y-4 xl:overflow-auto">
+          <SectionCard title="当前上下文" description="本次运行将读取的真实上下文">
+            <dl className="space-y-3 text-sm">
+              <div className="flex justify-between gap-3">
+                <dt className="text-slate-500">学生</dt>
+                <dd className="font-bold text-slate-100">{students.find((s) => String(s.id) === String(studentId))?.name || '不指定'}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-slate-500">知识点</dt>
+                <dd className="font-bold text-slate-100">{knowledgePoint.trim() || '未限定'}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-slate-500">知识库</dt>
+                <dd><StatusBadge tone={useKnowledgeBase ? 'success' : 'neutral'}>{useKnowledgeBase ? '启用' : '未启用'}</StatusBadge></dd>
+              </div>
+            </dl>
+          </SectionCard>
+          <SectionCard title="安全与确认" description="本阶段保持只读边界，不添加写入型教学动作。">
+            <div className="flex flex-wrap gap-2">
+              <StatusBadge tone="success">只读生成计划</StatusBadge>
+              <StatusBadge tone="neutral">无写入产物</StatusBadge>
+              <StatusBadge tone="neutral">无写入确认</StatusBadge>
+            </div>
+          </SectionCard>
         </aside>
       </div>
-    </div>
+    </PageShell>
   )
 }
 

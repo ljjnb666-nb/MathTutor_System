@@ -29,7 +29,7 @@ export function useHomeworkProgressState() {
   const [currentPage, setCurrentPage] = useState(1)
   const [expandedGroups, setExpandedGroups] = useState(new Set())
   const [deletingExamId, setDeletingExamId] = useState(null)
-  const [mainTab, setMainTab] = useState('manage')
+  const [mainTab, setMainTab] = useState('progress')
   const [assignmentDate, setAssignmentDate] = useState(todayStr)
   const [draft, setDraft] = useState(null)
   const [draftLoading, setDraftLoading] = useState(false)

@@ -189,6 +189,20 @@ body {
       color: black;
     }
 
+    .v2-preview-paper-frame {
+      overflow: visible !important;
+      padding: 0 !important;
+    }
+
+    .v2-preview-paper,
+    .v2-preview-paper-header,
+    .v2-preview-question,
+    .v2-preview-note {
+      background: white !important;
+      color: #111827 !important;
+      box-shadow: none !important;
+    }
+
     /* 4. 隐藏非试卷元素 */
     .sidebar,
     .navbar,
@@ -272,4 +286,2250 @@ body {
 }
 .schedule-modal-panel {
   animation: schedule-modal-in 0.2s ease-out;
+}
+
+@layer components {
+  .v2-page-shell {
+    @apply w-full min-w-0 animate-fade-in-up space-y-4;
+  }
+
+  .v2-page-header {
+    @apply flex flex-wrap items-center justify-between gap-4 rounded-2xl px-5 py-4 shadow-sm;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 88%, transparent);
+  }
+
+  .v2-page-header-compact {
+    @apply px-4 py-3;
+  }
+
+  .v2-page-header-icon {
+    @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-xl;
+    border: 1px solid color-mix(in srgb, var(--color-primary-500) 28%, transparent);
+    background: color-mix(in srgb, var(--color-primary-500) 14%, transparent);
+    color: var(--color-primary-400);
+  }
+
+  .v2-page-title {
+    @apply truncate text-xl font-black tracking-normal;
+    color: var(--color-text-primary);
+  }
+
+  .v2-page-description {
+    @apply mt-1 max-w-3xl text-xs font-medium;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-page-actions {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  .v2-hero {
+    @apply relative flex min-h-[10.5rem] flex-col justify-between gap-5 overflow-hidden rounded-2xl p-6 shadow-2xl lg:flex-row lg:items-end;
+    border: 1px solid rgba(129, 140, 248, 0.28);
+    background:
+      radial-gradient(circle at 58% 12%, rgba(124, 58, 237, 0.36), transparent 28%),
+      radial-gradient(circle at 92% 76%, rgba(6, 182, 212, 0.16), transparent 28%),
+      linear-gradient(135deg, #12183a 0%, #101626 46%, #0b0f17 100%);
+  }
+
+  .v2-hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px),
+      linear-gradient(0deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 72px 72px;
+    mask-image: linear-gradient(90deg, transparent, #000 20%, #000 82%, transparent);
+    pointer-events: none;
+  }
+
+  .v2-hero-chip {
+    @apply inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-slate-300;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: rgba(15, 23, 42, 0.54);
+  }
+
+  .v2-hero-chip strong {
+    @apply text-sm font-black text-white;
+  }
+
+  .v2-hero-actions {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .v2-toolbar {
+    @apply flex flex-wrap items-end gap-3 rounded-2xl px-4 py-3 shadow-sm;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 86%, transparent);
+  }
+
+  .v2-mini-stat {
+    @apply min-w-0 rounded-lg border px-3 py-2;
+    background-color: var(--color-bg-card);
+    border-color: var(--color-border-subtle);
+  }
+
+  .v2-mini-stat span {
+    @apply block text-[11px] font-semibold uppercase;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-mini-stat strong {
+    @apply mt-1 block truncate text-sm font-extrabold;
+    color: var(--color-text-primary);
+  }
+
+  .v2-search {
+    @apply flex h-10 min-w-[14rem] items-center gap-2 rounded-xl px-3 text-sm;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-search input {
+    @apply min-w-0 flex-1 bg-transparent text-xs font-semibold outline-none;
+    color: var(--color-text-primary);
+  }
+
+  .v2-search input::placeholder {
+    color: var(--color-text-muted);
+  }
+
+  .v2-control {
+    @apply flex min-w-[10rem] flex-col gap-1 text-[11px] font-black;
+    color: var(--color-text-secondary);
+  }
+
+  select.v2-control,
+  input.v2-control {
+    @apply h-10 rounded-xl px-3 text-xs font-bold outline-none;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-control select,
+  .v2-control input {
+    @apply h-10 rounded-xl px-3 text-xs font-bold outline-none;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-section-card {
+    @apply min-w-0 rounded-2xl p-4 shadow-sm;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 92%, transparent);
+  }
+
+  .v2-section-header {
+    @apply mb-4 flex items-start justify-between gap-3;
+  }
+
+  .v2-section-header h2 {
+    @apply text-base font-black tracking-normal;
+    color: var(--color-text-primary);
+  }
+
+  .v2-section-header p {
+    @apply mt-1 text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-metric-card {
+    @apply flex min-w-0 items-center gap-3 rounded-2xl p-4 text-left shadow-sm transition-all active:scale-[0.99];
+    border: 1px solid var(--color-border-primary);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-bg-card) 94%, transparent), color-mix(in srgb, var(--color-bg-panel) 82%, transparent));
+    color: var(--color-text-primary);
+  }
+
+  .v2-metric-card:hover {
+    border-color: var(--color-border-hover);
+    background: var(--color-bg-card-hover);
+  }
+
+  .v2-metric-icon {
+    @apply flex h-12 w-12 shrink-0 items-center justify-center rounded-xl;
+    background: color-mix(in srgb, var(--color-primary-500) 15%, transparent);
+    color: var(--color-primary-400);
+  }
+
+  .v2-tone-success .v2-metric-icon { background: rgba(16,185,129,.15); color: #34d399; }
+  .v2-tone-warning .v2-metric-icon { background: rgba(245,158,11,.15); color: #fbbf24; }
+  .v2-tone-info .v2-metric-icon { background: rgba(59,130,246,.15); color: #60a5fa; }
+  .v2-tone-danger .v2-metric-icon { background: rgba(239,68,68,.15); color: #fb7185; }
+
+  .v2-metric-label {
+    @apply text-[11px] font-bold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-metric-value {
+    @apply mt-1 text-2xl font-black tabular-nums;
+    color: var(--color-text-primary);
+  }
+
+  .v2-metric-hint {
+    @apply mt-1 text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-status {
+    @apply inline-flex items-center whitespace-nowrap rounded-lg px-2 py-1 text-[11px] font-black;
+    border: 1px solid transparent;
+  }
+
+  .v2-status-neutral { background: var(--color-bg-panel); color: var(--color-text-secondary); border-color: var(--color-border-primary); }
+  .v2-status-success { background: rgba(16,185,129,.13); color: #34d399; border-color: rgba(16,185,129,.24); }
+  .v2-status-warning { background: rgba(245,158,11,.13); color: #fbbf24; border-color: rgba(245,158,11,.24); }
+  .v2-status-danger { background: rgba(239,68,68,.13); color: #fb7185; border-color: rgba(239,68,68,.24); }
+  .v2-status-info { background: rgba(59,130,246,.13); color: #60a5fa; border-color: rgba(59,130,246,.26); }
+  .v2-status-primary { background: rgba(99,102,241,.16); color: #a5b4fc; border-color: rgba(99,102,241,.3); }
+
+  .v2-state {
+    @apply flex min-h-[13rem] flex-col items-center justify-center rounded-2xl p-6 text-center;
+    border: 1px dashed var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 75%, transparent);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-state-error {
+    border-color: rgba(245, 158, 11, 0.35);
+    background: color-mix(in srgb, #f59e0b 10%, var(--color-bg-card));
+  }
+
+  .v2-button,
+  .v2-btn-primary,
+  .v2-btn-secondary,
+  .v2-btn-danger {
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55;
+  }
+
+  .v2-button-primary,
+  .v2-btn-primary {
+    @apply text-white;
+    background: linear-gradient(135deg, var(--color-primary-600), var(--color-accent-violet));
+    box-shadow: 0 10px 22px -12px rgba(99, 102, 241, 0.85);
+  }
+
+  .v2-button-secondary,
+  .v2-btn-secondary {
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-button-danger,
+  .v2-btn-danger {
+    border: 1px solid rgba(244, 63, 94, 0.34);
+    background: rgba(244, 63, 94, 0.1);
+    color: #fb7185;
+  }
+
+  .v2-table {
+    @apply min-w-full text-left text-sm;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .v2-table th {
+    @apply whitespace-nowrap px-4 py-3 text-xs font-black;
+    background: color-mix(in srgb, var(--color-bg-panel) 88%, transparent);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-table td {
+    @apply px-4 py-3 align-middle text-xs;
+    border-top: 1px solid var(--color-border-subtle);
+    color: var(--color-text-primary);
+  }
+
+  .v2-table tr:hover td {
+    background: color-mix(in srgb, var(--color-primary-500) 5%, transparent);
+  }
+
+  .v2-mobile-row {
+    @apply rounded-2xl p-4;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-card);
+  }
+
+  .v2-schedule-calendar {
+    @apply relative grid min-w-[820px] overflow-hidden rounded-2xl;
+    grid-template-columns: 4.5rem repeat(7, minmax(6.5rem, 1fr));
+    grid-template-rows: 4rem 38rem;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+  }
+
+  .v2-schedule-head {
+    @apply flex flex-col items-center justify-center gap-1 text-xs font-bold;
+    border-left: 1px solid var(--color-border-subtle);
+    border-bottom: 1px solid var(--color-border-primary);
+    color: var(--color-text-secondary);
+    background: color-mix(in srgb, var(--color-bg-card) 72%, transparent);
+  }
+
+  .v2-schedule-time-head {
+    @apply border-l-0;
+  }
+
+  .v2-schedule-head strong {
+    @apply rounded-lg px-2 py-1 text-sm;
+    color: var(--color-text-primary);
+  }
+
+  .v2-schedule-today strong {
+    background: rgba(124, 58, 237, 0.24);
+    color: #c4b5fd;
+  }
+
+  .v2-schedule-time-axis {
+    @apply relative flex flex-col justify-between px-3 py-4 text-xs font-bold tabular-nums;
+    color: var(--color-text-secondary);
+    border-right: 1px solid var(--color-border-primary);
+  }
+
+  .v2-schedule-day-column {
+    @apply relative min-w-0;
+    border-left: 1px solid var(--color-border-subtle);
+    background:
+      linear-gradient(to bottom, transparent calc(20% - 1px), var(--color-border-subtle) 20%, transparent calc(20% + 1px)),
+      linear-gradient(to bottom, transparent calc(40% - 1px), var(--color-border-subtle) 40%, transparent calc(40% + 1px)),
+      linear-gradient(to bottom, transparent calc(60% - 1px), var(--color-border-subtle) 60%, transparent calc(60% + 1px)),
+      linear-gradient(to bottom, transparent calc(80% - 1px), var(--color-border-subtle) 80%, transparent calc(80% + 1px));
+  }
+
+  .v2-schedule-block {
+    @apply absolute left-2 right-2 z-10 flex min-h-[5rem] flex-col justify-between overflow-hidden rounded-xl p-2 text-left shadow-lg;
+    border: 1px solid transparent;
+    background-color: rgba(79, 70, 229, 0.92);
+  }
+
+  .v2-schedule-block h3 {
+    @apply truncate text-xs font-black;
+    color: #fff;
+  }
+
+  .v2-schedule-block p {
+    @apply mt-0.5 truncate text-[11px] font-semibold;
+    color: rgba(255, 255, 255, 0.78);
+  }
+
+  .v2-schedule-violet {
+    background-color: rgba(109, 40, 217, 0.96);
+    background-image: linear-gradient(135deg, rgba(124,58,237,.96), rgba(67,56,202,.88));
+    border-color: rgba(196,181,253,.44);
+  }
+
+  .v2-schedule-emerald {
+    background-color: rgba(4, 120, 87, 0.96);
+    background-image: linear-gradient(135deg, rgba(5,150,105,.96), rgba(6,95,70,.88));
+    border-color: rgba(110,231,183,.42);
+  }
+
+  .v2-schedule-blue {
+    background-color: rgba(29, 78, 216, 0.96);
+    background-image: linear-gradient(135deg, rgba(37,99,235,.96), rgba(30,64,175,.88));
+    border-color: rgba(147,197,253,.42);
+  }
+
+  .v2-schedule-amber {
+    background-color: rgba(180, 83, 9, 0.96);
+    background-image: linear-gradient(135deg, rgba(180,83,9,.96), rgba(146,64,14,.88));
+    border-color: rgba(251,191,36,.42);
+  }
+
+  .v2-schedule-conflict {
+    box-shadow: 0 0 0 1px rgba(251, 113, 133, 0.7), 0 14px 28px -20px rgba(251, 113, 133, 0.8);
+  }
+
+  .v2-schedule-actions {
+    @apply mt-2 flex gap-1 opacity-0 transition-opacity;
+  }
+
+  .v2-schedule-block:hover .v2-schedule-actions,
+  .v2-schedule-block:focus-within .v2-schedule-actions {
+    @apply opacity-100;
+  }
+
+  .v2-schedule-actions button {
+    @apply flex h-6 w-6 items-center justify-center rounded-lg;
+    background: rgba(15, 23, 42, 0.45);
+    color: #fff;
+  }
+
+  .v2-schedule-calendar-empty {
+    @apply absolute inset-x-20 bottom-8 top-24 z-20;
+  }
+
+  .v2-schedule-side-row,
+  .v2-schedule-conflict-row {
+    @apply flex min-w-0 items-start gap-3 rounded-xl p-3 text-xs;
+    border: 1px solid var(--color-border-subtle);
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+    color: var(--color-text-primary);
+  }
+
+  .v2-schedule-side-row p,
+  .v2-schedule-conflict-row p {
+    @apply text-[11px];
+    color: var(--color-text-secondary);
+  }
+
+  .v2-schedule-dot {
+    @apply mt-1.5 h-2 w-2 shrink-0 rounded-full;
+  }
+
+  .v2-schedule-dot-violet { background: #8b5cf6; }
+  .v2-schedule-dot-emerald { background: #10b981; }
+  .v2-schedule-dot-blue { background: #3b82f6; }
+  .v2-schedule-dot-amber { background: #f59e0b; }
+
+  .v2-schedule-month-day {
+    @apply flex h-7 items-center justify-center rounded-lg font-bold tabular-nums;
+    color: var(--color-text-muted);
+  }
+
+  .v2-schedule-month-day.active {
+    background: color-mix(in srgb, var(--color-primary-500) 20%, transparent);
+    color: var(--color-text-primary);
+  }
+
+  .v2-schedule-month-day.today {
+    background: linear-gradient(135deg, var(--color-primary-600), var(--color-accent-violet));
+    color: #fff;
+  }
+
+  .v2-progress-chart {
+    @apply relative min-h-[18rem] overflow-hidden rounded-2xl p-4;
+    border: 1px solid var(--color-border-subtle);
+    background: color-mix(in srgb, var(--color-bg-panel) 72%, transparent);
+  }
+
+  .v2-progress-chart-grid {
+    @apply absolute inset-4 flex flex-col justify-between text-[11px] font-bold;
+    color: var(--color-text-muted);
+  }
+
+  .v2-progress-chart-grid span {
+    @apply border-t pt-1;
+    border-color: var(--color-border-subtle);
+  }
+
+  .v2-progress-bars {
+    @apply relative z-10 ml-10 flex h-60 items-end justify-around gap-3;
+  }
+
+  .v2-progress-bar-item {
+    @apply flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-2 text-[11px] font-bold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-progress-bar-track {
+    @apply flex h-full w-full max-w-12 items-end overflow-hidden rounded-t-xl;
+    background: rgba(99, 102, 241, 0.12);
+  }
+
+  .v2-progress-bar-fill {
+    @apply w-full rounded-t-xl;
+    background: linear-gradient(180deg, #8b5cf6, #2563eb);
+    box-shadow: 0 0 24px rgba(124, 58, 237, 0.32);
+  }
+
+  .v2-homework-alert-row,
+  .v2-homework-action-row {
+    @apply flex min-w-0 items-start gap-3 rounded-xl p-3 text-xs;
+    border: 1px solid var(--color-border-subtle);
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+    color: var(--color-text-primary);
+  }
+
+  .v2-homework-alert-row p,
+  .v2-homework-action-row p {
+    @apply font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-homework-alert-row span,
+  .v2-homework-action-row span,
+  .v2-homework-alert-row p + p {
+    @apply text-[11px] font-semibold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-icon-button {
+    @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 84%, transparent);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-icon-button:hover:not(:disabled) {
+    background: var(--color-bg-card-hover);
+    color: var(--color-text-primary);
+  }
+
+  .v2-icon-button.danger {
+    color: #fb7185;
+  }
+
+  .v2-kb-library-card,
+  .v2-kb-new-card {
+    @apply relative min-h-[7.5rem] overflow-hidden rounded-2xl p-4;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 86%, transparent);
+  }
+
+  .v2-kb-library-card {
+    @apply flex items-start gap-3;
+  }
+
+  .v2-kb-library-icon,
+  .v2-kb-file-icon {
+    @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-xl;
+    background: color-mix(in srgb, var(--kb-tone, var(--color-primary-500)) 16%, transparent);
+    color: var(--kb-tone, var(--color-primary-400));
+    border: 1px solid color-mix(in srgb, var(--kb-tone, var(--color-primary-500)) 22%, transparent);
+  }
+
+  .v2-kb-library-bar {
+    @apply absolute bottom-3 left-4 right-4 h-1.5 overflow-hidden rounded-full;
+    background: color-mix(in srgb, var(--color-bg-panel) 80%, transparent);
+  }
+
+  .v2-kb-library-bar span,
+  .v2-kb-progress span {
+    @apply block h-full rounded-full;
+    background: linear-gradient(90deg, #14b8a6, #8b5cf6);
+  }
+
+  .v2-kb-new-card {
+    @apply flex flex-col items-center justify-center gap-2 border-dashed text-sm font-black;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-kb-progress {
+    @apply block h-2 min-w-20 overflow-hidden rounded-full;
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+  }
+
+  .v2-kb-stat-tile {
+    @apply min-w-0 rounded-2xl p-4;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+  }
+
+  .v2-kb-stat-tile span {
+    @apply block truncate text-xs font-bold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-kb-stat-tile strong {
+    @apply mt-2 block truncate text-2xl font-black tabular-nums;
+    color: var(--color-text-primary);
+  }
+
+  .v2-kb-dropzone {
+    @apply flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 text-center text-sm font-black transition;
+    border-color: var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-kb-dropzone.active,
+  .v2-kb-dropzone:hover {
+    border-color: var(--color-primary-500);
+    background: color-mix(in srgb, var(--color-primary-500) 10%, var(--color-bg-card));
+    color: var(--color-text-primary);
+  }
+
+  .v2-import-step {
+    @apply flex min-w-0 items-center gap-3 rounded-2xl p-4;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 86%, transparent);
+  }
+
+  .v2-import-step > span {
+    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black;
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-import-step strong,
+  .v2-import-format strong,
+  .v2-import-file-row strong,
+  .v2-import-panel strong,
+  .v2-import-actionbar strong {
+    @apply block truncate text-sm font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-import-step p,
+  .v2-import-format p,
+  .v2-import-file-row p,
+  .v2-import-panel p,
+  .v2-import-actionbar p {
+    @apply mt-1 truncate text-xs font-semibold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-import-step.active,
+  .v2-import-step.complete {
+    border-color: color-mix(in srgb, var(--color-primary-500) 28%, var(--color-border-primary));
+  }
+
+  .v2-import-step.active > span,
+  .v2-import-step.complete > span {
+    background: linear-gradient(135deg, #14b8a6, #8b5cf6);
+    color: white;
+  }
+
+  .v2-import-dropzone {
+    @apply relative flex min-h-56 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 text-center transition;
+    border-color: var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 78%, transparent);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-import-dropzone input {
+    @apply absolute inset-0 cursor-pointer opacity-0;
+  }
+
+  .v2-import-dropzone strong {
+    @apply mt-3 block max-w-full truncate text-base font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-import-dropzone p {
+    @apply mt-1 text-xs font-semibold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-import-dropzone.active,
+  .v2-import-dropzone:hover {
+    border-color: var(--color-primary-500);
+    background: color-mix(in srgb, var(--color-primary-500) 10%, var(--color-bg-card));
+  }
+
+  .v2-import-format,
+  .v2-import-file-row,
+  .v2-import-panel,
+  .v2-import-question,
+  .v2-import-note,
+  .v2-import-result {
+    @apply rounded-2xl;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+  }
+
+  .v2-import-format {
+    @apply flex items-start gap-3 p-4;
+  }
+
+  .v2-import-format.enabled svg {
+    color: var(--color-primary-400);
+  }
+
+  .v2-import-format.disabled {
+    @apply opacity-55;
+  }
+
+  .v2-import-file-row {
+    @apply flex items-center gap-3 p-4;
+  }
+
+  .v2-import-file-row > svg {
+    color: var(--color-primary-400);
+  }
+
+  .v2-import-panel {
+    @apply p-4;
+  }
+
+  .v2-import-panel span,
+  .v2-import-note span {
+    @apply block text-xs font-bold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-import-panel strong {
+    @apply mt-2 text-2xl;
+  }
+
+  .v2-import-batchbar {
+    @apply flex flex-wrap items-center gap-2 rounded-2xl p-3;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+  }
+
+  .v2-import-batchbar span {
+    @apply text-xs font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-import-batchbar input,
+  .v2-field input,
+  .v2-field select,
+  .v2-field textarea {
+    @apply min-w-0 rounded-xl px-3 py-2 text-sm font-semibold outline-none;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-chip {
+    @apply rounded-lg px-2.5 py-1 text-xs font-black transition;
+    border: 1px solid var(--color-border-primary);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-chip:hover {
+    background: color-mix(in srgb, var(--color-primary-500) 12%, transparent);
+    color: var(--color-text-primary);
+  }
+
+  .v2-import-loading {
+    @apply flex min-h-60 flex-col items-center justify-center rounded-2xl text-center;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+  }
+
+  .v2-import-loading strong {
+    @apply mt-3 text-sm font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-import-loading p {
+    @apply mt-1 text-xs font-semibold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-import-question {
+    @apply p-4;
+  }
+
+  .v2-import-question.selected {
+    border-color: color-mix(in srgb, var(--color-primary-500) 38%, var(--color-border-primary));
+    background: color-mix(in srgb, var(--color-primary-500) 8%, var(--color-bg-panel));
+  }
+
+  .v2-import-option {
+    @apply flex items-start gap-2 rounded-xl p-3;
+    background: color-mix(in srgb, var(--color-bg-card) 72%, transparent);
+  }
+
+  .v2-import-option span {
+    @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-black;
+    background: color-mix(in srgb, var(--color-primary-500) 14%, transparent);
+    color: var(--color-primary-300);
+  }
+
+  .v2-import-option p,
+  .v2-import-note p {
+    @apply min-w-0 whitespace-pre-wrap text-sm font-semibold leading-6;
+    color: var(--color-text-primary);
+  }
+
+  .v2-import-note {
+    @apply p-3;
+  }
+
+  .v2-modal-backdrop {
+    @apply fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto p-4;
+    background: rgb(2 6 23 / 72%);
+    backdrop-filter: blur(10px);
+  }
+
+  .v2-import-editor {
+    @apply max-h-[92vh] w-full max-w-4xl space-y-4 overflow-y-auto rounded-2xl p-5 shadow-2xl;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-card);
+  }
+
+  .v2-import-editor h2 {
+    @apply text-lg font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-import-editor p {
+    @apply text-xs font-semibold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-field {
+    @apply block space-y-2;
+  }
+
+  .v2-field span {
+    @apply block text-xs font-black;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-field input,
+  .v2-field select,
+  .v2-field textarea {
+    @apply w-full;
+  }
+
+  .v2-import-result {
+    @apply flex items-center gap-2 p-3 text-sm font-bold;
+    color: #86efac;
+  }
+
+  .v2-import-actionbar {
+    @apply sticky bottom-4 z-20 flex flex-col gap-3 rounded-2xl p-4 shadow-2xl lg:flex-row lg:items-center lg:justify-between;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 92%, transparent);
+    backdrop-filter: blur(18px);
+  }
+
+  .v2-exam-card {
+    @apply flex flex-col gap-3 rounded-2xl p-4 transition lg:flex-row lg:items-center lg:justify-between;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+  }
+
+  .v2-exam-card:hover {
+    border-color: color-mix(in srgb, var(--color-primary-500) 34%, var(--color-border-primary));
+    background: color-mix(in srgb, var(--color-primary-500) 7%, var(--color-bg-panel));
+  }
+
+  .v2-exam-card h2 {
+    @apply max-w-full truncate text-sm font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-exam-card p {
+    @apply mt-2 text-xs font-semibold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-toggle {
+    @apply inline-flex h-10 items-center gap-2 rounded-xl px-3 text-xs font-black;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-preview-paper-frame {
+    @apply max-w-full overflow-x-auto rounded-2xl pb-2;
+  }
+
+  .v2-preview-paper {
+    @apply space-y-4 rounded-2xl p-4;
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #111827;
+    color-scheme: light;
+    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
+  }
+
+  .v2-preview-paper-header {
+    @apply rounded-2xl p-4 text-center;
+    border: 1px solid #e5e7eb;
+    background: #f8fafc;
+  }
+
+  .v2-preview-paper-header h2 {
+    @apply text-xl font-black;
+    color: #111827;
+  }
+
+  .v2-preview-paper-header p {
+    @apply mt-2 text-xs font-semibold;
+    color: #475569;
+  }
+
+  .v2-preview-group-title {
+    @apply text-sm font-black;
+    color: #111827;
+  }
+
+  .v2-preview-question,
+  .v2-preview-note {
+    @apply rounded-2xl;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+  }
+
+  .v2-preview-side-stat {
+    @apply rounded-2xl;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 82%, transparent);
+  }
+
+  .v2-preview-question {
+    @apply p-4;
+  }
+
+  .v2-preview-question.correct {
+    border-color: #22c55e;
+    background: #f0fdf4;
+  }
+
+  .v2-preview-question.wrong {
+    border-color: #f43f5e;
+    background: #fff1f2;
+  }
+
+  .v2-preview-option {
+    @apply flex items-start gap-2 rounded-xl p-3;
+    background: #f8fafc;
+  }
+
+  .v2-preview-option span {
+    @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-black;
+    background: #e0e7ff;
+    color: #3730a3;
+  }
+
+  .v2-preview-paper .v2-preview-question p,
+  .v2-preview-option p,
+  .v2-preview-note p {
+    @apply min-w-0 whitespace-pre-wrap text-sm font-semibold leading-6;
+    color: #111827;
+  }
+
+  .v2-preview-note {
+    @apply p-3;
+  }
+
+  .v2-preview-note span,
+  .v2-preview-side-stat span {
+    @apply block text-xs font-black;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-preview-paper .v2-preview-note span,
+  .v2-preview-paper .text-slate-400 {
+    color: #64748b;
+  }
+
+  .v2-preview-side-stat {
+    @apply p-4;
+  }
+
+  .v2-preview-side-stat strong {
+    @apply mt-2 block text-2xl font-black tabular-nums;
+    color: var(--color-text-primary);
+  }
+
+  .v2-mark-button {
+    @apply inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-black transition;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-mark-button.active-correct {
+    border-color: color-mix(in srgb, #22c55e 45%, var(--color-border-primary));
+    background: color-mix(in srgb, #22c55e 18%, var(--color-bg-card));
+    color: #86efac;
+  }
+
+  .v2-mark-button.active-wrong {
+    border-color: color-mix(in srgb, #f43f5e 45%, var(--color-border-primary));
+    background: color-mix(in srgb, #f43f5e 18%, var(--color-bg-card));
+    color: #fda4af;
+  }
+
+  .v2-chip.active {
+    border-color: color-mix(in srgb, var(--color-primary-500) 45%, var(--color-border-primary));
+    background: color-mix(in srgb, var(--color-primary-500) 14%, transparent);
+    color: var(--color-text-primary);
+  }
+
+  .v2-tabs {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .v2-tabs button {
+    @apply h-9 rounded-xl px-3 text-xs font-black transition;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-tabs button.active {
+    border-color: color-mix(in srgb, var(--color-primary-500) 45%, var(--color-border-primary));
+    background: color-mix(in srgb, var(--color-primary-500) 14%, transparent);
+    color: var(--color-text-primary);
+  }
+
+  .v2-mistake-card,
+  .v2-mistake-option,
+  .v2-mistake-note {
+    @apply rounded-2xl;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+  }
+
+  .v2-mistake-card {
+    @apply p-4;
+  }
+
+  .v2-mistake-option {
+    @apply flex items-start gap-2 p-3;
+    background: color-mix(in srgb, var(--color-bg-card) 72%, transparent);
+  }
+
+  .v2-mistake-option span {
+    @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-black;
+    background: color-mix(in srgb, var(--color-primary-500) 14%, transparent);
+    color: var(--color-primary-300);
+  }
+
+  .v2-mistake-option p,
+  .v2-mistake-note p {
+    @apply min-w-0 whitespace-pre-wrap text-sm font-semibold leading-6;
+    color: var(--color-text-primary);
+  }
+
+  .v2-mistake-note {
+    @apply p-3;
+  }
+
+  .v2-mistake-note span {
+    @apply block text-xs font-black;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-graph-layout {
+    @apply grid min-h-0 gap-4 lg:grid-cols-[minmax(22rem,0.95fr)_minmax(24rem,1.05fr)];
+  }
+
+  .v2-graph-tree-panel {
+    @apply min-h-0 overflow-hidden;
+  }
+
+  .v2-graph-tree {
+    @apply max-h-[calc(100vh-19rem)] overflow-y-auto pr-1;
+  }
+
+  .v2-graph-tree-branch {
+    @apply min-w-0;
+  }
+
+  .v2-graph-tree-node {
+    @apply flex min-w-0 items-center gap-1 rounded-xl py-1.5 pr-2 text-sm transition;
+    padding-left: calc(0.25rem + (var(--depth, 0) * 0.95rem));
+    color: var(--color-text-primary);
+  }
+
+  .v2-graph-tree-node:hover {
+    background: color-mix(in srgb, var(--color-bg-card-hover) 82%, transparent);
+  }
+
+  .v2-graph-tree-node.selected {
+    background: color-mix(in srgb, var(--color-primary-500) 17%, var(--color-bg-card));
+    box-shadow: inset 3px 0 0 var(--color-primary-400);
+  }
+
+  .v2-graph-tree-node.weak {
+    color: #fda4af;
+  }
+
+  .v2-graph-tree-node.mastered {
+    color: #86efac;
+  }
+
+  .v2-graph-expander {
+    @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition disabled:opacity-30;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-graph-expander:not(:disabled):hover {
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-graph-node-label {
+    @apply flex min-w-0 flex-1 items-center gap-2 text-left font-bold;
+  }
+
+  .v2-graph-node-dot {
+    @apply h-2.5 w-2.5 shrink-0 rounded-full;
+    background: var(--color-border-primary);
+  }
+
+  .v2-graph-tree-node.weak .v2-graph-node-dot {
+    background: #fb7185;
+    box-shadow: 0 0 0 4px rgba(251, 113, 133, 0.12);
+  }
+
+  .v2-graph-tree-node.mastered .v2-graph-node-dot {
+    background: #34d399;
+    box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.12);
+  }
+
+  .v2-graph-side {
+    @apply min-h-0 space-y-4 overflow-y-auto;
+  }
+
+  .v2-graph-focus {
+    @apply relative flex flex-wrap items-center justify-between gap-4 overflow-hidden rounded-2xl p-5;
+    border: 1px solid var(--color-border-primary);
+    background:
+      linear-gradient(135deg, color-mix(in srgb, var(--color-primary-500) 18%, transparent), transparent 45%),
+      color-mix(in srgb, var(--color-bg-card) 88%, transparent);
+  }
+
+  .v2-graph-focus h2 {
+    @apply mt-2 text-2xl font-black tracking-normal text-slate-100;
+  }
+
+  .v2-graph-focus p:last-child {
+    @apply mt-2 max-w-xl text-sm font-medium leading-6 text-slate-400;
+  }
+
+  .v2-graph-focus-weak {
+    border-color: color-mix(in srgb, #fb7185 32%, var(--color-border-primary));
+    background:
+      linear-gradient(135deg, rgba(244, 63, 94, 0.18), transparent 48%),
+      color-mix(in srgb, var(--color-bg-card) 88%, transparent);
+  }
+
+  .v2-graph-focus-mastered {
+    border-color: color-mix(in srgb, #34d399 32%, var(--color-border-primary));
+    background:
+      linear-gradient(135deg, rgba(16, 185, 129, 0.16), transparent 48%),
+      color-mix(in srgb, var(--color-bg-card) 88%, transparent);
+  }
+
+  .v2-graph-ring {
+    @apply grid h-28 w-28 shrink-0 place-items-center rounded-full text-center;
+    background:
+      radial-gradient(circle at center, var(--color-bg-card) 0 58%, transparent 59%),
+      conic-gradient(var(--color-primary-400) calc(var(--score, 0) * 1%), rgba(148, 163, 184, 0.16) 0);
+  }
+
+  .v2-graph-ring strong {
+    @apply block text-xl font-black text-slate-100;
+  }
+
+  .v2-graph-ring span {
+    @apply block text-[11px] font-bold text-slate-400;
+  }
+
+  .v2-graph-outline {
+    @apply grid gap-2;
+  }
+
+  .v2-graph-outline button {
+    @apply flex min-w-0 items-center gap-2 rounded-xl px-3 py-2 text-left transition;
+    margin-left: calc(var(--depth, 0) * 0.6rem);
+    border: 1px solid var(--color-border-subtle);
+    background: color-mix(in srgb, var(--color-bg-panel) 80%, transparent);
+  }
+
+  .v2-graph-outline button:hover {
+    border-color: color-mix(in srgb, var(--color-primary-500) 35%, var(--color-border-primary));
+    background: color-mix(in srgb, var(--color-primary-500) 10%, var(--color-bg-card));
+  }
+
+  .v2-graph-outline span {
+    @apply shrink-0 rounded-lg px-2 py-1 text-[11px] font-black;
+    background: color-mix(in srgb, var(--color-primary-500) 13%, transparent);
+    color: var(--color-primary-300);
+  }
+
+  .v2-graph-outline strong {
+    @apply min-w-0 truncate text-xs font-black text-slate-200;
+  }
+
+  .v2-report-filterbar {
+    @apply grid gap-3 rounded-2xl p-4 lg:grid-cols-[minmax(12rem,1fr)_minmax(10rem,14rem)_auto] lg:items-end;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 86%, transparent);
+  }
+
+  .v2-report-filterbar label {
+    @apply grid min-w-0 gap-2;
+  }
+
+  .v2-report-filterbar label span {
+    @apply text-xs font-black;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-report-filterbar select,
+  .v2-report-input,
+  .v2-report-weak-row input {
+    @apply min-w-0 rounded-xl px-3 py-2 text-sm font-semibold outline-none;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-report-tabs,
+  .v2-report-mode-tabs {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .v2-report-tabs button,
+  .v2-report-mode-tabs button {
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-xl px-3 text-xs font-black transition;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-report-tabs button.active,
+  .v2-report-mode-tabs button.active {
+    border-color: color-mix(in srgb, var(--color-primary-500) 44%, var(--color-border-primary));
+    background: color-mix(in srgb, var(--color-primary-500) 15%, var(--color-bg-card));
+    color: var(--color-text-primary);
+  }
+
+  .v2-report-layout {
+    @apply grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_22rem];
+  }
+
+  .v2-report-side {
+    @apply min-w-0 space-y-4;
+  }
+
+  .v2-report-empty-chart {
+    @apply grid min-h-44 place-items-center rounded-2xl p-4 text-center text-sm font-bold;
+    border: 1px dashed var(--color-border-primary);
+    color: var(--color-text-secondary);
+    background: color-mix(in srgb, var(--color-bg-panel) 72%, transparent);
+  }
+
+  .v2-report-outline {
+    @apply grid gap-2;
+  }
+
+  .v2-report-outline div {
+    @apply flex min-w-0 items-center gap-3 rounded-xl p-3;
+    border: 1px solid var(--color-border-subtle);
+    background: color-mix(in srgb, var(--color-bg-panel) 78%, transparent);
+  }
+
+  .v2-report-outline span {
+    @apply grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[11px] font-black;
+    background: color-mix(in srgb, var(--color-primary-500) 14%, transparent);
+    color: var(--color-primary-300);
+  }
+
+  .v2-report-outline strong {
+    @apply min-w-0 truncate text-sm font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-report-workbench {
+    @apply grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_24rem];
+  }
+
+  .v2-report-editor {
+    @apply min-w-0 space-y-4;
+  }
+
+  .v2-report-preview {
+    @apply min-w-0 space-y-4 rounded-2xl p-4;
+    border: 1px solid var(--color-border-primary);
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--color-primary-500) 9%, transparent), transparent 35%),
+      color-mix(in srgb, var(--color-bg-card) 88%, transparent);
+  }
+
+  .v2-report-preview h2 {
+    @apply text-base font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-report-weak-row {
+    @apply grid min-w-0 gap-2 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)_auto];
+  }
+
+  .v2-inline-error {
+    @apply rounded-xl px-3 py-2 text-sm font-bold;
+    border: 1px solid rgba(244, 63, 94, 0.32);
+    background: rgba(244, 63, 94, 0.1);
+    color: #fb7185;
+  }
+
+  .v2-report-mini {
+    @apply flex min-w-0 items-center gap-2 rounded-xl p-3;
+    border: 1px solid var(--color-border-subtle);
+    background: color-mix(in srgb, var(--color-bg-panel) 80%, transparent);
+  }
+
+  .v2-report-mini span {
+    @apply min-w-0 flex-1 truncate text-xs font-bold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-report-mini strong {
+    @apply min-w-0 truncate text-sm font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-report-list-block {
+    @apply rounded-2xl p-4;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 78%, transparent);
+  }
+
+  .v2-report-list-block h3 {
+    @apply mb-3 text-sm font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-report-list-block p,
+  .v2-report-list-block div {
+    @apply rounded-xl px-3 py-2 text-sm font-semibold leading-6;
+    color: var(--color-text-secondary);
+    background: color-mix(in srgb, var(--color-bg-card) 72%, transparent);
+  }
+
+  .v2-report-list-block div + div {
+    @apply mt-2;
+  }
+
+  .v2-report-comment {
+    @apply whitespace-pre-wrap rounded-2xl p-4 text-sm font-semibold leading-7;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 84%, transparent);
+    color: var(--color-text-primary);
+  }
+
+  .v2-star-row {
+    @apply grid gap-2 rounded-2xl p-3 sm:grid-cols-[5rem_1fr_4rem] sm:items-center;
+    border: 1px solid var(--color-border-subtle);
+    background: color-mix(in srgb, var(--color-bg-panel) 78%, transparent);
+  }
+
+  .v2-star-row > span,
+  .v2-star-row strong {
+    @apply text-xs font-black;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-star-row > div {
+    @apply flex flex-wrap gap-1;
+  }
+
+  .v2-star-row button {
+    @apply grid h-9 w-9 place-items-center rounded-xl transition disabled:cursor-not-allowed disabled:opacity-50;
+    color: var(--color-text-muted);
+  }
+
+  .v2-star-row button.active {
+    color: #fbbf24;
+    background: rgba(245, 158, 11, 0.12);
+  }
+
+  .v2-chat-shell {
+    @apply grid min-h-0 flex-1 overflow-hidden rounded-2xl;
+    grid-template-columns: 18rem minmax(0, 1fr) 20rem;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 64%, transparent);
+  }
+
+  .v2-chat-sessions,
+  .v2-chat-context {
+    @apply min-h-0 overflow-hidden;
+    background: color-mix(in srgb, var(--color-bg-card) 86%, transparent);
+  }
+
+  .v2-chat-sessions {
+    @apply border-r;
+    border-color: var(--color-border-primary);
+  }
+
+  .v2-chat-context {
+    @apply space-y-4 overflow-y-auto border-l p-4;
+    border-color: var(--color-border-primary);
+  }
+
+  .v2-chat-panel-head {
+    @apply flex items-center justify-between gap-3 border-b p-4;
+    border-color: var(--color-border-primary);
+  }
+
+  .v2-chat-panel-head span,
+  .v2-chat-context h2 {
+    @apply block text-xs font-black;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-chat-panel-head strong {
+    @apply mt-1 block text-2xl font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-chat-session-list {
+    @apply min-h-0 space-y-2 overflow-y-auto p-3;
+  }
+
+  .v2-chat-state {
+    @apply flex min-h-40 flex-col items-center justify-center gap-2 rounded-2xl p-4 text-center text-xs font-bold;
+    border: 1px dashed var(--color-border-primary);
+    color: var(--color-text-secondary);
+    background: color-mix(in srgb, var(--color-bg-panel) 72%, transparent);
+  }
+
+  .v2-chat-state.error {
+    border-color: rgba(244, 63, 94, 0.34);
+    color: #fb7185;
+  }
+
+  .v2-chat-session {
+    @apply grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-2xl p-2 transition;
+    border: 1px solid var(--color-border-subtle);
+    background: color-mix(in srgb, var(--color-bg-panel) 72%, transparent);
+  }
+
+  .v2-chat-session.active {
+    border-color: color-mix(in srgb, var(--color-primary-500) 42%, var(--color-border-primary));
+    background: color-mix(in srgb, var(--color-primary-500) 12%, var(--color-bg-card));
+  }
+
+  .v2-chat-session > button:first-child {
+    @apply min-w-0 text-left;
+  }
+
+  .v2-chat-session span {
+    @apply flex min-w-0 items-center gap-1.5 truncate text-xs font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-chat-session small {
+    @apply mt-1 block text-[11px] font-bold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-chat-session > div {
+    @apply flex items-center gap-1;
+  }
+
+  .v2-chat-main {
+    @apply flex min-h-0 min-w-0 flex-col;
+  }
+
+  .v2-chat-header {
+    @apply flex shrink-0 flex-col gap-3 border-b p-4 lg:flex-row lg:items-center lg:justify-between;
+    border-color: var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 82%, transparent);
+  }
+
+  .v2-chat-title {
+    @apply flex min-w-0 items-center gap-3;
+  }
+
+  .v2-chat-title > span {
+    @apply grid h-10 w-10 shrink-0 place-items-center rounded-xl;
+    background: color-mix(in srgb, var(--color-primary-500) 16%, transparent);
+    color: var(--color-primary-300);
+  }
+
+  .v2-chat-title h1 {
+    @apply text-base font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-chat-title p {
+    @apply mt-1 text-xs font-semibold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-chat-switches {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .v2-chat-switches label {
+    @apply inline-flex h-9 items-center gap-2 rounded-xl px-3 text-xs font-black;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-chat-messages {
+    @apply min-h-0 flex-1 space-y-4 overflow-y-auto p-4;
+  }
+
+  .v2-chat-empty {
+    @apply mx-auto flex min-h-80 max-w-xl flex-col items-center justify-center rounded-2xl p-6 text-center;
+    border: 1px dashed var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 72%, transparent);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-chat-empty h2 {
+    @apply mt-3 text-lg font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-chat-empty p {
+    @apply mt-1 text-sm font-semibold;
+  }
+
+  .v2-chat-empty div {
+    @apply mt-4 flex flex-wrap justify-center gap-2;
+  }
+
+  .v2-chat-empty button {
+    @apply rounded-xl px-3 py-2 text-xs font-black;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-chat-message {
+    @apply flex items-start gap-3;
+  }
+
+  .v2-chat-message.user {
+    @apply flex-row-reverse;
+  }
+
+  .v2-chat-avatar {
+    @apply grid h-9 w-9 shrink-0 place-items-center rounded-xl;
+    background: color-mix(in srgb, var(--color-primary-500) 14%, transparent);
+    color: var(--color-primary-300);
+  }
+
+  .v2-chat-message.user .v2-chat-avatar {
+    background: color-mix(in srgb, #10b981 15%, transparent);
+    color: #34d399;
+  }
+
+  .v2-chat-bubble {
+    @apply min-w-0 max-w-[78%] rounded-2xl p-4 text-sm font-semibold leading-7;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 86%, transparent);
+    color: var(--color-text-primary);
+  }
+
+  .v2-chat-message.user .v2-chat-bubble {
+    background: color-mix(in srgb, #10b981 12%, var(--color-bg-card));
+  }
+
+  .v2-chat-sources {
+    @apply mt-2 rounded-xl px-3 py-2 text-[11px] font-black;
+    color: var(--color-primary-300);
+    background: color-mix(in srgb, var(--color-primary-500) 10%, transparent);
+  }
+
+  .v2-chat-edit-button {
+    @apply mt-3 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-black;
+    border: 1px solid var(--color-border-primary);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-chat-edit {
+    @apply grid gap-3;
+  }
+
+  .v2-chat-edit textarea,
+  .v2-chat-composer input {
+    @apply w-full min-w-0 rounded-xl px-3 py-2 text-sm font-semibold outline-none;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-chat-edit > div {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .v2-chat-loading {
+    @apply ml-12 inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-black;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 84%, transparent);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-chat-error {
+    @apply mx-4 mb-3 flex flex-wrap items-center gap-2 rounded-xl px-3 py-2 text-xs font-black;
+    border: 1px solid rgba(244, 63, 94, 0.34);
+    background: rgba(244, 63, 94, 0.1);
+    color: #fb7185;
+  }
+
+  .v2-chat-error button {
+    @apply rounded-lg px-2 py-1;
+    background: rgba(244, 63, 94, 0.14);
+  }
+
+  .v2-chat-composer {
+    @apply flex shrink-0 gap-3 border-t p-4;
+    border-color: var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 90%, transparent);
+  }
+
+  .v2-chat-context section {
+    @apply space-y-3 rounded-2xl p-4;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 76%, transparent);
+  }
+
+  .v2-chat-context-stat {
+    @apply flex min-w-0 items-center gap-2 rounded-xl p-3;
+    background: color-mix(in srgb, var(--color-bg-card) 76%, transparent);
+  }
+
+  .v2-chat-context-stat span {
+    @apply min-w-0 flex-1 truncate text-xs font-bold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-chat-context-stat strong {
+    @apply text-sm font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-ppt-workbench {
+    @apply grid gap-4 xl:grid-cols-[20rem_minmax(0,1fr)_18rem];
+  }
+
+  .v2-ppt-config,
+  .v2-ppt-outline {
+    @apply min-w-0 space-y-4;
+  }
+
+  .v2-ppt-preview-zone {
+    @apply min-w-0;
+  }
+
+  .v2-ppt-grade-tabs {
+    @apply grid grid-cols-3 gap-2;
+  }
+
+  .v2-ppt-grade-tabs button {
+    @apply h-10 rounded-xl text-xs font-black transition disabled:cursor-not-allowed disabled:opacity-50;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-ppt-grade-tabs button.active {
+    border-color: color-mix(in srgb, var(--color-primary-500) 44%, var(--color-border-primary));
+    background: color-mix(in srgb, var(--color-primary-500) 15%, var(--color-bg-card));
+    color: var(--color-text-primary);
+  }
+
+  .v2-ppt-config-summary {
+    @apply grid gap-2;
+  }
+
+  .v2-ppt-config-summary div {
+    @apply flex items-center justify-between gap-3 rounded-xl p-3;
+    background: color-mix(in srgb, var(--color-bg-panel) 78%, transparent);
+  }
+
+  .v2-ppt-config-summary span {
+    @apply text-xs font-bold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-ppt-config-summary strong {
+    @apply min-w-0 truncate text-sm font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-ppt-loading {
+    @apply flex min-h-[28rem] flex-col items-center justify-center rounded-2xl text-center;
+    border: 1px dashed var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 74%, transparent);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-ppt-loading strong {
+    @apply mt-3 text-sm font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-ppt-stage {
+    @apply grid gap-4;
+  }
+
+  .v2-ppt-slide {
+    @apply relative aspect-video min-h-0 overflow-hidden rounded-2xl p-8 shadow-xl;
+    background: #f8fafc;
+    color: #0f172a;
+  }
+
+  .v2-ppt-slide-ribbon {
+    @apply absolute right-5 top-5 rounded-lg px-3 py-1 text-xs font-black text-white;
+    background: #0f766e;
+  }
+
+  .v2-ppt-slide h2 {
+    @apply max-w-[78%] text-2xl font-black leading-tight;
+    color: #1d4ed8;
+  }
+
+  .v2-ppt-slide p {
+    @apply mt-3 max-w-[72%] text-sm font-semibold;
+    color: #475569;
+  }
+
+  .v2-ppt-slide ul {
+    @apply mt-6 grid max-w-[82%] gap-3 rounded-2xl bg-white/90 p-5 text-sm font-semibold leading-6;
+    border: 1px solid #dbe4ef;
+  }
+
+  .v2-ppt-slide li {
+    @apply list-inside list-disc;
+  }
+
+  .v2-ppt-slide > span {
+    @apply absolute bottom-4 right-5 text-sm font-black;
+    color: #2563eb;
+  }
+
+  .v2-ppt-controls {
+    @apply flex items-center justify-center gap-3;
+  }
+
+  .v2-ppt-controls strong {
+    @apply rounded-xl px-3 py-2 text-xs font-black;
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-ppt-thumbs {
+    @apply grid gap-2;
+  }
+
+  .v2-ppt-thumbs button {
+    @apply flex min-w-0 items-center gap-2 rounded-xl p-3 text-left transition;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 78%, transparent);
+  }
+
+  .v2-ppt-thumbs button.active {
+    border-color: color-mix(in srgb, var(--color-primary-500) 42%, var(--color-border-primary));
+    background: color-mix(in srgb, var(--color-primary-500) 12%, var(--color-bg-card));
+  }
+
+  .v2-ppt-thumbs span {
+    @apply grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[11px] font-black;
+    background: color-mix(in srgb, var(--color-primary-500) 14%, transparent);
+    color: var(--color-primary-300);
+  }
+
+  .v2-ppt-thumbs strong {
+    @apply min-w-0 truncate text-xs font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-pricing-layout {
+    @apply grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem];
+  }
+
+  .v2-pricing-plans {
+    @apply grid gap-4 md:grid-cols-2 2xl:grid-cols-3;
+  }
+
+  .v2-pricing-card {
+    @apply flex min-w-0 flex-col rounded-2xl p-5;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 86%, transparent);
+  }
+
+  .v2-pricing-card.current {
+    border-color: color-mix(in srgb, var(--color-primary-500) 48%, var(--color-border-primary));
+    background: color-mix(in srgb, var(--color-primary-500) 10%, var(--color-bg-card));
+  }
+
+  .v2-pricing-card-head {
+    @apply flex items-start justify-between gap-3;
+  }
+
+  .v2-pricing-card h2 {
+    @apply text-lg font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-pricing-card p {
+    @apply mt-1 text-xs font-bold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-pricing-price {
+    @apply mt-5 flex items-baseline gap-2;
+  }
+
+  .v2-pricing-price strong {
+    @apply text-3xl font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-pricing-price span {
+    @apply text-xs font-bold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-pricing-features {
+    @apply mt-5 grid gap-3 border-t pt-5;
+    border-color: var(--color-border-subtle);
+  }
+
+  .v2-pricing-features li {
+    @apply flex items-center gap-2 text-sm font-bold;
+    color: var(--color-text-primary);
+  }
+
+  .v2-pricing-features li svg {
+    color: #34d399;
+  }
+
+  .v2-pricing-features li.disabled {
+    color: var(--color-text-muted);
+  }
+
+  .v2-pricing-features li.disabled svg {
+    color: #fb7185;
+  }
+
+  .v2-pricing-action {
+    @apply mt-auto pt-5;
+  }
+
+  .v2-pricing-action .v2-btn-primary {
+    @apply w-full;
+  }
+
+  .v2-pricing-action p,
+  .v2-pricing-note p {
+    @apply rounded-xl px-3 py-2 text-xs font-bold;
+    background: color-mix(in srgb, var(--color-bg-panel) 80%, transparent);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-pricing-side {
+    @apply min-w-0 space-y-4;
+  }
+
+  .v2-pricing-payments {
+    @apply grid gap-2;
+  }
+
+  .v2-pricing-payments div {
+    @apply flex items-center gap-2 rounded-xl p-3;
+    background: color-mix(in srgb, var(--color-bg-panel) 80%, transparent);
+    color: var(--color-text-muted);
+  }
+
+  .v2-pricing-payments div.enabled {
+    color: #34d399;
+  }
+
+  .v2-pricing-payments span {
+    @apply min-w-0 flex-1 text-xs font-bold;
+  }
+
+  .v2-pricing-payments strong {
+    @apply text-xs font-black;
+  }
+
+  .v2-pricing-note {
+    @apply grid gap-2;
+  }
+
+  .v2-payment-modal {
+    @apply w-full max-w-sm space-y-4 rounded-2xl p-5 shadow-2xl;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-card);
+  }
+
+  .v2-payment-modal h2 {
+    @apply text-lg font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-payment-modal p {
+    @apply text-sm font-semibold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-payment-periods,
+  .v2-payment-actions {
+    @apply grid grid-cols-2 gap-2;
+  }
+
+  .v2-payment-periods button,
+  .v2-payment-actions button {
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-xl text-xs font-black disabled:opacity-50;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-payment-periods button.active {
+    border-color: color-mix(in srgb, var(--color-primary-500) 44%, var(--color-border-primary));
+    background: color-mix(in srgb, var(--color-primary-500) 15%, var(--color-bg-card));
+  }
+
+  .v2-payment-qr {
+    @apply flex justify-center rounded-xl bg-white p-4;
+  }
+
+  .v2-admin-layout {
+    @apply grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem];
+  }
+
+  .v2-admin-main,
+  .v2-admin-side {
+    @apply min-w-0 space-y-4;
+  }
+
+  .v2-admin-toolbar {
+    @apply mb-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_12rem_auto] lg:items-end;
+  }
+
+  .v2-admin-toolbar label {
+    @apply grid gap-2;
+  }
+
+  .v2-admin-toolbar span {
+    @apply text-xs font-black;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-admin-toolbar input,
+  .v2-admin-toolbar select,
+  .v2-admin-inline-controls select {
+    @apply min-w-0 rounded-xl px-3 py-2 text-sm font-semibold outline-none;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-admin-inline-controls {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .v2-admin-actions {
+    @apply flex items-center gap-1;
+  }
+
+  .v2-admin-batch {
+    @apply grid gap-2;
+  }
+
+  .v2-admin-batch p,
+  .v2-admin-boundary p {
+    @apply rounded-xl px-3 py-2 text-xs font-bold;
+    background: color-mix(in srgb, var(--color-bg-panel) 80%, transparent);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-admin-boundary {
+    @apply grid gap-2;
+  }
+
+  .v2-admin-modal {
+    @apply w-full max-w-md space-y-4 rounded-2xl p-5 shadow-2xl;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-card);
+  }
+
+  .v2-admin-modal.wide {
+    @apply max-w-2xl;
+  }
+
+  .v2-admin-modal h2 {
+    @apply text-lg font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-admin-password {
+    @apply flex gap-2;
+  }
+
+  .v2-admin-password input {
+    @apply min-w-0 flex-1;
+  }
+
+  .v2-admin-password button {
+    @apply grid h-10 w-10 shrink-0 place-items-center rounded-xl;
+    border: 1px solid var(--color-border-primary);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-admin-history {
+    @apply grid gap-2;
+  }
+
+  .v2-admin-history div {
+    @apply grid gap-1 rounded-xl p-3;
+    background: color-mix(in srgb, var(--color-bg-panel) 80%, transparent);
+  }
+
+  .v2-admin-history strong {
+    @apply text-sm font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-admin-history span,
+  .v2-admin-history small {
+    @apply text-xs font-bold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-settings-notice {
+    @apply flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black;
+    border: 1px solid rgba(16, 185, 129, 0.28);
+    background: color-mix(in srgb, #10b981 10%, var(--color-bg-card));
+    color: #047857;
+  }
+
+  .v2-settings-layout {
+    @apply grid gap-4 xl:grid-cols-[12rem_minmax(0,1fr)_18rem];
+  }
+
+  .v2-settings-nav {
+    @apply flex gap-2 overflow-x-auto rounded-2xl p-2 xl:flex-col xl:overflow-visible;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 86%, transparent);
+  }
+
+  .v2-settings-nav button {
+    @apply flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-black transition-colors;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-settings-nav button.is-active {
+    background: color-mix(in srgb, var(--color-primary) 14%, var(--color-bg-card));
+    color: var(--color-text-primary);
+  }
+
+  .v2-settings-main,
+  .v2-settings-side {
+    @apply min-w-0 space-y-4;
+  }
+
+  .v2-settings-info-grid,
+  .v2-settings-control-grid {
+    @apply grid gap-3 md:grid-cols-3;
+  }
+
+  .v2-settings-control-grid.two,
+  .v2-settings-split {
+    @apply grid gap-3 md:grid-cols-2;
+  }
+
+  .v2-settings-info-tile {
+    @apply rounded-xl p-4;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 80%, transparent);
+  }
+
+  .v2-settings-info-tile span,
+  .v2-settings-status-card p,
+  .v2-settings-label,
+  .v2-settings-secret-mask {
+    @apply text-xs font-black;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-settings-info-tile strong,
+  .v2-settings-status-card strong {
+    @apply mt-2 block text-base font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-settings-label {
+    @apply grid gap-2;
+  }
+
+  .v2-settings-label input,
+  .v2-settings-label select,
+  .v2-settings-secret input {
+    @apply min-w-0 rounded-xl px-3 py-2.5 text-sm font-semibold outline-none;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-settings-secret {
+    @apply flex gap-2;
+  }
+
+  .v2-settings-secret input {
+    @apply flex-1;
+  }
+
+  .v2-settings-secret button {
+    @apply grid h-11 w-11 shrink-0 place-items-center rounded-xl;
+    border: 1px solid var(--color-border-primary);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-settings-secret-mask {
+    @apply mt-2;
+  }
+
+  .v2-settings-preview,
+  .v2-settings-readonly,
+  .v2-settings-status-card {
+    @apply mt-4 rounded-xl p-4;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+  }
+
+  .v2-settings-preview span,
+  .v2-settings-readonly p,
+  .v2-settings-status-card span,
+  .v2-settings-help {
+    @apply text-xs font-bold leading-6;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-settings-preview strong,
+  .v2-settings-readonly strong {
+    @apply mt-1 block text-sm font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-settings-toggle {
+    @apply mt-4 flex items-center gap-2 text-sm font-bold;
+    color: var(--color-text-primary);
+  }
+
+  .v2-settings-toggle input {
+    @apply h-4 w-4 rounded;
+  }
+
+  .v2-settings-readonly {
+    @apply flex items-start gap-3;
+  }
+
+  .v2-settings-readonly svg {
+    @apply mt-1 shrink-0;
+    color: var(--color-primary);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up,
+  .pro-glass-card,
+  .btn-gradient-pro,
+  .btn-gradient-primary {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+    transform: none !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .v2-page-title {
+    @apply whitespace-normal text-lg;
+  }
+
+  .v2-page-header,
+  .v2-toolbar {
+    @apply rounded-xl px-3 py-3;
+  }
+
+  .v2-search {
+    @apply w-full min-w-0;
+  }
+
+  .v2-section-card {
+    @apply rounded-xl p-3;
+  }
+
+  .v2-graph-tree {
+    @apply max-h-none;
+  }
+
+  .v2-graph-focus {
+    @apply p-4;
+  }
+
+  .v2-graph-ring {
+    @apply h-24 w-24;
+  }
+
+  .v2-report-filterbar,
+  .v2-report-preview,
+  .v2-star-row {
+    @apply rounded-xl p-3;
+  }
+
+  .v2-report-tabs,
+  .v2-report-mode-tabs {
+    @apply grid grid-cols-2;
+  }
+
+  .v2-report-tabs button,
+  .v2-report-mode-tabs button,
+  .v2-report-filterbar select {
+    @apply w-full;
+  }
+
+  .v2-report-workbench,
+  .v2-report-layout {
+    @apply gap-3;
+  }
+
+  .v2-chat-shell {
+    @apply min-h-full overflow-visible rounded-xl;
+    grid-template-columns: 1fr;
+  }
+
+  .v2-chat-sessions,
+  .v2-chat-context {
+    @apply max-h-none border-0;
+  }
+
+  .v2-chat-session-list {
+    @apply max-h-60;
+  }
+
+  .v2-chat-bubble {
+    @apply max-w-[calc(100%-3rem)] rounded-xl p-3 text-xs leading-6;
+  }
+
+  .v2-chat-composer {
+    @apply sticky bottom-0 flex-col;
+  }
+
+  .v2-chat-composer button {
+    @apply w-full;
+  }
+
+  .v2-ppt-workbench {
+    @apply grid-cols-1;
+  }
+
+  .v2-ppt-slide {
+    @apply p-4;
+  }
+
+  .v2-ppt-slide h2 {
+    @apply max-w-full text-lg;
+  }
+
+  .v2-ppt-slide ul,
+  .v2-ppt-slide p {
+    @apply max-w-full;
+  }
+
+  .v2-pricing-layout,
+  .v2-pricing-plans {
+    @apply grid-cols-1;
+  }
+
+  .v2-admin-layout,
+  .v2-admin-toolbar,
+  .v2-settings-layout,
+  .v2-settings-info-grid,
+  .v2-settings-control-grid,
+  .v2-settings-control-grid.two,
+  .v2-settings-split {
+    @apply grid-cols-1;
+  }
+
+  .v2-settings-nav {
+    @apply rounded-xl;
+  }
 }

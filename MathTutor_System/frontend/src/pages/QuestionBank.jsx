@@ -1,10 +1,11 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileQuestion, Loader2, Search, Trash2, FileStack } from 'lucide-react'
+import { FileQuestion, Loader2, Search, Trash2, FileStack, BookOpen, Star, Tags } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getBankList, deleteFromBank } from '../services/api'
 import { useStudent } from '../contexts/StudentContext'
 import QuestionCard from '../components/QuestionCard'
+import { EmptyState, MetricCard, PageHeader, PageShell, ResponsiveTable, SearchInput, SectionCard, StatusBadge, Toolbar } from '../components/UiV2'
 
 export default function QuestionBank() {
   const { currentStudent } = useStudent()
@@ -15,10 +16,13 @@ export default function QuestionBank() {
   const [questionTypeFilter, setQuestionTypeFilter] = useState('')
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [deletingId, setDeletingId] = useState(null)
+  const [error, setError] = useState('')
+  const [previewId, setPreviewId] = useState(null)
 
   const fetchList = useCallback(async () => {
     setLoading(true)
     try {
+      setError('')
       const params = {}
       if (knowledgePointFilter.trim()) params.knowledge_point = knowledgePointFilter.trim()
       if (questionTypeFilter.trim()) params.question_type = questionTypeFilter.trim()
@@ -26,7 +30,9 @@ export default function QuestionBank() {
       const res = await getBankList(params)
       setList(Array.isArray(res.data) ? res.data : [])
     } catch (e) {
-      toast.error('加载收藏题库失败：' + (e.response?.data?.detail ?? e.message))
+      const message = e.response?.data?.detail ?? e.message ?? '加载收藏题库失败'
+      setError(message)
+      toast.error('加载收藏题库失败：' + message)
       setList([])
     } finally {
       setLoading(false)
@@ -38,6 +44,10 @@ export default function QuestionBank() {
   }, [fetchList])
 
   const filtered = list
+  const previewItem = useMemo(() => {
+    if (!filtered.length) return null
+    return filtered.find((item) => item.id === previewId) || filtered[0]
+  }, [filtered, previewId])
 
   const selectedCount = selectedIds.size
   const selectedItems = useMemo(() => {
@@ -103,151 +113,174 @@ export default function QuestionBank() {
   )
 
   return (
-    <div className="flex min-h-full flex-col animate-fade-in-up space-y-4">
-      <header className="shrink-0 flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-black tracking-tight" style={{ color: 'var(--color-text-primary)' }}>
-            {currentStudent ? `${currentStudent.name} 的专属收藏题库` : '题库资产中心'}
-          </h1>
-          <p className="mt-0.5 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-            集中管理收藏的优质考题，支持一键勾选组卷生成标准数学试卷
-          </p>
-        </div>
-      </header>
+    <PageShell fit className="flex flex-col">
+      <PageHeader
+        title={currentStudent ? `${currentStudent.name} 的专属收藏题库` : '题库管理'}
+        description="按参考图重构为筛选、指标、题目表格与右侧预览；题目仍来自当前题库 API。"
+        icon={BookOpen}
+        actions={
+          <button
+            type="button"
+            onClick={handleComposeExam}
+            disabled={selectedCount === 0}
+            className="v2-btn-primary"
+          >
+            <FileStack className="h-4 w-4" />
+            生成预览试卷
+          </button>
+        }
+      />
 
-      <div className="flex min-h-0 flex-1 gap-5 overflow-hidden">
-        {/* 左侧筛选面板 */}
-        <aside className="pro-glass-card flex w-72 shrink-0 flex-col gap-4 rounded-3xl p-5">
-          <div>
-            <label className="mb-1.5 block text-xs font-bold" style={{ color: 'var(--color-text-primary)' }}>搜索知识点</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2" style={{ color: 'var(--color-text-muted)' }} />
+      <Toolbar>
+        <SearchInput
+          value={knowledgePointFilter}
+          onChange={(e) => setKnowledgePointFilter(e.target.value)}
+          label="搜索知识点"
+          placeholder="搜索题目、知识点..."
+          className="flex-1"
+        />
+        <label className="text-xs font-bold" style={{ color: 'var(--color-text-secondary)' }}>
+          题型
+          <select
+            value={questionTypeFilter}
+            onChange={(e) => setQuestionTypeFilter(e.target.value)}
+            className="mt-1 h-10 rounded-xl px-3 text-xs outline-none"
+            style={{ border: '1px solid var(--color-border-primary)', background: 'var(--color-bg-input)', color: 'var(--color-text-primary)' }}
+          >
+            <option value="">全部题型</option>
+            <option value="选择">选择题</option>
+            <option value="填空">填空题</option>
+            <option value="解答">解答题</option>
+          </select>
+        </label>
+        <button type="button" onClick={fetchList} className="v2-btn-secondary">
+          刷新
+        </button>
+      </Toolbar>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-4">
+        <MetricCard label="题库现存" value={list.length} hint="API 返回数量" icon={FileQuestion} />
+        <MetricCard label="已选择" value={selectedCount} hint="用于组卷预览" icon={FileStack} tone="info" />
+        <MetricCard label="当前题型" value={questionTypeFilter || '全部'} hint="筛选条件" icon={Tags} tone="warning" />
+        <MetricCard label="收藏来源" value="真实题库" hint="不写入新业务" icon={Star} tone="success" />
+      </div>
+
+      {error && (
+        <SectionCard>
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-amber-300">
+            <span>{error}</span>
+            <button type="button" onClick={fetchList} className="v2-btn-secondary">重试</button>
+          </div>
+        </SectionCard>
+      )}
+
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+        <SectionCard
+          title={`题目列表（${filtered.length}）`}
+          description="桌面端使用表格，移动端自动改为卡片列表"
+          actions={
+            <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold" style={{ color: 'var(--color-text-primary)' }}>
               <input
-                type="text"
-                placeholder="输入知识点关键词…"
-                value={knowledgePointFilter}
-                onChange={(e) => setKnowledgePointFilter(e.target.value)}
-                className="w-full rounded-xl py-2 pl-9 pr-3 text-xs focus:outline-none focus:ring-2"
-                style={{ border: '1px solid var(--color-border-primary)', color: 'var(--color-text-primary)', backgroundColor: 'var(--color-bg-input)' }}
+                type="checkbox"
+                checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                onChange={toggleSelectAll}
+                className="h-4 w-4 rounded focus:ring"
               />
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-xs font-bold" style={{ color: 'var(--color-text-primary)' }}>题型分类</label>
-            <div className="grid grid-cols-2 gap-2">
-              {['', '选择', '填空', '解答'].map((t) => (
-                <button
-                  key={t || 'all'}
-                  type="button"
-                  onClick={() => setQuestionTypeFilter(t)}
-                  className="rounded-xl px-3 py-2 text-xs font-bold transition-all"
-                  style={
-                    questionTypeFilter === t
-                      ? { border: '1px solid var(--color-primary-600)', backgroundColor: 'var(--color-primary-600)', color: 'white', boxShadow: '0 4px 6px -1px color-mix(in srgb, var(--color-primary-500) 20%, transparent)' }
-                      : { border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)', color: 'var(--color-text-secondary)' }
-                  }
-                  onMouseEnter={(e) => {
-                    if (questionTypeFilter !== t) {
-                      e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (questionTypeFilter !== t) {
-                      e.currentTarget.style.backgroundColor = 'var(--color-bg-card)'
-                    }
-                  }}
-                >
-                  {t || '全部题型'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-auto pt-3" style={{ borderTop: '1px solid var(--color-border-subtle)' }}>
-            <span className="text-xs font-bold" style={{ color: 'var(--color-text-secondary)' }}>题库现存: {list.length} 道精选题目</span>
-          </div>
-        </aside>
-
-        {/* 主列表 */}
-        <main className="min-w-0 flex-1 overflow-y-auto pr-1">
-          {loading && (
-            <div className="flex flex-col items-center justify-center py-20">
-              <Loader2 className="h-10 w-10 animate-spin" style={{ color: 'var(--color-primary-600)' }} />
-              <p className="mt-3 text-xs font-bold" style={{ color: 'var(--color-text-muted)' }}>正在加载精选题库…</p>
-            </div>
-          )}
-
-          {!loading && filtered.length === 0 && (
-            <div className="pro-glass-card flex flex-col items-center justify-center rounded-3xl py-20 text-center">
-              <FileQuestion className="h-14 w-14 mb-3" style={{ color: 'var(--color-border-primary)' }} />
-              <p className="text-sm font-extrabold" style={{ color: 'var(--color-text-primary)' }}>暂无收藏题目</p>
-              <p className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>在智能出题或错题本中点击「收藏」按钮，即可添加至此处</p>
-            </div>
-          )}
-
-          {!loading && filtered.length > 0 && (
-            <>
-              <div className="mb-3 flex items-center justify-between">
-                <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-xl" style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid color-mix(in srgb, var(--color-border-primary) 80%, transparent)', color: 'var(--color-text-primary)' }}>
+              全选
+            </label>
+          }
+          className="min-h-0 overflow-auto"
+        >
+          <ResponsiveTable
+            loading={loading}
+            rows={filtered}
+            rowKey={(row) => row.id}
+            empty={<EmptyState icon={FileQuestion} title="暂无收藏题目" description="在智能出题或错题本中收藏题目后会显示在这里" />}
+            columns={[
+              {
+                key: 'select',
+                title: '',
+                render: (item) => (
                   <input
+                    aria-label={`选择题目 ${item.id}`}
                     type="checkbox"
-                    checked={filtered.length > 0 && selectedIds.size === filtered.length}
-                    onChange={toggleSelectAll}
+                    checked={selectedIds.has(item.id)}
+                    onChange={() => toggleSelect(item.id)}
                     className="h-4 w-4 rounded focus:ring"
                   />
-                  全选当前页面
-                </label>
+                ),
+              },
+              {
+                key: 'content',
+                title: '题干',
+                render: (item) => (
+                  <button type="button" onClick={() => setPreviewId(item.id)} className="max-w-md truncate text-left font-bold hover:text-indigo-300" title={item.content}>
+                    {item.content || '未命名题目'}
+                  </button>
+                ),
+              },
+              { key: 'question_type', title: '题型', render: (item) => <StatusBadge tone="primary">{item.question_type || '未标注'}</StatusBadge> },
+              { key: 'difficulty', title: '难度', render: (item) => <StatusBadge tone="warning">{item.difficulty || '未标注'}</StatusBadge> },
+              { key: 'knowledge_point', title: '知识点', render: (item) => item.knowledge_point || '未标注' },
+              {
+                key: 'actions',
+                title: '操作',
+                render: (item) => (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveFromBank(item.id)}
+                    disabled={deletingId === item.id}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-rose-400 hover:bg-rose-500/10 disabled:opacity-50"
+                    aria-label="移出题库"
+                  >
+                    {deletingId === item.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  </button>
+                ),
+              },
+            ]}
+            renderMobile={(item, index) => (
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <input
+                    aria-label={`选择题目 ${item.id}`}
+                    type="checkbox"
+                    checked={selectedIds.has(item.id)}
+                    onChange={() => toggleSelect(item.id)}
+                    className="mt-1 h-4 w-4 rounded focus:ring"
+                  />
+                  <button type="button" onClick={() => setPreviewId(item.id)} className="min-w-0 flex-1 text-left">
+                    <p className="line-clamp-2 text-sm font-bold text-slate-100">{index + 1}. {item.content || '未命名题目'}</p>
+                    <p className="mt-1 text-xs text-slate-400">{item.knowledge_point || '未标注知识点'}</p>
+                  </button>
+                </div>
               </div>
-              <ul className="space-y-4">
-                {filtered.map((item, i) => (
-                  <li key={item.id} className="flex items-start gap-3">
-                    <label className="flex shrink-0 cursor-pointer items-start pt-5">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(item.id)}
-                        onChange={() => toggleSelect(item.id)}
-                        className="h-4 w-4 rounded focus:ring"
-                      />
-                    </label>
-                    <div className="min-w-0 flex-1">
-                      <QuestionCard
-                        data={{
-                          content: item.content,
-                          options: item.options ?? [],
-                          answer: item.answer,
-                          analysis: item.analysis,
-                          question_type: item.question_type,
-                          difficulty: item.difficulty,
-                          knowledge_point: item.knowledge_point,
-                          source: item.source,
-                          images: Array.isArray(item.images) ? item.images : [],
-                        }}
-                        index={i + 1}
-                        mistakeSourceLabel="收藏题库"
-                        actions={
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveFromBank(item.id)}
-                            disabled={deletingId === item.id}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-rose-600 hover:bg-rose-50 disabled:opacity-50 transition-colors"
-                            title="移出题库"
-                          >
-                            {deletingId === item.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
-                            )}
-                          </button>
-                        }
-                      />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </main>
+            )}
+          />
+        </SectionCard>
+
+        <aside className="min-h-0 space-y-4 xl:overflow-auto">
+          <SectionCard title="题目预览" description="预览当前选中题目">
+            {previewItem ? (
+              <QuestionCard
+                data={{
+                  content: previewItem.content,
+                  options: previewItem.options ?? [],
+                  answer: previewItem.answer,
+                  analysis: previewItem.analysis,
+                  question_type: previewItem.question_type,
+                  difficulty: previewItem.difficulty,
+                  knowledge_point: previewItem.knowledge_point,
+                  source: previewItem.source,
+                  images: Array.isArray(previewItem.images) ? previewItem.images : [],
+                }}
+                index={filtered.findIndex((item) => item.id === previewItem.id) + 1}
+                mistakeSourceLabel="收藏题库"
+              />
+            ) : (
+              <EmptyState icon={FileQuestion} title="暂无预览" description="列表有题目后会显示详情" />
+            )}
+          </SectionCard>
+        </aside>
       </div>
 
       {/* 底部黑曜石悬浮组卷工具栏 */}
@@ -267,6 +300,6 @@ export default function QuestionBank() {
           </button>
         </div>
       )}
-    </div>
+    </PageShell>
   )
 }
