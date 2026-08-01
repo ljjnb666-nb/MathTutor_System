@@ -14,6 +14,7 @@ import { getDashboardStats, getMistakes, getStudentTrend } from '../services/api
 import { useAuth } from '../contexts/AuthContext'
 import { useStudent } from '../contexts/StudentContext'
 import { useSubscription } from '../contexts/SubscriptionContext'
+import { EmptyState, ErrorState, MetricCard, PageHero, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
 
 function formatDate(iso) {
   if (!iso) return '—'
@@ -231,51 +232,39 @@ export default function Dashboard() {
     count,
   }))
 
-  return (
-    <div className="space-y-6 md:space-y-8 animate-fade-in-up">
-      {/* 黑曜石旗舰 Hero 控制台 Banner */}
-      <header className="relative overflow-hidden rounded-3xl bg-[#0B0F17] p-6 md:p-8 text-white border border-slate-800 shadow-2xl">
-        <div className="absolute right-0 top-0 -mr-16 -mt-16 h-72 w-72 rounded-full bg-indigo-600/20 blur-3xl" />
-        <div className="absolute right-36 bottom-0 h-48 w-48 rounded-full bg-purple-600/15 blur-2xl" />
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-400 border border-emerald-500/30">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                SYSTEM ONLINE
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/15 px-3 py-1 text-xs font-bold text-indigo-300 border border-indigo-500/30">
-                <Sparkles className="h-3.5 w-3.5" />
-                AI Model: DeepSeek-V3
-              </span>
-              {currentStudent && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-500/15 px-3 py-1 text-xs font-bold text-purple-300 border border-purple-500/30">
-                  <Users className="h-3.5 w-3.5" />
-                  当前学生: {currentStudent.name}
-                </span>
-              )}
-            </div>
-            <h1 className="text-2xl font-black tracking-tight md:text-3xl lg:text-4xl text-white">
-              MathTutor <span className="bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400 bg-clip-text text-transparent">Command Center</span>
-            </h1>
-            <p className="mt-2 text-xs md:text-sm text-slate-400 max-w-xl">
-              今天是 {today}。智能试卷生成引擎与考点向量数据库已全面就绪。
-            </p>
-          </div>
-          <div className="shrink-0 flex items-center gap-3">
-            <Link
-              to="/smart-gen"
-              className="btn-gradient-pro inline-flex items-center gap-2 rounded-2xl px-6 py-3.5 text-xs font-bold tracking-wide"
-            >
-              <Sparkles className="h-4 w-4" />
-              一键智能 AI 出题
-            </Link>
-          </div>
-        </div>
-      </header>
+  const reloadDashboard = () => {
+    setError(null)
+    setLoading(true)
+    getDashboardStats()
+      .then((res) => setStats(res.data || MOCK_STATS))
+      .catch((err) => setError(err.response?.data?.detail || err.message || '加载失败'))
+      .finally(() => setLoading(false))
+  }
 
-      {/* KPI 指标 4 卡片阵列 */}
-      <div className={`grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 ${isTeacher ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
+  return (
+    <PageShell>
+      <PageHero
+        title={`欢迎回来，${user?.username || '老师'}`}
+        description={`今天是 ${today}。优先处理待办、关注学生状态，并从常用教学入口继续工作。`}
+        stats={[
+          { label: '当前学生', value: currentStudent?.name || '未选择', icon: <Users className="h-4 w-4 text-emerald-300" /> },
+          { label: '今日待复习', value: loading ? '...' : stats.today_review_count ?? 0, icon: <CalendarCheck className="h-4 w-4 text-blue-300" /> },
+          { label: '待攻克错题', value: loadingMistakes ? '...' : pendingMistakeCount ?? '待选择', icon: <AlertCircle className="h-4 w-4 text-amber-300" /> },
+        ]}
+        actions={
+          <>
+            <Link to="/smart-gen" className="v2-btn-primary">
+              <Sparkles className="h-4 w-4" />
+              智能出题
+            </Link>
+            <Link to="/chat" className="v2-btn-secondary">
+              AI 对话
+            </Link>
+          </>
+        }
+      />
+
+      <div className={`grid grid-cols-1 gap-4 md:grid-cols-2 ${isTeacher ? 'xl:grid-cols-5' : 'xl:grid-cols-4'}`}>
         {isTeacher && (
           subscription?.plan ? (
             <SubscriptionCard
@@ -311,39 +300,9 @@ export default function Dashboard() {
           </>
         ) : (
           <>
-            <div className="pro-glass-card group relative overflow-hidden rounded-2xl p-5">
-              <div className="flex items-center gap-3.5">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-600 ring-1 ring-indigo-500/20 group-hover:scale-105 transition-transform">
-                  <Database className="h-6 w-6" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>题库总量</p>
-                  <p className="text-2xl font-black tabular-nums" style={{ color: 'var(--color-text-primary)' }}>{stats.total_questions ?? 0}</p>
-                </div>
-              </div>
-            </div>
-            <div className="pro-glass-card group relative overflow-hidden rounded-2xl p-5">
-              <div className="flex items-center gap-3.5">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20 group-hover:scale-105 transition-transform">
-                  <Users className="h-6 w-6" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>学生档案</p>
-                  <p className="text-2xl font-black tabular-nums" style={{ color: 'var(--color-text-primary)' }}>{stats.total_students ?? 0}</p>
-                </div>
-              </div>
-            </div>
-            <div className="pro-glass-card group relative overflow-hidden rounded-2xl p-5">
-              <div className="flex items-center gap-3.5">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-500/10 text-violet-600 ring-1 ring-violet-500/20 group-hover:scale-105 transition-transform">
-                  <FileText className="h-6 w-6" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>试卷存档</p>
-                  <p className="text-2xl font-black tabular-nums" style={{ color: 'var(--color-text-primary)' }}>{stats.total_exams ?? 0}</p>
-                </div>
-              </div>
-            </div>
+            <MetricCard label="题库总量" value={stats.total_questions ?? 0} hint="真实题库记录" icon={Database} />
+            <MetricCard label="学生档案" value={stats.total_students ?? 0} hint="已录入学生" icon={Users} tone="success" />
+            <MetricCard label="试卷存档" value={stats.total_exams ?? 0} hint="我的试卷" icon={FileText} tone="info" />
             <PendingMistakeCard
               count={pendingMistakeCount}
               loading={loadingMistakes}
@@ -360,87 +319,48 @@ export default function Dashboard() {
       </div>
 
       {error && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-amber-800 backdrop-blur-md">
-          <span className="text-xs font-bold">{error}</span>
-          <button
-            type="button"
-            onClick={() => {
-              setError(null)
-              setLoading(true)
-              getDashboardStats()
-                .then((res) => setStats(res.data || MOCK_STATS))
-                .catch((err) => setError(err.response?.data?.detail || err.message || '加载失败'))
-                .finally(() => setLoading(false))
-            }}
-            className="shrink-0 rounded-xl bg-amber-200/80 px-4 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-300/80 transition-colors"
-          >
-            重试
-          </button>
-        </div>
+        <ErrorState title="首页数据加载失败" description={error} onRetry={reloadDashboard} />
       )}
 
-      {/* 主面板布局 */}
-      <div className="grid grid-cols-1 gap-6 md:gap-8 lg:grid-cols-3">
-        {/* 左侧 2/3: 快捷矩阵 + 图表 */}
-        <div className="space-y-6 lg:col-span-2">
-          <section className="pro-glass-card rounded-3xl p-6">
-            <h2 className="mb-4 text-sm font-black uppercase tracking-wider" style={{ color: 'var(--color-text-primary)' }}>快捷功能发射台</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_30rem]">
+        <div className="space-y-4">
+          <SectionCard title="快捷操作" description="只展示当前系统已有入口，避免无效动作">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Link
                 to="/smart-gen"
-                className="btn-gradient-pro flex items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-xs font-extrabold"
+                className="v2-btn-primary"
               >
                 <Sparkles className="h-4 w-4 shrink-0" />
-                智能 AI 出题
+                智能出题
               </Link>
               <Link
                 to="/mistake-book"
-                className="flex items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-xs font-bold transition-all active:scale-[0.98]"
-                style={{
-                  border: '1px solid var(--color-border-primary)',
-                  backgroundColor: 'var(--color-bg-card-hover)',
-                  color: 'var(--color-text-primary)'
-                }}
+                className="v2-btn-secondary"
               >
-                <BookOpen className="h-4 w-4 shrink-0" style={{ color: 'var(--color-text-secondary)' }} />
-                错题本精炼
+                <BookOpen className="h-4 w-4 shrink-0" />
+                错题本
               </Link>
               <Link
                 to="/student-mgmt"
-                className="flex items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-xs font-bold transition-all active:scale-[0.98]"
-                style={{
-                  border: '1px solid var(--color-border-primary)',
-                  backgroundColor: 'var(--color-bg-card-hover)',
-                  color: 'var(--color-text-primary)'
-                }}
+                className="v2-btn-secondary"
               >
-                <UserPlus className="h-4 w-4 shrink-0" style={{ color: 'var(--color-text-secondary)' }} />
+                <UserPlus className="h-4 w-4 shrink-0" />
                 录入学生档案
               </Link>
             </div>
-          </section>
+          </SectionCard>
 
-          {/* 学情趋势 */}
-          <section className="pro-glass-card rounded-3xl p-6 w-full min-w-0">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-black uppercase tracking-wider" style={{ color: 'var(--color-text-primary)' }}>学情趋势分析（近 8 周）</h2>
-              {currentStudent && (
-                <span className="text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">
-                  学生: {currentStudent.name}
-                </span>
-              )}
-            </div>
+          <SectionCard
+            title="学情概览"
+            description="基于当前学生的近 8 周趋势"
+            actions={currentStudent && <StatusBadge tone="primary">{currentStudent.name}</StatusBadge>}
+          >
             {!currentStudent ? (
-              <div className="flex min-h-[220px] flex-col items-center justify-center rounded-2xl text-xs" style={{ backgroundColor: 'var(--color-bg-card-hover)', color: 'var(--color-text-muted)' }}>
-                <Users className="h-8 w-8 mb-2" style={{ color: 'var(--color-text-muted)' }} />
-                请先在左侧黑曜石侧栏选择学生
-              </div>
+              <EmptyState icon={Users} title="未选择学生" description="请先在侧栏选择学生档案" />
             ) : loadingTrend ? (
               <ChartSkeleton />
             ) : trendWeeks.length === 0 ? (
-              <div className="flex min-h-[220px] items-center justify-center rounded-2xl text-xs" style={{ backgroundColor: 'var(--color-bg-card-hover)', color: 'var(--color-text-muted)' }}>
-                暂无趋势数据
-              </div>
+              <EmptyState icon={Users} title="暂无趋势数据" description="学生完成更多练习后会显示趋势" />
             ) : (
               <div className="w-full min-w-0" style={{ height: 260 }}>
                 <ResponsiveContainer width="100%" height={260} minWidth={0}>
@@ -469,17 +389,13 @@ export default function Dashboard() {
                 </ResponsiveContainer>
               </div>
             )}
-          </section>
+          </SectionCard>
 
-          {/* Top 5 知识点分布 */}
-          <section className="pro-glass-card rounded-3xl p-6 w-full min-w-0">
-            <h2 className="mb-4 text-sm font-black uppercase tracking-wider" style={{ color: 'var(--color-text-primary)' }}>题库知识点热度 Top 5</h2>
+          <SectionCard title="题库知识点热度" description="来自当前题库知识点分布">
             {loading ? (
               <ChartSkeleton />
             ) : chartData.length === 0 ? (
-              <div className="flex min-h-[280px] items-center justify-center rounded-2xl text-xs" style={{ backgroundColor: 'var(--color-bg-card-hover)', color: 'var(--color-text-muted)' }}>
-                暂无题目数据
-              </div>
+              <EmptyState icon={Database} title="暂无题目数据" description="题库有数据后会显示知识点热度" />
             ) : (
               <div className="w-full min-w-0" style={{ height: 280 }}>
                 <ResponsiveContainer width="100%" height={280} minWidth={0}>
@@ -508,63 +424,81 @@ export default function Dashboard() {
                 </ResponsiveContainer>
               </div>
             )}
-          </section>
+          </SectionCard>
         </div>
 
-        {/* 右侧 1/3: 最近试卷 */}
-        <div className="pro-glass-card rounded-3xl p-6 min-w-0">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-black uppercase tracking-wider" style={{ color: 'var(--color-text-primary)' }}>最近存档试卷</h2>
-            <Link to="/exams" className="text-xs font-bold text-indigo-600 hover:text-indigo-700">
-              全部试卷 →
-            </Link>
-          </div>
-          {loading ? (
-            <ListSkeleton />
-          ) : !stats.recent_exams?.length ? (
-            <div className="py-12 text-center text-xs" style={{ color: 'var(--color-text-muted)' }}>暂无试卷记录</div>
-          ) : (
-            <ul className="space-y-2.5 min-w-0">
-              {stats.recent_exams.map((exam) => (
-                <li key={exam.id}>
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/exams/${exam.id}`)}
-                    className="group w-full rounded-2xl p-3.5 text-left transition-all active:scale-[0.99]"
-                    style={{
-                      border: '1px solid var(--color-border-secondary)',
-                      backgroundColor: 'var(--color-bg-card-hover)'
-                    }}
-                  >
-                    <p className="truncate text-xs font-extrabold group-hover:text-indigo-600 transition-colors" style={{ color: 'var(--color-text-primary)' }} title={exam.title}>
-                      {exam.title || '未命名试卷'}
-                    </p>
-                    <p className="mt-1 truncate text-[11px] font-medium" style={{ color: 'var(--color-text-secondary)' }}>
-                      {formatDate(exam.created_at)}
-                      {exam.student_name ? ` · ${exam.student_name}` : ''}
-                    </p>
-                    {exam.student_id != null && (
-                      <div className="mt-2 flex items-center gap-1.5 text-[11px]">
-                        {exam.graded_at ? (
-                          <span className="inline-flex items-center rounded-full bg-emerald-50 border border-emerald-200/60 px-2.5 py-0.5 font-bold text-emerald-700">
-                            已批改
-                            {exam.grade_summary?.total != null &&
-                              ` ${exam.grade_summary.correct}/${exam.grade_summary.total}`}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center rounded-full bg-amber-50 border border-amber-200/60 px-2.5 py-0.5 font-bold text-amber-700">
-                            未批改
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <aside className="space-y-4">
+          <SectionCard title="今日待办" description="基于当前可用数据汇总">
+            <div className="space-y-2">
+              <button type="button" onClick={() => navigate('/mistake-book?review_due=1')} className="v2-mobile-row w-full text-left">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-bold text-slate-100">复习到期错题</span>
+                  <StatusBadge tone={(stats.today_review_count ?? 0) > 0 ? 'warning' : 'success'}>
+                    {stats.today_review_count ?? 0} 题
+                  </StatusBadge>
+                </div>
+              </button>
+              <button type="button" onClick={() => navigate('/mistake-book')} className="v2-mobile-row w-full text-left">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-bold text-slate-100">待攻克错题</span>
+                  <StatusBadge tone={pendingMistakeCount ? 'warning' : 'neutral'}>
+                    {pendingMistakeCount ?? '待选择'}
+                  </StatusBadge>
+                </div>
+              </button>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            title="最近存档试卷"
+            description="真实试卷记录"
+            actions={
+              <Link to="/exams" className="text-xs font-bold text-indigo-400 hover:text-indigo-300">
+                全部试卷
+              </Link>
+            }
+          >
+            {loading ? (
+              <ListSkeleton />
+            ) : !stats.recent_exams?.length ? (
+              <EmptyState icon={FileText} title="暂无试卷记录" description="保存试卷后会出现在这里" />
+            ) : (
+              <ul className="space-y-2.5 min-w-0">
+                {stats.recent_exams.map((exam) => (
+                  <li key={exam.id}>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/exams/${exam.id}`)}
+                      className="v2-mobile-row w-full text-left transition-all active:scale-[0.99]"
+                    >
+                      <p className="truncate text-sm font-extrabold" style={{ color: 'var(--color-text-primary)' }} title={exam.title}>
+                        {exam.title || '未命名试卷'}
+                      </p>
+                      <p className="mt-1 truncate text-[11px] font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+                        {formatDate(exam.created_at)}
+                        {exam.student_name ? ` · ${exam.student_name}` : ''}
+                      </p>
+                      {exam.student_id != null && (
+                        <div className="mt-2">
+                          {exam.graded_at ? (
+                            <StatusBadge tone="success">
+                              已批改
+                              {exam.grade_summary?.total != null &&
+                                ` ${exam.grade_summary.correct}/${exam.grade_summary.total}`}
+                            </StatusBadge>
+                          ) : (
+                            <StatusBadge tone="warning">未批改</StatusBadge>
+                          )}
+                        </div>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </SectionCard>
+        </aside>
       </div>
-    </div>
+    </PageShell>
   )
 }
