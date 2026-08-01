@@ -85,16 +85,11 @@ from-white|to-white
 
 **Priority: REVIEW REQUIRED**
 
-1. `frontend/src/pages/ExamPreview.jsx` 📄 **May contain A4 paper preview**
-2. `frontend/src/pages/AfterClassReport.jsx` 📄 **May contain printable report**
-3. `frontend/src/pages/LearningReport.jsx` 📄 **May contain printable report**
+1. `frontend/src/pages/ExamPreview.jsx` 📄 **Contains A4 paper preview - white backgrounds preserved**
+2. `frontend/src/pages/AfterClassReport.jsx` ✅ **MIGRATED** (Commit 854582e)
+3. `frontend/src/pages/LearningReport.jsx` ✅ **MIGRATED** (Commit 032cf13)
 
-**Action**: Review these files to identify intentional white backgrounds for:
-- A4 paper simulation (`.exam-paper`, `.a4-paper`)
-- Print preview areas (`.print-preview`)
-- PDF/Word export preview
-
-These areas should be wrapped in specific classes and excluded from theme migration.
+**Status**: Category 7 complete - AfterClassReport and LearningReport migrated with semantic colors preserved (emerald for success, amber for warnings, indigo for templates). ExamPreview A4 paper areas intentionally excluded from migration.
 
 ### Category 8: 路由守卫 (可能包含加载状态)
 
@@ -147,7 +142,10 @@ These areas should be wrapped in specific classes and excluded from theme migrat
    - HomeworkManagePanel.jsx (Commit 861ce22)
    - ScheduleList.jsx (Commit 8d466df)
    - ScheduleToolbar.jsx (Commit bedd5a6)
-3. ⏳ Review and handle Category 7 (print/paper areas) - NEXT
+3. ✅ Migrate Category 7 report pages
+   - AfterClassReport.jsx (Commit 854582e)
+   - LearningReport.jsx (Commit 032cf13)
+   - ExamPreview.jsx A4 paper areas intentionally excluded
 
 ### Phase 5: Verification
 1. Browser computed style checks
