@@ -106,8 +106,8 @@ afterEach(() => {
 async function createCompletedPlan() {
   api.createTeacherAgentRun.mockResolvedValue({ data: completedRun() })
   render(<TeacherAgent />)
-  await userEvent.type(screen.getByLabelText('Teaching goal'), 'Plan review')
-  await userEvent.click(screen.getByRole('button', { name: /Generate teaching plan/ }))
+  await userEvent.type(screen.getByLabelText(/教学目标/), 'Plan review')
+  await userEvent.click(screen.getByRole('button', { name: /生成备课计划/ }))
   expect(await screen.findByText('Read-only teaching plan')).toBeInTheDocument()
 }
 
@@ -115,8 +115,24 @@ describe('TeacherAgent', () => {
   it('shows confirmed-save safety mode initially and blocks empty submit', () => {
     render(<TeacherAgent />)
 
-    expect(screen.getByText('The model only creates drafts. Formal question-bank saves require teacher confirmation.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Generate teaching plan/ })).toBeDisabled()
+    expect(screen.getByText(/AI 仅自动生成草稿/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /生成备课计划/ })).toBeDisabled()
+  })
+
+  it('degrades gracefully when EventSource is unavailable', () => {
+    const originalEventSource = globalThis.EventSource
+    try {
+      Reflect.deleteProperty(globalThis, 'EventSource')
+      render(<TeacherAgent />)
+
+      expect(screen.getByText(/AI 仅自动生成草稿/)).toBeInTheDocument()
+      expect(screen.getByLabelText(/教学目标/)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /生成备课计划/ })).toBeInTheDocument()
+    } finally {
+      if (originalEventSource) {
+        globalThis.EventSource = originalEventSource
+      }
+    }
   })
 
   it('generates a completed plan and then shows practice draft controls', async () => {
