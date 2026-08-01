@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './contexts/AuthContext'
@@ -8,6 +8,7 @@ import { SmartGenProvider } from './contexts/SmartGenContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminRoute from './components/AdminRoute'
 import Layout from './components/Layout'
+import { applyTheme, subscribeToSystemThemeChanges } from './utils/theme'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const SmartGen = lazy(() => import('./pages/SmartGen'))
@@ -28,6 +29,7 @@ const SchedulePage = lazy(() => import('./pages/SchedulePage'))
 const HomeworkProgress = lazy(() => import('./pages/HomeworkProgress'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
 const Pricing = lazy(() => import('./pages/Pricing'))
+const Settings = lazy(() => import('./pages/Settings'))
 
 function RouteFallback() {
   return (
@@ -38,6 +40,37 @@ function RouteFallback() {
 }
 
 function App() {
+  // 初始化主题设置并支持系统主题检测
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('ui_theme') || 'dark'
+    const savedAccent = localStorage.getItem('ui_accent') || 'indigo'
+    const savedDensity = localStorage.getItem('ui_density') || 'comfortable'
+
+    applyTheme(savedTheme)
+    document.documentElement.dataset.accent = savedAccent
+    document.documentElement.dataset.density = savedDensity
+
+    // 监听系统主题变化（当用户选择 auto 模式时）
+    const unsubscribeSystemTheme = subscribeToSystemThemeChanges()
+
+    // 监听 localStorage 变化（跨标签页同步）
+    const handleStorageChange = (e) => {
+      if (e.key === 'ui_theme' && e.newValue) {
+        applyTheme(e.newValue)
+      } else if (e.key === 'ui_accent' && e.newValue) {
+        document.documentElement.dataset.accent = e.newValue
+      } else if (e.key === 'ui_density' && e.newValue) {
+        document.documentElement.dataset.density = e.newValue
+      }
+    }
+    window.addEventListener('storage', handleStorageChange)
+
+    return () => {
+      unsubscribeSystemTheme()
+      window.removeEventListener('storage', handleStorageChange)
+    }
+  }, [])
+
   return (
     <BrowserRouter
       future={{
@@ -82,6 +115,7 @@ function App() {
             <Route path="ppt" element={<PPTGenerator />} />
             <Route path="exams/:id" element={<ExamPreview />} />
             <Route path="pricing" element={<Pricing />} />
+            <Route path="settings" element={<Settings />} />
             <Route element={<AdminRoute />}>
               <Route path="admin-users" element={<AdminUserPage />} />
             </Route>

@@ -1,0 +1,192 @@
+/**
+ * MathTutor UI V2 Design Tokens
+ * 深色海军蓝主题 - 紫色/蓝色/青色强调
+ *
+ * 使用方式：
+ * - 在组件中使用 CSS 变量：background: var(--color-bg-primary);
+ * - 或使用 Tailwind 扩展类：bg-obsidian-900
+ */
+
+/* ========== 深色主题（默认） ========== */
+:root,
+html[data-theme="dark"] {
+  /* ========== 颜色系统 ========== */
+
+  /* 背景色 - 深色海军蓝 */
+  --color-bg-primary: #0B0F17;        /* 主背景（黑曜石） */
+  --color-bg-secondary: #111726;      /* 次级背景 */
+  --color-bg-tertiary: #161F33;       /* 三级背景 */
+  --color-bg-canvas: #080c14;         /* 画布背景（更深） */
+  --color-bg-surface: #0d1320;        /* 表面背景 */
+  --color-bg-card: #111827;           /* 卡片背景 */
+  --color-bg-card-hover: #172033;     /* 卡片悬停背景 */
+  --color-bg-input: #0f172a;          /* 输入框背景 */
+  --color-bg-elevated: #111827;       /* 悬浮元素背景 */
+  --color-bg-panel: #0d1320;          /* 面板背景 */
+  --color-bg-panel-muted: #151e2e;    /* 弱化面板背景 */
+  --color-bg-option: #1b2536;         /* 选项背景 */
+  --color-bg-overlay: rgba(8, 12, 20, 0.82); /* 遮罩背景 */
+
+  /* 文本色 */
+  --color-text-primary: #f8fafc;      /* 主文本（浅色） */
+  --color-text-secondary: #94a3b8;    /* 次级文本（浅灰） */
+  --color-text-tertiary: #64748b;     /* 三级文本（中灰） */
+  --color-text-muted: #64748b;        /* 弱化文本 */
+  --color-text-disabled: #475569;     /* 禁用文本 */
+  --color-text-inverse: #0f172a;      /* 反转文本（深色，用于浅色背景） */
+
+  /* 边框色 */
+  --color-border-primary: rgba(148, 163, 184, 0.14); /* 主边框 */
+  --color-border-secondary: rgba(148, 163, 184, 0.08); /* 次级边框 */
+  --color-border-subtle: rgba(148, 163, 184, 0.12);   /* 微妙边框 */
+  --color-border-strong: rgba(148, 163, 184, 0.24);   /* 强边框 */
+  --color-border-hover: rgba(129, 140, 248, 0.35);    /* 悬停边框 */
+
+  /* 强调色 - 紫色/蓝色 */
+  --color-primary-50: #eef2ff;
+  --color-primary-100: #e0e7ff;
+  --color-primary-200: #c7d2fe;
+  --color-primary-300: #a5b4fc;
+  --color-primary-400: #818cf8;
+  --color-primary-500: #6366f1;       /* 主强调色 */
+  --color-primary-600: #4f46e5;
+  --color-primary-700: #4338ca;
+  --color-primary-800: #3730a3;
+  --color-primary-900: #312e81;
+
+  /* 强调色 - 紫色 */
+  --color-accent-violet: #7c3aed;
+  --color-accent-purple: #9333ea;
+
+  /* 强调色 - 青色 */
+  --color-accent-cyan: #06b6d4;
+
+  /* 状态色 */
+  --color-success: #10b981;           /* 成功/掌握 */
+  --color-warning: #f59e0b;           /* 警告/待复习 */
+  --color-error: #ef4444;             /* 错误/失败 */
+  --color-info: #3b82f6;              /* 信息 */
+
+  /* ========== 间距系统 ========== */
+  --spacing-xs: 0.25rem;   /* 4px */
+  --spacing-sm: 0.5rem;    /* 8px */
+  --spacing-md: 1rem;      /* 16px */
+  --spacing-lg: 1.5rem;    /* 24px */
+  --spacing-xl: 2rem;      /* 32px */
+  --spacing-2xl: 3rem;     /* 48px */
+  --spacing-3xl: 4rem;     /* 64px */
+
+  /* ========== 圆角系统 ========== */
+  --radius-sm: 0.5rem;     /* 8px */
+  --radius-md: 0.75rem;    /* 12px */
+  --radius-lg: 1rem;       /* 16px */
+  --radius-xl: 1.25rem;    /* 20px */
+  --radius-2xl: 1.5rem;    /* 24px */
+  --radius-3xl: 2rem;      /* 32px */
+  --radius-full: 9999px;   /* 圆形 */
+
+  /* ========== 阴影系统 ========== */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+
+  /* 特殊阴影 - Pro Glass 卡片 */
+  --shadow-glass: 0 10px 30px -5px rgba(0, 0, 0, 0.04), 0 4px 12px -2px rgba(0, 0, 0, 0.02);
+  --shadow-glass-hover: 0 20px 40px -10px rgba(99, 102, 241, 0.14), 0 8px 20px -4px rgba(0, 0, 0, 0.04);
+
+  /* 特殊阴影 - 发光效果 */
+  --shadow-glow-primary: 0 0 25px -5px rgba(79, 70, 229, 0.45);
+  --shadow-glow-accent: 0 0 25px -5px rgba(124, 58, 237, 0.45);
+  --shadow-glow-success: 0 0 25px -5px rgba(16, 185, 129, 0.45);
+  --shadow-glow-warning: 0 0 25px -5px rgba(245, 158, 11, 0.45);
+
+  /* 移动端阴影 */
+  --shadow-drawer: 12px 0 40px rgba(0, 0, 0, 0.25);
+  --shadow-mobile-header: 0 4px 20px 0 rgba(0, 0, 0, 0.06);
+
+  /* ========== 字体系统 ========== */
+  --font-sans: "Inter", "Plus Jakarta Sans", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  --font-mono: "Fira Code", "Cascadia Code", "Monaco", "Courier New", monospace;
+
+  /* 字号 */
+  --text-xs: 0.75rem;      /* 12px */
+  --text-sm: 0.875rem;     /* 14px */
+  --text-base: 1rem;       /* 16px */
+  --text-lg: 1.125rem;     /* 18px */
+  --text-xl: 1.25rem;      /* 20px */
+  --text-2xl: 1.5rem;      /* 24px */
+  --text-3xl: 1.875rem;    /* 30px */
+  --text-4xl: 2.25rem;     /* 36px */
+
+  /* 字重 */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+  --font-extrabold: 800;
+  --font-black: 900;
+
+  /* ========== 层级系统 ========== */
+  --z-base: 0;
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-fixed: 30;
+  --z-modal-backdrop: 40;
+  --z-modal: 50;
+  --z-popover: 60;
+  --z-tooltip: 70;
+
+  /* ========== 过渡动画 ========== */
+  --transition-fast: 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-base: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-slow: 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ========== 布局尺寸 ========== */
+  --sidebar-width: 15rem;              /* 240px */
+  --topheader-height: 4rem;            /* 64px */
+  --mobile-header-height: 3.5rem;      /* 56px */
+
+  /* ========== 断点（参考） ========== */
+  /* 在 JS 中使用，不作为 CSS 变量 */
+  /* sm: 640px */
+  /* md: 768px */
+  /* lg: 1024px */
+  /* xl: 1280px */
+  /* 2xl: 1536px */
+}
+
+/* ========== 浅色主题 ========== */
+html[data-theme="light"] {
+  /* 背景色 - 浅色 */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f8fafc;
+  --color-bg-tertiary: #f1f5f9;
+  --color-bg-canvas: #f8fafc;
+  --color-bg-surface: #ffffff;
+  --color-bg-card: #ffffff;
+  --color-bg-card-hover: #f8fafc;
+  --color-bg-input: #ffffff;
+  --color-bg-elevated: #ffffff;
+  --color-bg-panel: #f8fafc;
+  --color-bg-panel-muted: #f1f5f9;
+  --color-bg-option: #ffffff;
+  --color-bg-overlay: rgba(248, 250, 252, 0.92);
+
+  /* 文本色 */
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-tertiary: #64748b;
+  --color-text-muted: #94a3b8;
+  --color-text-disabled: #94a3b8;
+  --color-text-inverse: #f8fafc;
+
+  /* 边框色 */
+  --color-border-primary: rgba(15, 23, 42, 0.10);
+  --color-border-secondary: rgba(15, 23, 42, 0.06);
+  --color-border-subtle: rgba(15, 23, 42, 0.08);
+  --color-border-strong: rgba(15, 23, 42, 0.16);
+  --color-border-hover: rgba(99, 102, 241, 0.40);
+}

@@ -399,19 +399,49 @@ export default function ImportExam() {
   }, [selectedIds, editingIndex, cancelEdit])
 
   return (
-    <div className="space-y-6 p-6">
-      <h1 className="text-xl font-bold text-gray-800">导入试卷</h1>
-      <p className="text-sm text-gray-500">
-        上传 .docx 或 .pdf 试卷文件，含图试卷将先转 PDF 再按页识图，否则使用文本解析。
-      </p>
+    <div className="mx-auto max-w-6xl space-y-6 md:space-y-8 animate-fade-in-up">
+      {/* Header Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl p-6 sm:p-8 shadow-sm" style={{ border: '1px solid color-mix(in srgb, var(--color-border-primary) 90%, transparent)', backgroundColor: 'var(--color-bg-card)' }}>
+        <div className="flex items-center gap-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 text-white shadow-lg shrink-0" style={{ boxShadow: '0 10px 15px -3px color-mix(in srgb, var(--color-primary-500) 25%, transparent)' }}>
+            <FileUp className="h-7 w-7" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-black tracking-tight" style={{ color: 'var(--color-text-primary)' }}>智能试卷解析与导入中心</h1>
+              <span className="rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase" style={{ backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--color-primary-500) 20%, transparent)', color: 'var(--color-primary-600)' }}>
+                OCR & Parser
+              </span>
+            </div>
+            <p className="mt-1 text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+              支持上传 Word (.docx) 与 PDF 格式文档，含图试卷将通过 AI 识图识别，文本试卷自动切分试题与选项
+            </p>
+          </div>
+        </div>
+      </div>
 
       <div
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
-        className={`relative rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
-          dragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-200 bg-gray-50'
-        }`}
+        className="relative rounded-3xl border-2 border-dashed p-8 sm:p-10 text-center transition-all shadow-sm"
+        style={
+          dragOver
+            ? { borderColor: 'var(--color-primary-500)', backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, var(--color-bg-card))', transform: 'scale(0.99)' }
+            : { borderColor: 'var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)' }
+        }
+        onMouseEnter={(e) => {
+          if (!dragOver) {
+            e.currentTarget.style.borderColor = 'var(--color-primary-400)'
+            e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!dragOver) {
+            e.currentTarget.style.borderColor = 'var(--color-border-primary)'
+            e.currentTarget.style.backgroundColor = 'var(--color-bg-card)'
+          }
+        }}
       >
         <input
           type="file"
@@ -421,16 +451,21 @@ export default function ImportExam() {
         />
         {file ? (
           <div className="flex flex-col items-center gap-2">
-            <FileText className="h-10 w-10 text-blue-600" />
-            <span className="font-medium text-gray-800">{file.name}</span>
-            <span className="text-sm text-gray-500">
-              点击或拖拽可重新选择
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 15%, var(--color-bg-card))', color: 'var(--color-primary-600)' }}>
+              <FileText className="h-6 w-6" />
+            </div>
+            <span className="text-sm font-black" style={{ color: 'var(--color-text-primary)' }}>{file.name}</span>
+            <span className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
+              点击或拖拽可更换试卷文件
             </span>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
-            <FileUp className="h-10 w-10 text-gray-400" />
-            <span className="text-gray-600">点击或拖拽 .docx 或 .pdf 文件到此处</span>
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: 'var(--color-bg-panel)', color: 'var(--color-text-muted)' }}>
+              <FileUp className="h-6 w-6" />
+            </div>
+            <span className="text-xs font-black" style={{ color: 'var(--color-text-primary)' }}>点击或拖拽 .docx 或 .pdf 试卷到此处上传</span>
+            <span className="text-[11px] font-medium" style={{ color: 'var(--color-text-muted)' }}>支持标准学校月考、期中期末试卷格式</span>
           </div>
         )}
       </div>
@@ -440,7 +475,18 @@ export default function ImportExam() {
           type="button"
           onClick={handleParse}
           disabled={!file || loading}
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 active:bg-blue-800"
+          className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+          style={{ backgroundColor: 'var(--color-primary-600)' }}
+          onMouseEnter={(e) => {
+            if (file && !loading) {
+              e.currentTarget.style.backgroundColor = 'var(--color-primary-700)'
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (file && !loading) {
+              e.currentTarget.style.backgroundColor = 'var(--color-primary-600)'
+            }
+          }}
         >
           {loading ? (
             <>
@@ -456,50 +502,74 @@ export default function ImportExam() {
       {questions.length > 0 && (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-gray-800">解析结果预览</h2>
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>解析结果预览</h2>
             <div className="flex flex-wrap items-center gap-2">
               {selectedIds.size > 0 && (
-                <div className="flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5">
-                  <span className="text-sm font-medium text-gray-700">已选 {selectedIds.size} 题</span>
-                  <span className="h-4 w-px bg-gray-300" aria-hidden />
+                <div className="flex flex-wrap items-center gap-3 rounded-lg px-4 py-2.5" style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-panel)' }}>
+                  <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>已选 {selectedIds.size} 题</span>
+                  <span className="h-4 w-px" style={{ backgroundColor: 'var(--color-border-primary)' }} aria-hidden />
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">知识点</span>
+                    <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>知识点</span>
                     <input
                       type="text"
                       value={batchKnowledgePoint}
                       onChange={(e) => setBatchKnowledgePoint(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && batchSetKnowledgePoint()}
                       placeholder="输入后点应用"
-                      className="w-32 rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-32 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1"
+                      style={{ border: '1px solid var(--color-border-primary)', color: 'var(--color-text-primary)', backgroundColor: 'var(--color-bg-input)' }}
                     />
                     <button
                       type="button"
                       onClick={batchSetKnowledgePoint}
                       disabled={!batchKnowledgePoint.trim()}
-                      className="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 active:bg-blue-800"
+                      className="rounded px-3 py-1.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      style={{ backgroundColor: 'var(--color-primary-600)' }}
+                      onMouseEnter={(e) => {
+                        if (batchKnowledgePoint.trim()) {
+                          e.currentTarget.style.backgroundColor = 'var(--color-primary-700)'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (batchKnowledgePoint.trim()) {
+                          e.currentTarget.style.backgroundColor = 'var(--color-primary-600)'
+                        }
+                      }}
                     >
                       应用
                     </button>
                   </div>
-                  <span className="h-4 w-px bg-gray-300" aria-hidden />
+                  <span className="h-4 w-px" style={{ backgroundColor: 'var(--color-border-primary)' }} aria-hidden />
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-gray-500">难度</span>
+                    <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>难度</span>
                     {['L1', 'L2', 'L3', 'L4', 'L5'].map((d) => (
                       <button
                         key={d}
                         type="button"
                         onClick={() => batchSetDifficulty(d)}
-                        className="rounded px-2.5 py-1 text-xs font-medium bg-gray-200 text-gray-700 hover:bg-indigo-100 hover:text-indigo-700 active:bg-indigo-200"
+                        className="rounded px-2.5 py-1 text-xs font-medium transition-colors"
+                        style={{ backgroundColor: 'var(--color-bg-panel)', color: 'var(--color-text-secondary)' }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--color-primary-500) 15%, var(--color-bg-card))'
+                          e.currentTarget.style.color = 'var(--color-primary-700)'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--color-bg-panel)'
+                          e.currentTarget.style.color = 'var(--color-text-secondary)'
+                        }}
                       >
                         {d}
                       </button>
                     ))}
                   </div>
-                  <span className="h-4 w-px bg-gray-300" aria-hidden />
+                  <span className="h-4 w-px" style={{ backgroundColor: 'var(--color-border-primary)' }} aria-hidden />
                   <button
                     type="button"
                     onClick={() => setShowBatchDeleteConfirm(true)}
-                    className="rounded bg-red-100 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-200 active:bg-red-300"
+                    className="rounded px-3 py-1.5 text-xs font-medium transition-colors"
+                    style={{ backgroundColor: 'color-mix(in srgb, #ef4444 10%, var(--color-bg-card))', color: '#dc2626' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'color-mix(in srgb, #ef4444 20%, var(--color-bg-card))' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'color-mix(in srgb, #ef4444 10%, var(--color-bg-card))' }}
                   >
                     批量删除
                   </button>
@@ -509,19 +579,39 @@ export default function ImportExam() {
                 <button
                   type="button"
                   onClick={toggleSelectAll}
-                  className="text-sm text-gray-600 hover:text-blue-600 hover:underline"
+                  className="text-sm transition-colors"
+                  style={{ color: 'var(--color-text-secondary)' }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = 'var(--color-primary-600)'
+                    e.currentTarget.style.textDecoration = 'underline'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = 'var(--color-text-secondary)'
+                    e.currentTarget.style.textDecoration = 'none'
+                  }}
                 >
                   {selectedIds.size >= questions.length ? '取消全选' : '全选'}
                 </button>
                 {questions.length > 0 && selectedIds.size === 0 && (
-                  <span className="text-xs text-gray-400">勾选题目后可批量设置知识点、难度或删除</span>
+                  <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>勾选题目后可批量设置知识点、难度或删除</span>
                 )}
               </div>
               <button
                 type="button"
                 onClick={handleGenerateAnalysis}
                 disabled={generatingAnalysis || questions.length === 0}
-                className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-amber-600 disabled:opacity-60 active:bg-amber-700"
+                className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors disabled:opacity-60"
+                style={{ backgroundColor: '#f59e0b' }}
+                onMouseEnter={(e) => {
+                  if (!generatingAnalysis && questions.length > 0) {
+                    e.currentTarget.style.backgroundColor = '#d97706'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!generatingAnalysis && questions.length > 0) {
+                    e.currentTarget.style.backgroundColor = '#f59e0b'
+                  }
+                }}
               >
                 {generatingAnalysis ? (
                   <>
@@ -539,7 +629,18 @@ export default function ImportExam() {
               type="button"
               onClick={handleSaveToBank}
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:opacity-60 active:bg-indigo-800"
+              className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors disabled:opacity-60"
+              style={{ backgroundColor: 'var(--color-primary-600)' }}
+              onMouseEnter={(e) => {
+                if (!saving) {
+                  e.currentTarget.style.backgroundColor = 'var(--color-primary-700)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!saving) {
+                  e.currentTarget.style.backgroundColor = 'var(--color-primary-600)'
+                }
+              }}
             >
               {saving ? (
                 <>
@@ -559,9 +660,12 @@ export default function ImportExam() {
             {questions.map((q, i) => (
               <li
                 key={i}
-                className={`rounded-lg border bg-white p-4 shadow-sm ${
-                  selectedIds.has(i) ? 'border-indigo-400 ring-1 ring-indigo-200' : 'border-gray-200'
-                }`}
+                className="rounded-lg shadow-sm"
+                style={
+                  selectedIds.has(i)
+                    ? { border: '1px solid var(--color-primary-400)', backgroundColor: 'var(--color-bg-card)', boxShadow: '0 0 0 1px color-mix(in srgb, var(--color-primary-500) 20%, transparent)' }
+                    : { border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)' }
+                }
               >
                 {editingIndex === i ? (
                   /* 编辑态 */

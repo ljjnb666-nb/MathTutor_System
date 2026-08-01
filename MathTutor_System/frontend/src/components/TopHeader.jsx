@@ -1,0 +1,177 @@
+import { useState, useMemo } from 'react'
+import { useLocation } from 'react-router-dom'
+import { Search, Bell } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
+import { getPageTitle } from '../config/route-meta'
+import { getSearchableFeatures } from '../config/navigation'
+
+const AVATAR_COLORS = [
+  'bg-blue-100 text-blue-700',
+  'bg-emerald-100 text-emerald-700',
+  'bg-amber-100 text-amber-700',
+  'bg-violet-100 text-violet-700',
+  'bg-rose-100 text-rose-700',
+]
+
+function getAvatarStyle(name) {
+  if (!name || !name.trim()) return AVATAR_COLORS[0]
+  return AVATAR_COLORS[(name.charCodeAt(0) || 0) % AVATAR_COLORS.length]
+}
+
+function getInitial(name) {
+  if (!name || !name.trim()) return '?'
+  return String(name).trim()[0]
+}
+
+export default function TopHeader() {
+  const location = useLocation()
+  const { user } = useAuth()
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [notificationOpen, setNotificationOpen] = useState(false)
+
+  // 动态页面标题
+  const pageTitle = useMemo(() => getPageTitle(location.pathname), [location.pathname])
+
+  // 当前日期
+  const currentDate = useMemo(() => {
+    const now = new Date()
+    return now.toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      weekday: 'long',
+    })
+  }, [])
+
+  // 可搜索功能列表（根据用户权限过滤）
+  const searchableFeatures = useMemo(() => getSearchableFeatures(user?.role), [user?.role])
+
+  // 搜索过滤
+  const filteredFeatures = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase()
+    if (!q) return []
+
+    return searchableFeatures.filter(feature => {
+      return (
+        feature.label.toLowerCase().includes(q) ||
+        feature.keywords.some(keyword => keyword.includes(q))
+      )
+    }).slice(0, 8) // 最多显示 8 个结果
+  }, [searchTerm, searchableFeatures])
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault()
+    if (filteredFeatures.length > 0) {
+      window.location.href = filteredFeatures[0].path
+      setSearchOpen(false)
+      setSearchTerm('')
+    }
+  }
+
+  return (
+    <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-slate-800/80 bg-[#0B0F17]/95 backdrop-blur-xl px-4 sm:px-6 lg:px-8 shadow-lg">
+      {/* 左侧：页面标题 */}
+      <div className="flex items-center gap-4">
+        <h1 className="text-lg font-black text-slate-100 tracking-tight">
+          {pageTitle}
+        </h1>
+      </div>
+
+      {/* 中间：搜索栏（桌面端） */}
+      <div className="hidden md:flex flex-1 max-w-md">
+        <div className="relative w-full">
+          <form onSubmit={handleSearchSubmit}>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onFocus={() => setSearchOpen(true)}
+                onBlur={() => setTimeout(() => setSearchOpen(false), 200)}
+                placeholder="搜索功能..."
+                className="w-full rounded-xl border border-slate-700 bg-slate-900/60 py-2 pl-10 pr-4 text-sm text-slate-200 placeholder:text-slate-500 focus:border-indigo-500 focus:bg-slate-900/80 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
+              />
+            </div>
+          </form>
+
+          {/* 搜索结果下拉 */}
+          {searchOpen && searchTerm.trim() && (
+            <div className="absolute top-full left-0 right-0 mt-2 max-h-80 overflow-y-auto rounded-xl border border-slate-700 bg-[#111726] shadow-2xl animate-fade-in-up">
+              {filteredFeatures.length > 0 ? (
+                <ul className="py-1">
+                  {filteredFeatures.map((feature) => (
+                    <li key={feature.path}>
+                      <a
+                        href={feature.path}
+                        className="block px-4 py-2.5 text-sm font-medium text-slate-300 hover:bg-indigo-600/20 hover:text-indigo-300 transition-colors"
+                      >
+                        {feature.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="px-4 py-8 text-center text-sm text-slate-500">
+                  未找到匹配的功能
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 右侧：日期、通知、用户 */}
+      <div className="flex items-center gap-3">
+        {/* 当前日期（桌面端） */}
+        <div className="hidden lg:block text-xs font-medium text-slate-400">
+          {currentDate}
+        </div>
+
+        {/* 通知按钮 */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setNotificationOpen(!notificationOpen)}
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:border-slate-600 transition-all"
+            aria-label="通知"
+          >
+            <Bell className="h-4 w-4" />
+          </button>
+
+          {/* 通知下拉（暂无通知） */}
+          {notificationOpen && (
+            <div className="absolute right-0 top-full mt-2 w-80 rounded-xl border border-slate-700 bg-[#111726] shadow-2xl animate-fade-in-up">
+              <div className="border-b border-slate-800 px-4 py-3">
+                <h3 className="text-sm font-bold text-slate-200">通知</h3>
+              </div>
+              <div className="px-4 py-8 text-center text-sm text-slate-500">
+                暂无通知
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 用户信息 */}
+        <div className="flex items-center gap-2.5">
+          <div
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+              user ? getAvatarStyle(user.username) : 'bg-slate-700 text-slate-400'
+            }`}
+          >
+            {user ? getInitial(user.username) : '?'}
+          </div>
+          <div className="hidden sm:block">
+            <p className="text-sm font-bold text-slate-200">
+              {user?.username || '未登录'}
+            </p>
+            <p className="text-xs text-slate-400">
+              {user?.role === 'admin' ? '管理员' : '教师'}
+            </p>
+          </div>
+        </div>
+      </div>
+    </header>
+  )
+}

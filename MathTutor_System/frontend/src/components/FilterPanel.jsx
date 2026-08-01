@@ -208,20 +208,33 @@ export default function FilterPanel({
   }, [currentKnowledgePoint, scenario, questionType, difficulty, count, customCount, onGenerate])
 
   return (
-    <div className="bg-white/95 backdrop-blur-xl p-5 min-h-full border-r border-slate-200/80">
-      <h3 className="mb-4 text-xs font-black uppercase tracking-widest text-slate-500">智能出题引擎参数</h3>
+    <div
+      className="backdrop-blur-xl p-5 min-h-full"
+      style={{
+        background: 'color-mix(in srgb, var(--color-bg-card) 95%, transparent)',
+        borderRight: '1px solid var(--color-border-primary)'
+      }}
+    >
+      <h3 className="mb-4 text-xs font-black uppercase tracking-widest" style={{ color: 'var(--color-text-secondary)' }}>智能出题引擎参数</h3>
 
       {/* 知识点：年级 / 学期 + 已选标签 + 待选列表与搜索；锁定态显示只读考点 */}
       <div className="mb-5">
-        <label className="mb-2 block text-xs font-bold text-slate-700">考点与知识点</label>
+        <label className="mb-2 block text-xs font-bold" style={{ color: 'var(--color-text-primary)' }}>考点与知识点</label>
 
         {disableKnowledgePoint ? (
-          <div className="rounded-2xl border border-slate-200 bg-slate-100/80 p-3.5 text-xs text-slate-600">
-            <div className="flex items-center gap-2 text-indigo-700 font-bold">
+          <div
+            className="rounded-2xl p-3.5 text-xs"
+            style={{
+              border: '1px solid var(--color-border-primary)',
+              backgroundColor: 'var(--color-bg-panel-muted)',
+              color: 'var(--color-text-secondary)'
+            }}
+          >
+            <div className="flex items-center gap-2 font-bold" style={{ color: 'var(--color-primary-500)' }}>
               <Lock className="h-4 w-4 shrink-0" />
               <span>已锁定参考题考点</span>
             </div>
-            <p className="mt-1.5 truncate font-medium text-slate-800" title={lockedKnowledgePointLabel || '系统自动分析考点'}>
+            <p className="mt-1.5 truncate font-medium" style={{ color: 'var(--color-text-primary)' }} title={lockedKnowledgePointLabel || '系统自动分析考点'}>
               {lockedKnowledgePointLabel || '系统自动分析考点'}
             </p>
           </div>
@@ -233,11 +246,21 @@ export default function FilterPanel({
             type="button"
             onClick={() => setKnowledgeInputMode(KNOWLEDGE_MODE.textbook)}
             disabled={loading}
-            className={`flex-1 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${
+            className="flex-1 rounded-xl px-3 py-2 text-xs font-bold transition-all"
+            style={
               knowledgeInputMode === KNOWLEDGE_MODE.textbook
-                ? 'border-indigo-600 bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 active:scale-[0.98]'
-            }`}
+                ? {
+                    border: '1px solid var(--color-primary-600)',
+                    backgroundColor: 'var(--color-primary-600)',
+                    color: 'white',
+                    boxShadow: '0 4px 14px 0 rgba(79, 70, 229, 0.2)'
+                  }
+                : {
+                    border: '1px solid var(--color-border-primary)',
+                    backgroundColor: 'var(--color-bg-card)',
+                    color: 'var(--color-text-secondary)'
+                  }
+            }
           >
             教材同步
           </button>
@@ -248,11 +271,21 @@ export default function FilterPanel({
               setFreeInputValue((prev) => prev || knowledgePointFromParent || '')
             }}
             disabled={loading}
-            className={`flex-1 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${
+            className="flex-1 rounded-xl px-3 py-2 text-xs font-bold transition-all"
+            style={
               knowledgeInputMode === KNOWLEDGE_MODE.free
-                ? 'border-indigo-600 bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 active:scale-[0.98]'
-            }`}
+                ? {
+                    border: '1px solid var(--color-primary-600)',
+                    backgroundColor: 'var(--color-primary-600)',
+                    color: 'white',
+                    boxShadow: '0 4px 14px 0 rgba(79, 70, 229, 0.2)'
+                  }
+                : {
+                    border: '1px solid var(--color-border-primary)',
+                    backgroundColor: 'var(--color-bg-card)',
+                    color: 'var(--color-text-secondary)'
+                  }
+            }
           >
             自由输入
           </button>
@@ -267,20 +300,38 @@ export default function FilterPanel({
           />
           {/* 已选知识点：多选标签 + 手动输入 */}
           {selectedPoints.length > 0 && (
-            <div className="mt-3 rounded-2xl border border-indigo-100 bg-indigo-50/80 p-3">
-              <p className="mb-2 text-xs font-bold text-indigo-800">已选知识点标签</p>
+            <div
+              className="mt-3 rounded-2xl p-3"
+              style={{
+                border: '1px solid color-mix(in srgb, var(--color-primary-500) 20%, transparent)',
+                backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)'
+              }}
+            >
+              <p className="mb-2 text-xs font-bold" style={{ color: 'var(--color-primary-700)' }}>已选知识点标签</p>
               <div className="flex flex-wrap gap-2">
                 {selectedPoints.map((point, i) => (
                   <span
                     key={i}
-                    className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-100 px-3 py-1.5 text-xs font-bold text-indigo-800"
+                    className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold"
+                    style={{
+                      border: '1px solid color-mix(in srgb, var(--color-primary-500) 30%, transparent)',
+                      backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 20%, transparent)',
+                      color: 'var(--color-primary-700)'
+                    }}
                   >
                     {point}
                     <button
                       type="button"
                       onClick={() => onRemovePoint?.(i)}
                       disabled={loading}
-                      className="rounded-full p-0.5 hover:bg-indigo-200 text-indigo-700 transition-colors disabled:opacity-50"
+                      className="rounded-full p-0.5 transition-colors disabled:opacity-50"
+                      style={{ color: 'var(--color-primary-700)' }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--color-primary-500) 30%, transparent)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent'
+                      }}
                       aria-label={`移除${point}`}
                     >
                       <X className="h-3.5 w-3.5" />
@@ -301,7 +352,12 @@ export default function FilterPanel({
                 if (v) onAddPoint?.(v)
                 e.target.value = ''
               }}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-60"
+              className="w-full rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 disabled:opacity-60"
+              style={{
+                border: '1px solid var(--color-border-primary)',
+                backgroundColor: 'var(--color-bg-card)',
+                color: 'var(--color-text-primary)'
+              }}
             />
           </div>
           </>
@@ -316,7 +372,12 @@ export default function FilterPanel({
             }}
             placeholder="如：期末复习、二次函数综合"
             disabled={loading}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            className="w-full rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2"
+            style={{
+              border: '1px solid var(--color-border-primary)',
+              backgroundColor: 'var(--color-bg-card)',
+              color: 'var(--color-text-primary)'
+            }}
           />
         )}
           </>
@@ -325,7 +386,7 @@ export default function FilterPanel({
 
       {/* 备课场景 */}
       <div className="mb-5">
-        <label className="mb-2 block text-xs font-bold text-slate-700">备课模式与场景</label>
+        <label className="mb-2 block text-xs font-bold" style={{ color: 'var(--color-text-primary)' }}>备课模式与场景</label>
         <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
           {SCENARIOS.map((s) => {
             const IconComponent = SCENARIO_ICONS[s.icon] || BookOpen
@@ -336,18 +397,44 @@ export default function FilterPanel({
                 type="button"
                 onClick={() => handleScenarioChange(s)}
                 disabled={loading}
-                className={`flex w-full items-start gap-3 rounded-2xl border px-3.5 py-2.5 text-left transition-all ${
+                className="flex w-full items-start gap-3 rounded-2xl px-3.5 py-2.5 text-left transition-all"
+                style={
                   selected
-                    ? 'border-indigo-500/80 bg-indigo-50/90 text-indigo-900 shadow-sm font-bold'
-                    : 'border-slate-200/80 bg-white text-slate-700 hover:border-indigo-300 hover:bg-slate-50 active:scale-[0.99]'
-                }`}
+                    ? {
+                        border: '1px solid color-mix(in srgb, var(--color-primary-500) 80%, transparent)',
+                        backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)',
+                        color: 'var(--color-text-primary)',
+                        fontWeight: 'bold',
+                        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+                      }
+                    : {
+                        border: '1px solid var(--color-border-primary)',
+                        backgroundColor: 'var(--color-bg-card)',
+                        color: 'var(--color-text-primary)'
+                      }
+                }
               >
-                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border ${selected ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
+                <span
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
+                  style={
+                    selected
+                      ? {
+                          backgroundColor: 'var(--color-primary-600)',
+                          border: '1px solid var(--color-primary-600)',
+                          color: 'white'
+                        }
+                      : {
+                          backgroundColor: 'var(--color-bg-panel)',
+                          border: '1px solid var(--color-border-primary)',
+                          color: 'var(--color-text-secondary)'
+                        }
+                  }
+                >
                   <IconComponent className="h-4 w-4" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-extrabold">{s.title}</p>
-                  <p className="mt-0.5 text-[11px] text-slate-500 leading-tight">{s.desc}</p>
+                  <p className="mt-0.5 text-[11px] leading-tight" style={{ color: 'var(--color-text-secondary)' }}>{s.desc}</p>
                 </div>
               </button>
             )
@@ -357,7 +444,7 @@ export default function FilterPanel({
 
       {/* 题目类型 */}
       <div className="mb-5">
-        <label className="mb-2 block text-xs font-bold text-slate-700">题目类型</label>
+        <label className="mb-2 block text-xs font-bold" style={{ color: 'var(--color-text-primary)' }}>题目类型</label>
         <div className="grid grid-cols-2 gap-2">
           {QUESTION_TYPES.map(({ value, label }) => (
             <button
@@ -365,11 +452,21 @@ export default function FilterPanel({
               type="button"
               onClick={() => handleTypeChange(value)}
               disabled={loading}
-              className={`rounded-xl border px-3 py-2 text-xs font-bold transition-all ${
+              className="rounded-xl px-3 py-2 text-xs font-bold transition-all"
+              style={
                 questionType === value
-                  ? 'border-transparent bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 active:scale-[0.98]'
-              }`}
+                  ? {
+                      border: '1px solid transparent',
+                      backgroundColor: 'var(--color-primary-600)',
+                      color: 'white',
+                      boxShadow: '0 4px 14px 0 rgba(79, 70, 229, 0.2)'
+                    }
+                  : {
+                      border: '1px solid var(--color-border-primary)',
+                      backgroundColor: 'var(--color-bg-card)',
+                      color: 'var(--color-text-secondary)'
+                    }
+              }
             >
               {label}
             </button>
@@ -379,11 +476,17 @@ export default function FilterPanel({
 
       {/* 难度 */}
       <div className="mb-5">
-        <label className="mb-2 block text-xs font-bold text-slate-700">难度等级梯度</label>
+        <label className="mb-2 block text-xs font-bold" style={{ color: 'var(--color-text-primary)' }}>难度等级梯度</label>
         {isAssessmentMode ? (
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5">
-            <p className="text-xs font-bold text-slate-800">全难度覆盖</p>
-            <p className="mt-0.5 text-[11px] text-slate-500">摸底测试将自动包含 L1～L5 梯度</p>
+          <div
+            className="rounded-2xl p-3.5"
+            style={{
+              border: '1px solid var(--color-border-primary)',
+              backgroundColor: 'var(--color-bg-panel)'
+            }}
+          >
+            <p className="text-xs font-bold" style={{ color: 'var(--color-text-primary)' }}>全难度覆盖</p>
+            <p className="mt-0.5 text-[11px]" style={{ color: 'var(--color-text-secondary)' }}>摸底测试将自动包含 L1～L5 梯度</p>
           </div>
         ) : (
           <>
@@ -395,14 +498,14 @@ export default function FilterPanel({
               value={difficulty}
               onChange={handleDifficultyChange}
               disabled={loading}
-              className="range-thumb h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200"
+              className="range-thumb h-2 w-full cursor-pointer appearance-none rounded-full"
               style={{
-                background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${((difficulty - 1) / 4) * 100}%, #e2e8f0 ${((difficulty - 1) / 4) * 100}%, #e2e8f0 100%)`,
+                background: `linear-gradient(to right, var(--color-primary-500) 0%, var(--color-primary-500) ${((difficulty - 1) / 4) * 100}%, var(--color-bg-panel-muted) ${((difficulty - 1) / 4) * 100}%, var(--color-bg-panel-muted) 100%)`,
               }}
             />
             <div className="mt-2 flex items-baseline justify-between gap-2">
-              <p className="text-xs font-black text-indigo-700">{DIFFICULTY_LABELS[difficulty]}</p>
-              <p className="text-[11px] font-medium text-slate-500">{DIFFICULTY_DESCRIPTIONS[difficulty]}</p>
+              <p className="text-xs font-black" style={{ color: 'var(--color-primary-600)' }}>{DIFFICULTY_LABELS[difficulty]}</p>
+              <p className="text-[11px] font-medium" style={{ color: 'var(--color-text-secondary)' }}>{DIFFICULTY_DESCRIPTIONS[difficulty]}</p>
             </div>
           </>
         )}
@@ -410,7 +513,7 @@ export default function FilterPanel({
 
       {/* 数量 */}
       <div className="mb-6">
-        <label className="mb-2 block text-xs font-bold text-slate-700">题目数量</label>
+        <label className="mb-2 block text-xs font-bold" style={{ color: 'var(--color-text-primary)' }}>题目数量</label>
         <div className="flex flex-wrap items-center gap-2">
           {COUNT_OPTIONS.map(({ value, label }) => (
             <button
@@ -418,11 +521,21 @@ export default function FilterPanel({
               type="button"
               onClick={() => handleCountChange(value)}
               disabled={loading}
-              className={`rounded-xl border px-3 py-2 text-xs font-bold transition-all ${
+              className="rounded-xl px-3 py-2 text-xs font-bold transition-all"
+              style={
                 !customCount && count === value
-                  ? 'border-indigo-600 bg-indigo-600 text-white shadow-md'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 active:scale-[0.98]'
-              }`}
+                  ? {
+                      border: '1px solid var(--color-primary-600)',
+                      backgroundColor: 'var(--color-primary-600)',
+                      color: 'white',
+                      boxShadow: '0 4px 14px 0 rgba(79, 70, 229, 0.2)'
+                    }
+                  : {
+                      border: '1px solid var(--color-border-primary)',
+                      backgroundColor: 'var(--color-bg-card)',
+                      color: 'var(--color-text-secondary)'
+                    }
+              }
             >
               {label}
             </button>
@@ -431,7 +544,7 @@ export default function FilterPanel({
       </div>
 
       {/* 底部按键 */}
-      <div className="space-y-3 border-t border-slate-100 pt-5">
+      <div className="space-y-3 pt-5" style={{ borderTop: '1px solid var(--color-border-primary)' }}>
         <button
           type="button"
           onClick={handleGenerate}
@@ -445,7 +558,22 @@ export default function FilterPanel({
           type="button"
           onClick={() => onGenerateExam?.()}
           disabled={loading || isGeneratingExam}
-          className="flex h-[48px] w-full items-center justify-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50 text-xs font-extrabold text-indigo-700 hover:bg-indigo-100 transition-all active:scale-[0.98] disabled:opacity-60"
+          className="flex h-[48px] w-full items-center justify-center gap-2 rounded-2xl text-xs font-extrabold transition-all active:scale-[0.98] disabled:opacity-60"
+          style={{
+            border: '1px solid color-mix(in srgb, var(--color-primary-500) 30%, transparent)',
+            backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)',
+            color: 'var(--color-primary-700)'
+          }}
+          onMouseEnter={(e) => {
+            if (!loading && !isGeneratingExam) {
+              e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--color-primary-500) 20%, transparent)'
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!loading && !isGeneratingExam) {
+              e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)'
+            }
+          }}
         >
           <FileText className={`h-4 w-4 shrink-0 ${isGeneratingExam ? 'animate-pulse' : ''}`} />
           {isGeneratingExam ? '正在生成整卷 (约30秒)...' : '生成完整试卷 (28题)'}

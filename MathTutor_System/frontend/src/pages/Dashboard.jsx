@@ -32,13 +32,13 @@ function formatDate(iso) {
 
 function StatCardSkeleton() {
   return (
-    <div className="h-28 animate-pulse rounded-xl bg-gray-200/60" />
+    <div className="h-28 animate-pulse rounded-xl" style={{ backgroundColor: 'var(--color-bg-card-hover)' }} />
   )
 }
 
 function ChartSkeleton() {
   return (
-    <div className="h-64 w-full animate-pulse rounded-xl bg-gray-200/60" />
+    <div className="h-64 w-full animate-pulse rounded-xl" style={{ backgroundColor: 'var(--color-bg-card-hover)' }} />
   )
 }
 
@@ -46,7 +46,7 @@ function ListSkeleton() {
   return (
     <div className="space-y-3">
       {[1, 2, 3, 4, 5].map((i) => (
-        <div key={i} className="h-12 animate-pulse rounded-lg bg-gray-200/60" />
+        <div key={i} className="h-12 animate-pulse rounded-lg" style={{ backgroundColor: 'var(--color-bg-card-hover)' }} />
       ))}
     </div>
   )
@@ -82,18 +82,18 @@ function SubscriptionCard({ subscription, isTeacher, onNavigate }) {
           <CreditCard className="h-6 w-6" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">当前订阅套餐</p>
-          <p className="text-base font-extrabold text-slate-800 truncate">
+          <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>当前订阅套餐</p>
+          <p className="text-base font-extrabold truncate" style={{ color: 'var(--color-text-primary)' }}>
             {subscription.plan.name} · {subscription.student_count}/{subscription.max_students} 学生
           </p>
           {isTeacher && periodEndDate && (
-            <p className={`mt-0.5 text-xs ${isExpiringSoon ? 'font-bold text-amber-600' : 'text-slate-400'}`}>
+            <p className={`mt-0.5 text-xs ${isExpiringSoon ? 'font-bold text-amber-600' : ''}`} style={!isExpiringSoon ? { color: 'var(--color-text-secondary)' } : {}}>
               到期 {formatDate(periodEndDate)}
               {isExpiringSoon && daysLeft >= 0 && ` · ${daysLeft} 天后到期`}
             </p>
           )}
           {isTeacher && !periodEndDate && subscription.plan.code !== 'free' && (
-            <p className="mt-0.5 text-xs text-slate-400">长期有效</p>
+            <p className="mt-0.5 text-xs" style={{ color: 'var(--color-text-secondary)' }}>长期有效</p>
           )}
         </div>
       </div>
@@ -124,8 +124,8 @@ function PendingMistakeCard({ count, loading, hasStudent, onNavigate }) {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">待攻克错题</p>
-          <p className="text-2xl font-black text-slate-900 tabular-nums">{displayValue}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>待攻克错题</p>
+          <p className="text-2xl font-black tabular-nums" style={{ color: 'var(--color-text-primary)' }}>{displayValue}</p>
           <p className={`text-xs font-bold ${statusCls}`}>{statusText}</p>
         </div>
       </div>
@@ -152,9 +152,9 @@ function TodayReviewCard({ count, loading, onNavigate }) {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">今日待复习</p>
-          <p className="text-2xl font-black text-slate-900 tabular-nums">{loading ? '—' : n}</p>
-          <p className={`text-xs font-bold ${hasDue ? 'text-amber-600' : 'text-slate-400'}`}>
+          <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>今日待复习</p>
+          <p className="text-2xl font-black tabular-nums" style={{ color: 'var(--color-text-primary)' }}>{loading ? '—' : n}</p>
+          <p className={`text-xs font-bold ${hasDue ? 'text-amber-600' : ''}`} style={!hasDue ? { color: 'var(--color-text-secondary)' } : {}}>
             {hasDue ? '点击立即复习' : '保持完美记录'}
           </p>
         </div>
@@ -296,8 +296,8 @@ export default function Dashboard() {
                   <CreditCard className="h-6 w-6" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">套餐与定价</p>
-                  <p className="text-base font-extrabold text-slate-800">查看当前套餐与升级</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>套餐与定价</p>
+                  <p className="text-base font-extrabold" style={{ color: 'var(--color-text-primary)' }}>查看当前套餐与升级</p>
                 </div>
               </div>
             </button>
@@ -317,8 +317,8 @@ export default function Dashboard() {
                   <Database className="h-6 w-6" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">题库总量</p>
-                  <p className="text-2xl font-black text-slate-900 tabular-nums">{stats.total_questions ?? 0}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>题库总量</p>
+                  <p className="text-2xl font-black tabular-nums" style={{ color: 'var(--color-text-primary)' }}>{stats.total_questions ?? 0}</p>
                 </div>
               </div>
             </div>
@@ -328,8 +328,8 @@ export default function Dashboard() {
                   <Users className="h-6 w-6" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">学生档案</p>
-                  <p className="text-2xl font-black text-slate-900 tabular-nums">{stats.total_students ?? 0}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>学生档案</p>
+                  <p className="text-2xl font-black tabular-nums" style={{ color: 'var(--color-text-primary)' }}>{stats.total_students ?? 0}</p>
                 </div>
               </div>
             </div>
@@ -339,8 +339,8 @@ export default function Dashboard() {
                   <FileText className="h-6 w-6" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">试卷存档</p>
-                  <p className="text-2xl font-black text-slate-900 tabular-nums">{stats.total_exams ?? 0}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>试卷存档</p>
+                  <p className="text-2xl font-black tabular-nums" style={{ color: 'var(--color-text-primary)' }}>{stats.total_exams ?? 0}</p>
                 </div>
               </div>
             </div>
@@ -384,7 +384,7 @@ export default function Dashboard() {
         {/* 左侧 2/3: 快捷矩阵 + 图表 */}
         <div className="space-y-6 lg:col-span-2">
           <section className="pro-glass-card rounded-3xl p-6">
-            <h2 className="mb-4 text-sm font-black uppercase tracking-wider text-slate-800">快捷功能发射台</h2>
+            <h2 className="mb-4 text-sm font-black uppercase tracking-wider" style={{ color: 'var(--color-text-primary)' }}>快捷功能发射台</h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
               <Link
                 to="/smart-gen"
@@ -395,16 +395,26 @@ export default function Dashboard() {
               </Link>
               <Link
                 to="/mistake-book"
-                className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200/90 bg-slate-50/80 px-4 py-3.5 text-xs font-bold text-slate-700 transition-all hover:bg-slate-100 hover:border-slate-300 active:scale-[0.98]"
+                className="flex items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-xs font-bold transition-all active:scale-[0.98]"
+                style={{
+                  border: '1px solid var(--color-border-primary)',
+                  backgroundColor: 'var(--color-bg-card-hover)',
+                  color: 'var(--color-text-primary)'
+                }}
               >
-                <BookOpen className="h-4 w-4 shrink-0 text-slate-500" />
+                <BookOpen className="h-4 w-4 shrink-0" style={{ color: 'var(--color-text-secondary)' }} />
                 错题本精炼
               </Link>
               <Link
                 to="/student-mgmt"
-                className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200/90 bg-slate-50/80 px-4 py-3.5 text-xs font-bold text-slate-700 transition-all hover:bg-slate-100 hover:border-slate-300 active:scale-[0.98]"
+                className="flex items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-xs font-bold transition-all active:scale-[0.98]"
+                style={{
+                  border: '1px solid var(--color-border-primary)',
+                  backgroundColor: 'var(--color-bg-card-hover)',
+                  color: 'var(--color-text-primary)'
+                }}
               >
-                <UserPlus className="h-4 w-4 shrink-0 text-slate-500" />
+                <UserPlus className="h-4 w-4 shrink-0" style={{ color: 'var(--color-text-secondary)' }} />
                 录入学生档案
               </Link>
             </div>
@@ -413,7 +423,7 @@ export default function Dashboard() {
           {/* 学情趋势 */}
           <section className="pro-glass-card rounded-3xl p-6 w-full min-w-0">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-black uppercase tracking-wider text-slate-800">学情趋势分析（近 8 周）</h2>
+              <h2 className="text-sm font-black uppercase tracking-wider" style={{ color: 'var(--color-text-primary)' }}>学情趋势分析（近 8 周）</h2>
               {currentStudent && (
                 <span className="text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">
                   学生: {currentStudent.name}
@@ -421,14 +431,14 @@ export default function Dashboard() {
               )}
             </div>
             {!currentStudent ? (
-              <div className="flex min-h-[220px] flex-col items-center justify-center rounded-2xl bg-slate-50/80 text-slate-400 text-xs">
-                <Users className="h-8 w-8 mb-2 text-slate-300" />
+              <div className="flex min-h-[220px] flex-col items-center justify-center rounded-2xl text-xs" style={{ backgroundColor: 'var(--color-bg-card-hover)', color: 'var(--color-text-muted)' }}>
+                <Users className="h-8 w-8 mb-2" style={{ color: 'var(--color-text-muted)' }} />
                 请先在左侧黑曜石侧栏选择学生
               </div>
             ) : loadingTrend ? (
               <ChartSkeleton />
             ) : trendWeeks.length === 0 ? (
-              <div className="flex min-h-[220px] items-center justify-center rounded-2xl bg-slate-50/80 text-slate-400 text-xs">
+              <div className="flex min-h-[220px] items-center justify-center rounded-2xl text-xs" style={{ backgroundColor: 'var(--color-bg-card-hover)', color: 'var(--color-text-muted)' }}>
                 暂无趋势数据
               </div>
             ) : (
@@ -445,13 +455,13 @@ export default function Dashboard() {
                         <stop offset="100%" stopColor="#059669" stopOpacity={0.8} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#cbd5e1' }} />
-                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} axisLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-secondary)" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={{ stroke: 'var(--color-border-primary)' }} />
+                    <YAxis tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} allowDecimals={false} axisLine={false} />
                     <Tooltip
                       formatter={(value, name) => [value, name === 'new_mistakes' ? '新增错题' : '新掌握']}
                       labelFormatter={(label) => `第 ${label} 周`}
-                      contentStyle={{ backgroundColor: '#0B0F17', color: '#f8fafc', borderRadius: '16px', border: '1px solid #1e293b', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}
+                      contentStyle={{ backgroundColor: 'var(--color-bg-card)', color: 'var(--color-text-primary)', borderRadius: '16px', border: '1px solid var(--color-border-primary)', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}
                     />
                     <Bar dataKey="new_mistakes" fill="url(#mistakeGradient)" radius={[6, 6, 0, 0]} name="新增错题" />
                     <Bar dataKey="new_mastered" fill="url(#masteredGradient)" radius={[6, 6, 0, 0]} name="新掌握" />
@@ -463,11 +473,11 @@ export default function Dashboard() {
 
           {/* Top 5 知识点分布 */}
           <section className="pro-glass-card rounded-3xl p-6 w-full min-w-0">
-            <h2 className="mb-4 text-sm font-black uppercase tracking-wider text-slate-800">题库知识点热度 Top 5</h2>
+            <h2 className="mb-4 text-sm font-black uppercase tracking-wider" style={{ color: 'var(--color-text-primary)' }}>题库知识点热度 Top 5</h2>
             {loading ? (
               <ChartSkeleton />
             ) : chartData.length === 0 ? (
-              <div className="flex min-h-[280px] items-center justify-center rounded-2xl bg-slate-50/80 text-slate-400 text-xs">
+              <div className="flex min-h-[280px] items-center justify-center rounded-2xl text-xs" style={{ backgroundColor: 'var(--color-bg-card-hover)', color: 'var(--color-text-muted)' }}>
                 暂无题目数据
               </div>
             ) : (
@@ -480,18 +490,18 @@ export default function Dashboard() {
                         <stop offset="100%" stopColor="#4338ca" stopOpacity={0.8} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-secondary)" vertical={false} />
                     <XAxis
                       dataKey="name"
-                      tick={{ fontSize: 11, fill: '#64748b' }}
-                      axisLine={{ stroke: '#cbd5e1' }}
+                      tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }}
+                      axisLine={{ stroke: 'var(--color-border-primary)' }}
                       tickFormatter={(v) => (v.length > 6 ? v.slice(0, 6) + '…' : v)}
                     />
-                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} allowDecimals={false} axisLine={false} />
                     <Tooltip
                       formatter={(value) => [value, '题目数']}
                       labelFormatter={(label) => `知识点: ${label}`}
-                      contentStyle={{ backgroundColor: '#0B0F17', color: '#f8fafc', borderRadius: '16px', border: '1px solid #1e293b', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}
+                      contentStyle={{ backgroundColor: 'var(--color-bg-card)', color: 'var(--color-text-primary)', borderRadius: '16px', border: '1px solid var(--color-border-primary)', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}
                     />
                     <Bar dataKey="count" fill="url(#indigoBarGradient)" radius={[6, 6, 0, 0]} name="题目数" />
                   </BarChart>
@@ -504,7 +514,7 @@ export default function Dashboard() {
         {/* 右侧 1/3: 最近试卷 */}
         <div className="pro-glass-card rounded-3xl p-6 min-w-0">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-black uppercase tracking-wider text-slate-800">最近存档试卷</h2>
+            <h2 className="text-sm font-black uppercase tracking-wider" style={{ color: 'var(--color-text-primary)' }}>最近存档试卷</h2>
             <Link to="/exams" className="text-xs font-bold text-indigo-600 hover:text-indigo-700">
               全部试卷 →
             </Link>
@@ -512,7 +522,7 @@ export default function Dashboard() {
           {loading ? (
             <ListSkeleton />
           ) : !stats.recent_exams?.length ? (
-            <div className="py-12 text-center text-xs text-slate-400">暂无试卷记录</div>
+            <div className="py-12 text-center text-xs" style={{ color: 'var(--color-text-muted)' }}>暂无试卷记录</div>
           ) : (
             <ul className="space-y-2.5 min-w-0">
               {stats.recent_exams.map((exam) => (
@@ -520,12 +530,16 @@ export default function Dashboard() {
                   <button
                     type="button"
                     onClick={() => navigate(`/exams/${exam.id}`)}
-                    className="group w-full rounded-2xl border border-slate-100 bg-slate-50/70 p-3.5 text-left transition-all hover:border-indigo-300 hover:bg-indigo-50/40 active:scale-[0.99]"
+                    className="group w-full rounded-2xl p-3.5 text-left transition-all active:scale-[0.99]"
+                    style={{
+                      border: '1px solid var(--color-border-secondary)',
+                      backgroundColor: 'var(--color-bg-card-hover)'
+                    }}
                   >
-                    <p className="truncate text-xs font-extrabold text-slate-800 group-hover:text-indigo-600 transition-colors" title={exam.title}>
+                    <p className="truncate text-xs font-extrabold group-hover:text-indigo-600 transition-colors" style={{ color: 'var(--color-text-primary)' }} title={exam.title}>
                       {exam.title || '未命名试卷'}
                     </p>
-                    <p className="mt-1 truncate text-[11px] font-medium text-slate-400">
+                    <p className="mt-1 truncate text-[11px] font-medium" style={{ color: 'var(--color-text-secondary)' }}>
                       {formatDate(exam.created_at)}
                       {exam.student_name ? ` · ${exam.student_name}` : ''}
                     </p>

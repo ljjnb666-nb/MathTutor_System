@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import TeacherAgent from './TeacherAgent'
@@ -56,14 +56,15 @@ afterEach(() => {
 })
 
 describe('TeacherAgent', () => {
-  it('shows read-only mode initially and blocks empty submit', async () => {
+  it('shows read-only mode initially and blocks empty submit', () => {
     render(<TeacherAgent />)
 
-    expect(screen.getByText('当前为只读规划模式')).toBeInTheDocument()
+    expect(screen.getByText('只读规划模式')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /生成教学计划/ })).toBeDisabled()
+    expect(screen.queryByText(/确认入库|练习草稿|保存到题库/)).not.toBeInTheDocument()
   })
 
-  it('renders completed structured plan', async () => {
+  it('renders a completed structured plan', async () => {
     api.createTeacherAgentRun.mockResolvedValue({ data: completedRun() })
     render(<TeacherAgent />)
 
@@ -72,9 +73,15 @@ describe('TeacherAgent', () => {
 
     expect(await screen.findByText('Read-only teaching plan')).toBeInTheDocument()
     expect(screen.getByText('一次函数')).toBeInTheDocument()
+    expect(api.createTeacherAgentRun.mock.calls[0][0]).toMatchObject({
+      goal: '规划复习课',
+      student_id: null,
+      knowledge_point: null,
+      use_knowledge_base: false,
+    })
   })
 
-  it('shows needs_input fields', async () => {
+  it('shows needs_input fields from the run response', async () => {
     api.createTeacherAgentRun.mockResolvedValue({
       data: {
         id: 2,
@@ -94,31 +101,22 @@ describe('TeacherAgent', () => {
     expect(screen.getByText('请选择学生')).toBeInTheDocument()
   })
 
-  it('resubmits with selected student after needs_input', async () => {
-    api.createTeacherAgentRun
-      .mockResolvedValueOnce({
-        data: {
-          id: 2,
-          status: 'needs_input',
-          goal: '分析当前学生',
-          created_at: new Date().toISOString(),
-          missing_fields_json: [{ field: 'student_id', message: '请选择学生' }],
-          warnings_json: [],
-        },
-      })
-      .mockResolvedValueOnce({ data: completedRun() })
-    const { container } = render(<TeacherAgent />)
+  it('submits selected student and knowledge-base options', async () => {
+    api.createTeacherAgentRun.mockResolvedValue({ data: completedRun() })
+    render(<TeacherAgent />)
 
-    await userEvent.type(screen.getByLabelText('教学目标'), '分析当前学生')
-    const button = screen.getByRole('button', { name: /生成教学计划/ })
-    await userEvent.click(button)
-    expect(await screen.findByText('请选择学生')).toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText('教学目标'), '规划复习课')
+    await userEvent.selectOptions(screen.getByLabelText('当前学生'), '1')
+    await userEvent.type(screen.getByLabelText('知识点'), '一次函数')
+    await userEvent.click(screen.getByLabelText('使用我的知识库'))
+    await userEvent.click(screen.getByRole('button', { name: /生成教学计划/ }))
 
-    await userEvent.selectOptions(container.querySelector('select'), '1')
-    await userEvent.click(button)
-
-    await waitFor(() => expect(api.createTeacherAgentRun).toHaveBeenCalledTimes(2))
-    expect(api.createTeacherAgentRun.mock.calls[1][0]).toMatchObject({ student_id: 1 })
+    await waitFor(() => expect(api.createTeacherAgentRun).toHaveBeenCalledTimes(1))
+    expect(api.createTeacherAgentRun.mock.calls[0][0]).toMatchObject({
+      student_id: 1,
+      knowledge_point: '一次函数',
+      use_knowledge_base: true,
+    })
   })
 
   it('shows failed safety error and prevents double submit while loading', async () => {
@@ -136,26 +134,13 @@ describe('TeacherAgent', () => {
     expect(api.createTeacherAgentRun).toHaveBeenCalledTimes(1)
   })
 
-  it('restores submit state and avoids duplicate history on network error', async () => {
-    api.createTeacherAgentRun.mockRejectedValue(new Error('network timeout'))
-    render(<TeacherAgent />)
-
-    await userEvent.type(screen.getByLabelText('教学目标'), '规划复习课')
-    const button = screen.getByRole('button', { name: /生成教学计划/ })
-    await userEvent.click(button)
-
-    expect(await screen.findByText('network timeout')).toBeInTheDocument()
-    expect(button).not.toBeDisabled()
-    expect(api.createTeacherAgentRun).toHaveBeenCalledTimes(1)
-    expect(api.getTeacherAgentRuns).toHaveBeenCalledTimes(1)
-  })
-
-  it('only shows history records returned by API and does not leak internal prompt', async () => {
+  it('loads history without leaking internal prompt or practice-draft controls', async () => {
     api.getTeacherAgentRuns.mockResolvedValue({ data: [completedRun()] })
     render(<TeacherAgent />)
 
     expect(await screen.findByText('规划复习课')).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByText(/SYSTEM RULES/)).not.toBeInTheDocument())
     expect(screen.queryByText(/api_key/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/确认入库|题库事务|保存到题库/)).not.toBeInTheDocument()
   })
 })

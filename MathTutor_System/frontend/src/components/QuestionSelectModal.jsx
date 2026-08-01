@@ -50,18 +50,34 @@ export default function QuestionSelectModal({ open, onClose, onSelect }) {
       <button
         type="button"
         aria-label="关闭"
-        className="absolute inset-0 bg-black/50 transition-opacity"
+        className="absolute inset-0 transition-opacity"
+        style={{ backgroundColor: 'var(--color-bg-overlay)' }}
         onClick={onClose}
       />
-      {/* 白色弹窗 w-3/4 h-5/6 */}
-      <div className="relative flex h-5/6 w-3/4 max-w-4xl flex-col rounded-xl bg-white shadow-xl">
+      {/* 弹窗 w-3/4 h-5/6 */}
+      <div
+        className="relative flex h-5/6 w-3/4 max-w-4xl flex-col rounded-xl shadow-xl"
+        style={{ backgroundColor: 'var(--color-bg-card)' }}
+      >
         {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-5 py-4">
-          <h2 className="text-lg font-semibold text-gray-800">选择参考题目</h2>
+        <div
+          className="flex shrink-0 items-center justify-between px-5 py-4"
+          style={{ borderBottom: '1px solid var(--color-border-primary)' }}
+        >
+          <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>选择参考题目</h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+            className="rounded-lg p-2 transition-colors"
+            style={{ color: 'var(--color-text-secondary)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+              e.currentTarget.style.color = 'var(--color-text-primary)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent'
+              e.currentTarget.style.color = 'var(--color-text-secondary)'
+            }}
             aria-label="关闭"
           >
             <X className="h-5 w-5" />
@@ -70,15 +86,23 @@ export default function QuestionSelectModal({ open, onClose, onSelect }) {
 
         {/* Content: 搜索栏 + 列表区 */}
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="shrink-0 border-b border-gray-100 px-5 py-3">
+          <div
+            className="shrink-0 px-5 py-3"
+            style={{ borderBottom: '1px solid var(--color-border-subtle)' }}
+          >
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: 'var(--color-text-muted)' }} />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="搜索题干、知识点、答案或解析"
-                className="w-full rounded-lg border border-gray-200 py-2.5 pl-10 pr-4 text-sm text-gray-800 placeholder-gray-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+                className="w-full rounded-lg py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2"
+                style={{
+                  border: '1px solid var(--color-border-primary)',
+                  backgroundColor: 'var(--color-bg-input)',
+                  color: 'var(--color-text-primary)'
+                }}
               />
             </div>
           </div>
@@ -86,19 +110,26 @@ export default function QuestionSelectModal({ open, onClose, onSelect }) {
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
             {loading ? (
               <div className="flex flex-col items-center justify-center py-16">
-                <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
-                <p className="mt-3 text-sm text-gray-500">加载题库中...</p>
+                <Loader2 className="h-10 w-10 animate-spin" style={{ color: 'var(--color-primary-600)' }} />
+                <p className="mt-3 text-sm" style={{ color: 'var(--color-text-secondary)' }}>加载题库中...</p>
               </div>
             ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
-                <p className="text-sm text-gray-500">
+                <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                   {searchTerm.trim() ? '未找到匹配题目，请换个关键词' : '题库暂无题目'}
                 </p>
               </div>
             ) : (
               <ul className="space-y-4">
                 {filtered.map((q, i) => (
-                  <li key={q.id ?? i} className="flex items-stretch gap-3 rounded-xl border border-gray-200 bg-gray-50/50 p-3">
+                  <li
+                    key={q.id ?? i}
+                    className="flex items-stretch gap-3 rounded-xl p-3"
+                    style={{
+                      border: '1px solid var(--color-border-primary)',
+                      backgroundColor: 'var(--color-bg-panel)'
+                    }}
+                  >
                     <div className="min-w-0 flex-1">
                       <QuestionCard
                         data={{
@@ -116,7 +147,14 @@ export default function QuestionSelectModal({ open, onClose, onSelect }) {
                       <button
                         type="button"
                         onClick={() => handleSelect(q)}
-                        className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 transition-colors"
+                        className="rounded-lg px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors"
+                        style={{ backgroundColor: 'var(--color-primary-600)' }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--color-primary-700)'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--color-primary-600)'
+                        }}
                       >
                         选择此题
                       </button>

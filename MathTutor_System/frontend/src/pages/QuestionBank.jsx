@@ -106,10 +106,10 @@ export default function QuestionBank() {
     <div className="flex min-h-full flex-col animate-fade-in-up space-y-4">
       <header className="shrink-0 flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-black tracking-tight text-slate-900">
+          <h1 className="text-xl font-black tracking-tight" style={{ color: 'var(--color-text-primary)' }}>
             {currentStudent ? `${currentStudent.name} 的专属收藏题库` : '题库资产中心'}
           </h1>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mt-0.5 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
             集中管理收藏的优质考题，支持一键勾选组卷生成标准数学试卷
           </p>
         </div>
@@ -119,32 +119,44 @@ export default function QuestionBank() {
         {/* 左侧筛选面板 */}
         <aside className="pro-glass-card flex w-72 shrink-0 flex-col gap-4 rounded-3xl p-5">
           <div>
-            <label className="mb-1.5 block text-xs font-bold text-slate-700">搜索知识点</label>
+            <label className="mb-1.5 block text-xs font-bold" style={{ color: 'var(--color-text-primary)' }}>搜索知识点</label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2" style={{ color: 'var(--color-text-muted)' }} />
               <input
                 type="text"
                 placeholder="输入知识点关键词…"
                 value={knowledgePointFilter}
                 onChange={(e) => setKnowledgePointFilter(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 py-2 pl-9 pr-3 text-xs text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                className="w-full rounded-xl py-2 pl-9 pr-3 text-xs focus:outline-none focus:ring-2"
+                style={{ border: '1px solid var(--color-border-primary)', color: 'var(--color-text-primary)', backgroundColor: 'var(--color-bg-input)' }}
               />
             </div>
           </div>
 
           <div>
-            <label className="mb-2 block text-xs font-bold text-slate-700">题型分类</label>
+            <label className="mb-2 block text-xs font-bold" style={{ color: 'var(--color-text-primary)' }}>题型分类</label>
             <div className="grid grid-cols-2 gap-2">
               {['', '选择', '填空', '解答'].map((t) => (
                 <button
                   key={t || 'all'}
                   type="button"
                   onClick={() => setQuestionTypeFilter(t)}
-                  className={`rounded-xl border px-3 py-2 text-xs font-bold transition-all ${
+                  className="rounded-xl px-3 py-2 text-xs font-bold transition-all"
+                  style={
                     questionTypeFilter === t
-                      ? 'border-indigo-600 bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                  }`}
+                      ? { border: '1px solid var(--color-primary-600)', backgroundColor: 'var(--color-primary-600)', color: 'white', boxShadow: '0 4px 6px -1px color-mix(in srgb, var(--color-primary-500) 20%, transparent)' }
+                      : { border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)', color: 'var(--color-text-secondary)' }
+                  }
+                  onMouseEnter={(e) => {
+                    if (questionTypeFilter !== t) {
+                      e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (questionTypeFilter !== t) {
+                      e.currentTarget.style.backgroundColor = 'var(--color-bg-card)'
+                    }
+                  }}
                 >
                   {t || '全部题型'}
                 </button>
@@ -152,37 +164,37 @@ export default function QuestionBank() {
             </div>
           </div>
 
-          <div className="mt-auto border-t border-slate-100 pt-3">
-            <span className="text-xs font-bold text-slate-500">题库现存: {list.length} 道精选题目</span>
+          <div className="mt-auto pt-3" style={{ borderTop: '1px solid var(--color-border-subtle)' }}>
+            <span className="text-xs font-bold" style={{ color: 'var(--color-text-secondary)' }}>题库现存: {list.length} 道精选题目</span>
           </div>
         </aside>
 
         {/* 主列表 */}
         <main className="min-w-0 flex-1 overflow-y-auto pr-1">
           {loading && (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-              <Loader2 className="h-10 w-10 animate-spin text-indigo-600" />
-              <p className="mt-3 text-xs font-bold">正在加载精选题库…</p>
+            <div className="flex flex-col items-center justify-center py-20">
+              <Loader2 className="h-10 w-10 animate-spin" style={{ color: 'var(--color-primary-600)' }} />
+              <p className="mt-3 text-xs font-bold" style={{ color: 'var(--color-text-muted)' }}>正在加载精选题库…</p>
             </div>
           )}
 
           {!loading && filtered.length === 0 && (
             <div className="pro-glass-card flex flex-col items-center justify-center rounded-3xl py-20 text-center">
-              <FileQuestion className="h-14 w-14 text-slate-300 mb-3" />
-              <p className="text-sm font-extrabold text-slate-700">暂无收藏题目</p>
-              <p className="mt-1 text-xs text-slate-400">在智能出题或错题本中点击「收藏」按钮，即可添加至此处</p>
+              <FileQuestion className="h-14 w-14 mb-3" style={{ color: 'var(--color-border-primary)' }} />
+              <p className="text-sm font-extrabold" style={{ color: 'var(--color-text-primary)' }}>暂无收藏题目</p>
+              <p className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>在智能出题或错题本中点击「收藏」按钮，即可添加至此处</p>
             </div>
           )}
 
           {!loading && filtered.length > 0 && (
             <>
               <div className="mb-3 flex items-center justify-between">
-                <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold text-slate-700 bg-white border border-slate-200/80 px-3 py-1.5 rounded-xl">
+                <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-xl" style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid color-mix(in srgb, var(--color-border-primary) 80%, transparent)', color: 'var(--color-text-primary)' }}>
                   <input
                     type="checkbox"
                     checked={filtered.length > 0 && selectedIds.size === filtered.length}
                     onChange={toggleSelectAll}
-                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    className="h-4 w-4 rounded focus:ring"
                   />
                   全选当前页面
                 </label>
@@ -195,7 +207,7 @@ export default function QuestionBank() {
                         type="checkbox"
                         checked={selectedIds.has(item.id)}
                         onChange={() => toggleSelect(item.id)}
-                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        className="h-4 w-4 rounded focus:ring"
                       />
                     </label>
                     <div className="min-w-0 flex-1">
