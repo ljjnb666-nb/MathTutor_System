@@ -38,6 +38,7 @@ describe('httpClient LLM headers', () => {
   it('uses explicit VITE_ALLOW_CLIENT_LLM_CONFIG before DEV default', () => {
     expect(shouldSendClientLlmHeaders({ env: { DEV: true, VITE_ALLOW_CLIENT_LLM_CONFIG: 'false' } })).toBe(false)
     expect(shouldSendClientLlmHeaders({ env: { DEV: false, VITE_ALLOW_CLIENT_LLM_CONFIG: 'true' } })).toBe(true)
+    expect(shouldSendClientLlmHeaders({ DEV: false, VITE_ALLOW_CLIENT_LLM_CONFIG: 'true' })).toBe(true)
   })
 
   it('keeps buildAuthHeaders consistent with client LLM header policy', () => {

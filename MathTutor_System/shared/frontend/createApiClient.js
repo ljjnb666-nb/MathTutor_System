@@ -6,13 +6,14 @@ export function buildApiBaseURL(importMeta) {
 
 export function createApiClient(axios, {
   importMeta,
+  baseURL,
   tokenStorageKey,
   getExtraHeaders,
   onUnauthorized,
   onForbidden,
 }) {
   const api = axios.create({
-    baseURL: buildApiBaseURL(importMeta),
+    baseURL: baseURL ?? buildApiBaseURL(importMeta),
     timeout: 60000,
     headers: { 'Content-Type': 'application/json' },
   })
