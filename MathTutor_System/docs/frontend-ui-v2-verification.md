@@ -8,12 +8,12 @@ Updated: 2026-08-01
 - Branch: `feat/frontend-ui-v2-foundation`
 - Base: `feat/teacher-agent-practice-draft`
 - Status: Draft
-- Commit count after this CI fix: 54
-- Merge readiness: not ready for merge while the PR remains Draft and GitHub Actions must re-run on the new head
+- Commit count: see the current PR description; this file is updated as part of the CI fix sequence
+- Merge readiness: not ready for merge while the PR remains Draft and until GitHub Actions pass on the latest head
 
 ## CI Fix
 
-The failing teacher frontend test was caused by stale test selectors and text assertions in `frontend/src/pages/TeacherAgent.test.jsx`.
+The failing teacher frontend checks had two causes. First, stale test selectors and text assertions in `frontend/src/pages/TeacherAgent.test.jsx`.
 The product UI had already moved to Chinese visible labels, while the tests still queried old English copy such as `Teaching goal` and the old English safety message.
 
 The test now verifies stable behavior:
@@ -23,6 +23,9 @@ The test now verifies stable behavior:
 - The teaching-goal input is still available.
 - The full, non-streaming generate-plan action remains available.
 - Assertions avoid depending on the old full English product sentence.
+
+Second, the remote build still contained JSX smart quotes in `StudentGrid.jsx` and `HomeworkProgressPanel.jsx`.
+Those were replaced with standard ASCII quotes so Vite/esbuild can parse the files in CI.
 
 ## Verification Results
 
