@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { FileText, Loader2, Trash2, Send } from 'lucide-react'
+import { CalendarClock, FileText, Printer, Search, Send, Trash2, UploadCloud } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { getExams, deleteExam, saveExam } from '../services/api'
+import { deleteExam, getExams, saveExam } from '../services/api'
 import StudentSelectorModal from '../components/StudentSelectorModal'
+import { EmptyState, ErrorState, LoadingState, MetricCard, PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
 
 function formatDate(createdAt) {
-  if (!createdAt) return '—'
-  const d = new Date(createdAt)
-  return d.toLocaleString('zh-CN', {
+  if (!createdAt) return '未记录'
+  const date = new Date(createdAt)
+  if (Number.isNaN(date.getTime())) return '未记录'
+  return date.toLocaleString('zh-CN', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -18,31 +20,39 @@ function formatDate(createdAt) {
 }
 
 function isLessonPlan(exam) {
-  const q = exam?.questions
-  return q != null && typeof q === 'object' && !Array.isArray(q) && 'knowledge_card' in q
+  const questions = exam?.questions
+  return questions != null && typeof questions === 'object' && !Array.isArray(questions) && 'knowledge_card' in questions
 }
 
 function getQuestionCount(exam) {
-  const q = exam?.questions
-  if (!q) return 0
-  if (Array.isArray(q)) return q.length
-  if (typeof q === 'object' && Array.isArray(q.questions)) return q.questions.length
+  const questions = exam?.questions
+  if (!questions) return 0
+  if (Array.isArray(questions)) return questions.length
+  if (Array.isArray(questions.questions)) return questions.questions.length
   return 0
+}
+
+function getStatusTone(exam) {
+  if (exam.student_id || exam.student_name) return 'success'
+  if (isLessonPlan(exam)) return 'primary'
+  return 'neutral'
 }
 
 export default function ExamList() {
   const [exams, setExams] = useState([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState('')
+  const [query, setQuery] = useState('')
+  const [typeFilter, setTypeFilter] = useState('all')
   const [deletingId, setDeletingId] = useState(null)
   const [assignExam, setAssignExam] = useState(null)
 
   const fetchExams = () => {
     setLoading(true)
-    setError(null)
+    setError('')
     getExams()
-      .then((res) => setExams(Array.isArray(res.data) ? res.data : []))
-      .catch((err) => setError(err.response?.data?.detail || err.message || '加载失败'))
+      .then((response) => setExams(Array.isArray(response?.data) ? response.data : []))
+      .catch((err) => setError(err?.response?.data?.detail || err?.message || '加载试卷失败'))
       .finally(() => setLoading(false))
   }
 
@@ -50,17 +60,36 @@ export default function ExamList() {
     fetchExams()
   }, [])
 
-  const handleDelete = async (exam, e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (!window.confirm(`确定删除「${exam.title || '未命名试卷'}」？${exam.student_id ? '学生端将不再显示该作业。' : ''}`)) return
+  const filtered = useMemo(() => {
+    const keyword = query.trim().toLowerCase()
+    return exams.filter((exam) => {
+      const title = String(exam.title || '').toLowerCase()
+      const type = isLessonPlan(exam) ? 'lesson' : 'exam'
+      const matchesQuery = !keyword || title.includes(keyword) || String(exam.student_name || '').toLowerCase().includes(keyword)
+      const matchesType = typeFilter === 'all' || typeFilter === type || (typeFilter === 'assigned' && (exam.student_id || exam.student_name))
+      return matchesQuery && matchesType
+    })
+  }, [exams, query, typeFilter])
+
+  const stats = useMemo(() => {
+    const lessonPlans = exams.filter(isLessonPlan).length
+    const assigned = exams.filter((exam) => exam.student_id || exam.student_name).length
+    const questions = exams.reduce((sum, exam) => sum + getQuestionCount(exam), 0)
+    return { total: exams.length, lessonPlans, assigned, questions }
+  }, [exams])
+
+  const handleDelete = async (exam, event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    const title = exam.title || '未命名试卷'
+    if (!window.confirm(`确定删除「${title}」？${exam.student_id ? '学生端将不再显示该作业。' : ''}`)) return
     setDeletingId(exam.id)
     try {
       await deleteExam(exam.id)
-      toast.success('已删除')
+      toast.success('已删除试卷')
       fetchExams()
     } catch (err) {
-      toast.error(err.response?.data?.detail || '删除失败')
+      toast.error(err?.response?.data?.detail || '删除失败')
     } finally {
       setDeletingId(null)
     }
@@ -71,42 +100,32 @@ export default function ExamList() {
     const title = (customTitle && customTitle.trim()) || assignExam.title || '未命名作业'
     try {
       await Promise.all(
-        selected.map((s) =>
+        selected.map((student) =>
           saveExam({
             title,
-            student_id: s.id,
+            student_id: student.id,
             questions: assignExam.questions,
           })
         )
       )
-      const n = selected.length
-      const names = selected.map((s) => s.name).join('，')
-      toast.success(`已向 ${n} 位学生布置作业：${names}`)
+      toast.success(`已向 ${selected.length} 位学生布置作业`)
       setAssignExam(null)
     } catch (err) {
-      toast.error(err.response?.data?.detail || '布置失败')
+      toast.error(err?.response?.data?.detail || '布置失败')
       throw err
     }
   }
 
   if (loading) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin" style={{ color: 'var(--color-primary-600)' }} />
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="rounded-lg p-4" style={{ border: '1px solid rgba(239, 68, 68, 0.2)', backgroundColor: 'color-mix(in srgb, #ef4444 10%, var(--color-bg-card))', color: '#b91c1c' }}>
-        <p>{error}</p>
-      </div>
+      <PageShell>
+        <LoadingState title="正在加载试卷资产" description="读取已保存试卷与讲义。" />
+      </PageShell>
     )
   }
 
   return (
-    <div className="flex flex-col animate-fade-in-up space-y-4">
+    <PageShell className="space-y-5">
       <StudentSelectorModal
         open={!!assignExam}
         onClose={() => setAssignExam(null)}
@@ -114,106 +133,96 @@ export default function ExamList() {
         defaultTitle={assignExam?.title || ''}
         allowEditTitle
       />
-      <header className="rounded-3xl p-6 sm:p-8 shadow-sm flex items-center justify-between gap-4" style={{ border: '1px solid color-mix(in srgb, var(--color-border-primary) 90%, transparent)', backgroundColor: 'var(--color-bg-card)' }}>
-        <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 text-white shadow-lg shrink-0" style={{ boxShadow: '0 10px 15px -3px color-mix(in srgb, var(--color-primary-500) 25%, transparent)' }}>
-            <FileText className="h-7 w-7" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-black tracking-tight" style={{ color: 'var(--color-text-primary)' }}>我的试卷与讲义资产库</h1>
-              <span className="rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase" style={{ backgroundColor: 'color-mix(in srgb, #10b981 10%, transparent)', border: '1px solid rgba(16, 185, 129, 0.2)', color: '#047857' }}>
-                EXAM ASSETS
-              </span>
-            </div>
-            <p className="mt-1 text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>
-              归档备课生成的试卷与同步讲义，支持 A4 打印排版、导出 Word 与一键批量布置作业
-            </p>
-          </div>
-        </div>
-      </header>
 
-      {exams.length === 0 ? (
-        <div className="pro-glass-card rounded-3xl py-20 text-center shadow-sm">
-          <FileText className="mx-auto h-14 w-14 mb-3" style={{ color: 'var(--color-border-primary)' }} />
-          <p className="text-sm font-extrabold" style={{ color: 'var(--color-text-primary)' }}>暂无归档试卷</p>
-          <p className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>在「智能 AI 出题中心」生成题目后，点击「保存为试卷」即可显示在归档库中</p>
-          <Link
-            to="/smart-gen"
-            className="btn-gradient-pro mt-5 inline-flex items-center gap-2 rounded-2xl px-6 py-3 text-xs font-black"
-          >
-            前往 AI 智能出题
-          </Link>
-        </div>
+      <PageHeader
+        title="我的试卷"
+        description="归档智能出题、导入试卷和讲义资产；打印、导出、布置仍使用现有试卷接口。"
+        icon={FileText}
+        meta={<StatusBadge tone="primary">{stats.total} 份资产</StatusBadge>}
+        actions={(
+          <>
+            <Link to="/exams/import" className="v2-btn-secondary"><UploadCloud className="h-4 w-4" />导入试卷</Link>
+            <Link to="/smart-gen" className="v2-btn-primary"><FileText className="h-4 w-4" />智能出题</Link>
+          </>
+        )}
+      />
+
+      {error ? (
+        <ErrorState title="加载失败" description={error} onRetry={fetchExams} />
       ) : (
-        <ul className="space-y-3">
-          {exams.map((exam) => {
-            const lessonPlan = isLessonPlan(exam)
-            const count = getQuestionCount(exam)
-            return (
-              <li key={exam.id}>
-                <div className="pro-glass-card flex items-center justify-between gap-4 rounded-2xl p-4 transition-all hover:border-indigo-500/50">
-                  <Link to={`/exams/${exam.id}`} className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2.5">
-                      <h2 className="truncate text-sm font-black" style={{ color: 'var(--color-text-primary)' }}>{exam.title || '未命名数学试卷'}</h2>
-                      <span
-                        className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase ${
-                          lessonPlan
-                            ? 'bg-indigo-500/10 text-indigo-700 border-indigo-200'
-                            : 'bg-emerald-500/10 text-emerald-700 border-emerald-200'
-                        }`}
-                      >
-                        {lessonPlan ? '📘 辅导讲义' : '📝 练习试卷'}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs font-medium text-slate-500">
-                      {count} 道考题 · 创建时间 {formatDate(exam.created_at)}
-                      {exam.student_name && (
-                        <span className="ml-2 font-bold text-indigo-600">· 布置给 {exam.student_name}</span>
-                      )}
-                    </p>
-                  </Link>
+        <>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <MetricCard label="资产总数" value={stats.total} hint="试卷与讲义" icon={FileText} />
+            <MetricCard label="题目总量" value={stats.questions} hint="当前归档题目" icon={Search} tone="success" />
+            <MetricCard label="辅导讲义" value={stats.lessonPlans} hint="含知识卡片" icon={CalendarClock} tone="warning" />
+            <MetricCard label="已布置" value={stats.assigned} hint="绑定学生端" icon={Send} tone="danger" />
+          </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Link
-                      to={`/exams/${exam.id}`}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
-                    >
-                      打印与导出
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        setAssignExam(exam)
-                      }}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition-colors"
-                      title="布置给更多学生"
-                    >
-                      <Send className="h-3.5 w-3.5" />
-                      一键布置
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => handleDelete(exam, e)}
-                      disabled={deletingId === exam.id}
-                      className="rounded-xl border border-rose-200 bg-rose-50 p-2 text-rose-600 hover:bg-rose-100 disabled:opacity-50 transition-colors"
-                      title="删除试卷"
-                    >
-                      {deletingId === exam.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </li>
-            )
-          })}
-        </ul>
+          <SectionCard
+            title={`资产列表 (${filtered.length})`}
+            description="按标题、学生或资产类型筛选；点击卡片进入预览与打印导出。"
+            actions={(
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="v2-search min-w-52">
+                  <Search className="h-4 w-4 shrink-0" />
+                  <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索标题或学生..." />
+                </label>
+                <select className="v2-control" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+                  <option value="all">全部资产</option>
+                  <option value="exam">练习试卷</option>
+                  <option value="lesson">辅导讲义</option>
+                  <option value="assigned">已布置</option>
+                </select>
+              </div>
+            )}
+          >
+            {filtered.length === 0 ? (
+              <EmptyState
+                icon={FileText}
+                title={exams.length ? '没有匹配的试卷' : '暂无归档试卷'}
+                description={exams.length ? '调整搜索或筛选条件后重试。' : '在智能出题或导入试卷完成后，可保存到这里。'}
+                action={<Link to="/smart-gen" className="v2-btn-secondary">前往智能出题</Link>}
+              />
+            ) : (
+              <div className="grid gap-3">
+                {filtered.map((exam) => {
+                  const lessonPlan = isLessonPlan(exam)
+                  const count = getQuestionCount(exam)
+                  return (
+                    <article key={exam.id} className="v2-exam-card">
+                      <Link to={`/exams/${exam.id}`} className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h2>{exam.title || '未命名数学试卷'}</h2>
+                          <StatusBadge tone={getStatusTone(exam)}>{lessonPlan ? '辅导讲义' : '练习试卷'}</StatusBadge>
+                          {exam.student_name && <StatusBadge tone="success">已布置给 {exam.student_name}</StatusBadge>}
+                        </div>
+                        <p>{count} 道题 · 创建时间 {formatDate(exam.created_at)}</p>
+                      </Link>
+
+                      <div className="flex shrink-0 flex-wrap items-center gap-2">
+                        <Link to={`/exams/${exam.id}`} className="v2-btn-secondary"><Printer className="h-4 w-4" />打印与导出</Link>
+                        <button type="button" className="v2-btn-secondary" onClick={() => setAssignExam(exam)}>
+                          <Send className="h-4 w-4" />
+                          一键布置
+                        </button>
+                        <button
+                          type="button"
+                          className="v2-icon-button danger"
+                          title="删除试卷"
+                          disabled={deletingId === exam.id}
+                          onClick={(event) => handleDelete(exam, event)}
+                        >
+                          {deletingId === exam.id ? <span className="loading-spinner h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+            )}
+          </SectionCard>
+        </>
       )}
-    </div>
+    </PageShell>
   )
 }

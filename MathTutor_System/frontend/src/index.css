@@ -831,6 +831,580 @@ body {
     background: color-mix(in srgb, var(--color-primary-500) 10%, var(--color-bg-card));
     color: var(--color-text-primary);
   }
+
+  .v2-import-step {
+    @apply flex min-w-0 items-center gap-3 rounded-2xl p-4;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 86%, transparent);
+  }
+
+  .v2-import-step > span {
+    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black;
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-import-step strong,
+  .v2-import-format strong,
+  .v2-import-file-row strong,
+  .v2-import-panel strong,
+  .v2-import-actionbar strong {
+    @apply block truncate text-sm font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-import-step p,
+  .v2-import-format p,
+  .v2-import-file-row p,
+  .v2-import-panel p,
+  .v2-import-actionbar p {
+    @apply mt-1 truncate text-xs font-semibold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-import-step.active,
+  .v2-import-step.complete {
+    border-color: color-mix(in srgb, var(--color-primary-500) 28%, var(--color-border-primary));
+  }
+
+  .v2-import-step.active > span,
+  .v2-import-step.complete > span {
+    background: linear-gradient(135deg, #14b8a6, #8b5cf6);
+    color: white;
+  }
+
+  .v2-import-dropzone {
+    @apply relative flex min-h-56 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 text-center transition;
+    border-color: var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 78%, transparent);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-import-dropzone input {
+    @apply absolute inset-0 cursor-pointer opacity-0;
+  }
+
+  .v2-import-dropzone strong {
+    @apply mt-3 block max-w-full truncate text-base font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-import-dropzone p {
+    @apply mt-1 text-xs font-semibold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-import-dropzone.active,
+  .v2-import-dropzone:hover {
+    border-color: var(--color-primary-500);
+    background: color-mix(in srgb, var(--color-primary-500) 10%, var(--color-bg-card));
+  }
+
+  .v2-import-format,
+  .v2-import-file-row,
+  .v2-import-panel,
+  .v2-import-question,
+  .v2-import-note,
+  .v2-import-result {
+    @apply rounded-2xl;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+  }
+
+  .v2-import-format {
+    @apply flex items-start gap-3 p-4;
+  }
+
+  .v2-import-format.enabled svg {
+    color: var(--color-primary-400);
+  }
+
+  .v2-import-format.disabled {
+    @apply opacity-55;
+  }
+
+  .v2-import-file-row {
+    @apply flex items-center gap-3 p-4;
+  }
+
+  .v2-import-file-row > svg {
+    color: var(--color-primary-400);
+  }
+
+  .v2-import-panel {
+    @apply p-4;
+  }
+
+  .v2-import-panel span,
+  .v2-import-note span {
+    @apply block text-xs font-bold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-import-panel strong {
+    @apply mt-2 text-2xl;
+  }
+
+  .v2-import-batchbar {
+    @apply flex flex-wrap items-center gap-2 rounded-2xl p-3;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+  }
+
+  .v2-import-batchbar span {
+    @apply text-xs font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-import-batchbar input,
+  .v2-field input,
+  .v2-field select,
+  .v2-field textarea {
+    @apply min-w-0 rounded-xl px-3 py-2 text-sm font-semibold outline-none;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-chip {
+    @apply rounded-lg px-2.5 py-1 text-xs font-black transition;
+    border: 1px solid var(--color-border-primary);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-chip:hover {
+    background: color-mix(in srgb, var(--color-primary-500) 12%, transparent);
+    color: var(--color-text-primary);
+  }
+
+  .v2-import-loading {
+    @apply flex min-h-60 flex-col items-center justify-center rounded-2xl text-center;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+  }
+
+  .v2-import-loading strong {
+    @apply mt-3 text-sm font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-import-loading p {
+    @apply mt-1 text-xs font-semibold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-import-question {
+    @apply p-4;
+  }
+
+  .v2-import-question.selected {
+    border-color: color-mix(in srgb, var(--color-primary-500) 38%, var(--color-border-primary));
+    background: color-mix(in srgb, var(--color-primary-500) 8%, var(--color-bg-panel));
+  }
+
+  .v2-import-option {
+    @apply flex items-start gap-2 rounded-xl p-3;
+    background: color-mix(in srgb, var(--color-bg-card) 72%, transparent);
+  }
+
+  .v2-import-option span {
+    @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-black;
+    background: color-mix(in srgb, var(--color-primary-500) 14%, transparent);
+    color: var(--color-primary-300);
+  }
+
+  .v2-import-option p,
+  .v2-import-note p {
+    @apply min-w-0 whitespace-pre-wrap text-sm font-semibold leading-6;
+    color: var(--color-text-primary);
+  }
+
+  .v2-import-note {
+    @apply p-3;
+  }
+
+  .v2-modal-backdrop {
+    @apply fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto p-4;
+    background: rgb(2 6 23 / 72%);
+    backdrop-filter: blur(10px);
+  }
+
+  .v2-import-editor {
+    @apply max-h-[92vh] w-full max-w-4xl space-y-4 overflow-y-auto rounded-2xl p-5 shadow-2xl;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-card);
+  }
+
+  .v2-import-editor h2 {
+    @apply text-lg font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-import-editor p {
+    @apply text-xs font-semibold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-field {
+    @apply block space-y-2;
+  }
+
+  .v2-field span {
+    @apply block text-xs font-black;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-field input,
+  .v2-field select,
+  .v2-field textarea {
+    @apply w-full;
+  }
+
+  .v2-import-result {
+    @apply flex items-center gap-2 p-3 text-sm font-bold;
+    color: #86efac;
+  }
+
+  .v2-import-actionbar {
+    @apply sticky bottom-4 z-20 flex flex-col gap-3 rounded-2xl p-4 shadow-2xl lg:flex-row lg:items-center lg:justify-between;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 92%, transparent);
+    backdrop-filter: blur(18px);
+  }
+
+  .v2-exam-card {
+    @apply flex flex-col gap-3 rounded-2xl p-4 transition lg:flex-row lg:items-center lg:justify-between;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+  }
+
+  .v2-exam-card:hover {
+    border-color: color-mix(in srgb, var(--color-primary-500) 34%, var(--color-border-primary));
+    background: color-mix(in srgb, var(--color-primary-500) 7%, var(--color-bg-panel));
+  }
+
+  .v2-exam-card h2 {
+    @apply max-w-full truncate text-sm font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-exam-card p {
+    @apply mt-2 text-xs font-semibold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-toggle {
+    @apply inline-flex h-10 items-center gap-2 rounded-xl px-3 text-xs font-black;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-preview-paper {
+    @apply space-y-4 rounded-2xl p-4;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+  }
+
+  .v2-preview-paper-header {
+    @apply rounded-2xl p-4 text-center;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 84%, transparent);
+  }
+
+  .v2-preview-paper-header h2 {
+    @apply text-xl font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-preview-paper-header p {
+    @apply mt-2 text-xs font-semibold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-preview-group-title {
+    @apply text-sm font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-preview-question,
+  .v2-preview-note,
+  .v2-preview-side-stat {
+    @apply rounded-2xl;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 82%, transparent);
+  }
+
+  .v2-preview-question {
+    @apply p-4;
+  }
+
+  .v2-preview-question.correct {
+    border-color: color-mix(in srgb, #22c55e 45%, var(--color-border-primary));
+  }
+
+  .v2-preview-question.wrong {
+    border-color: color-mix(in srgb, #f43f5e 45%, var(--color-border-primary));
+  }
+
+  .v2-preview-option {
+    @apply flex items-start gap-2 rounded-xl p-3;
+    background: color-mix(in srgb, var(--color-bg-panel) 75%, transparent);
+  }
+
+  .v2-preview-option span {
+    @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-black;
+    background: color-mix(in srgb, var(--color-primary-500) 14%, transparent);
+    color: var(--color-primary-300);
+  }
+
+  .v2-preview-option p,
+  .v2-preview-note p {
+    @apply min-w-0 whitespace-pre-wrap text-sm font-semibold leading-6;
+    color: var(--color-text-primary);
+  }
+
+  .v2-preview-note {
+    @apply p-3;
+  }
+
+  .v2-preview-note span,
+  .v2-preview-side-stat span {
+    @apply block text-xs font-black;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-preview-side-stat {
+    @apply p-4;
+  }
+
+  .v2-preview-side-stat strong {
+    @apply mt-2 block text-2xl font-black tabular-nums;
+    color: var(--color-text-primary);
+  }
+
+  .v2-mark-button {
+    @apply inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-black transition;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-mark-button.active-correct {
+    border-color: color-mix(in srgb, #22c55e 45%, var(--color-border-primary));
+    background: color-mix(in srgb, #22c55e 18%, var(--color-bg-card));
+    color: #86efac;
+  }
+
+  .v2-mark-button.active-wrong {
+    border-color: color-mix(in srgb, #f43f5e 45%, var(--color-border-primary));
+    background: color-mix(in srgb, #f43f5e 18%, var(--color-bg-card));
+    color: #fda4af;
+  }
+
+  .v2-chip.active {
+    border-color: color-mix(in srgb, var(--color-primary-500) 45%, var(--color-border-primary));
+    background: color-mix(in srgb, var(--color-primary-500) 14%, transparent);
+    color: var(--color-text-primary);
+  }
+
+  .v2-tabs {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .v2-tabs button {
+    @apply h-9 rounded-xl px-3 text-xs font-black transition;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-tabs button.active {
+    border-color: color-mix(in srgb, var(--color-primary-500) 45%, var(--color-border-primary));
+    background: color-mix(in srgb, var(--color-primary-500) 14%, transparent);
+    color: var(--color-text-primary);
+  }
+
+  .v2-mistake-card,
+  .v2-mistake-option,
+  .v2-mistake-note {
+    @apply rounded-2xl;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+  }
+
+  .v2-mistake-card {
+    @apply p-4;
+  }
+
+  .v2-mistake-option {
+    @apply flex items-start gap-2 p-3;
+    background: color-mix(in srgb, var(--color-bg-card) 72%, transparent);
+  }
+
+  .v2-mistake-option span {
+    @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-black;
+    background: color-mix(in srgb, var(--color-primary-500) 14%, transparent);
+    color: var(--color-primary-300);
+  }
+
+  .v2-mistake-option p,
+  .v2-mistake-note p {
+    @apply min-w-0 whitespace-pre-wrap text-sm font-semibold leading-6;
+    color: var(--color-text-primary);
+  }
+
+  .v2-mistake-note {
+    @apply p-3;
+  }
+
+  .v2-mistake-note span {
+    @apply block text-xs font-black;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-graph-layout {
+    @apply grid min-h-0 gap-4 lg:grid-cols-[minmax(22rem,0.95fr)_minmax(24rem,1.05fr)];
+  }
+
+  .v2-graph-tree-panel {
+    @apply min-h-0 overflow-hidden;
+  }
+
+  .v2-graph-tree {
+    @apply max-h-[calc(100vh-19rem)] overflow-y-auto pr-1;
+  }
+
+  .v2-graph-tree-branch {
+    @apply min-w-0;
+  }
+
+  .v2-graph-tree-node {
+    @apply flex min-w-0 items-center gap-1 rounded-xl py-1.5 pr-2 text-sm transition;
+    padding-left: calc(0.25rem + (var(--depth, 0) * 0.95rem));
+    color: var(--color-text-primary);
+  }
+
+  .v2-graph-tree-node:hover {
+    background: color-mix(in srgb, var(--color-bg-card-hover) 82%, transparent);
+  }
+
+  .v2-graph-tree-node.selected {
+    background: color-mix(in srgb, var(--color-primary-500) 17%, var(--color-bg-card));
+    box-shadow: inset 3px 0 0 var(--color-primary-400);
+  }
+
+  .v2-graph-tree-node.weak {
+    color: #fda4af;
+  }
+
+  .v2-graph-tree-node.mastered {
+    color: #86efac;
+  }
+
+  .v2-graph-expander {
+    @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition disabled:opacity-30;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-graph-expander:not(:disabled):hover {
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-graph-node-label {
+    @apply flex min-w-0 flex-1 items-center gap-2 text-left font-bold;
+  }
+
+  .v2-graph-node-dot {
+    @apply h-2.5 w-2.5 shrink-0 rounded-full;
+    background: var(--color-border-primary);
+  }
+
+  .v2-graph-tree-node.weak .v2-graph-node-dot {
+    background: #fb7185;
+    box-shadow: 0 0 0 4px rgba(251, 113, 133, 0.12);
+  }
+
+  .v2-graph-tree-node.mastered .v2-graph-node-dot {
+    background: #34d399;
+    box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.12);
+  }
+
+  .v2-graph-side {
+    @apply min-h-0 space-y-4 overflow-y-auto;
+  }
+
+  .v2-graph-focus {
+    @apply relative flex flex-wrap items-center justify-between gap-4 overflow-hidden rounded-2xl p-5;
+    border: 1px solid var(--color-border-primary);
+    background:
+      linear-gradient(135deg, color-mix(in srgb, var(--color-primary-500) 18%, transparent), transparent 45%),
+      color-mix(in srgb, var(--color-bg-card) 88%, transparent);
+  }
+
+  .v2-graph-focus h2 {
+    @apply mt-2 text-2xl font-black tracking-normal text-slate-100;
+  }
+
+  .v2-graph-focus p:last-child {
+    @apply mt-2 max-w-xl text-sm font-medium leading-6 text-slate-400;
+  }
+
+  .v2-graph-focus-weak {
+    border-color: color-mix(in srgb, #fb7185 32%, var(--color-border-primary));
+    background:
+      linear-gradient(135deg, rgba(244, 63, 94, 0.18), transparent 48%),
+      color-mix(in srgb, var(--color-bg-card) 88%, transparent);
+  }
+
+  .v2-graph-focus-mastered {
+    border-color: color-mix(in srgb, #34d399 32%, var(--color-border-primary));
+    background:
+      linear-gradient(135deg, rgba(16, 185, 129, 0.16), transparent 48%),
+      color-mix(in srgb, var(--color-bg-card) 88%, transparent);
+  }
+
+  .v2-graph-ring {
+    @apply grid h-28 w-28 shrink-0 place-items-center rounded-full text-center;
+    background:
+      radial-gradient(circle at center, var(--color-bg-card) 0 58%, transparent 59%),
+      conic-gradient(var(--color-primary-400) calc(var(--score, 0) * 1%), rgba(148, 163, 184, 0.16) 0);
+  }
+
+  .v2-graph-ring strong {
+    @apply block text-xl font-black text-slate-100;
+  }
+
+  .v2-graph-ring span {
+    @apply block text-[11px] font-bold text-slate-400;
+  }
+
+  .v2-graph-outline {
+    @apply grid gap-2;
+  }
+
+  .v2-graph-outline button {
+    @apply flex min-w-0 items-center gap-2 rounded-xl px-3 py-2 text-left transition;
+    margin-left: calc(var(--depth, 0) * 0.6rem);
+    border: 1px solid var(--color-border-subtle);
+    background: color-mix(in srgb, var(--color-bg-panel) 80%, transparent);
+  }
+
+  .v2-graph-outline button:hover {
+    border-color: color-mix(in srgb, var(--color-primary-500) 35%, var(--color-border-primary));
+    background: color-mix(in srgb, var(--color-primary-500) 10%, var(--color-bg-card));
+  }
+
+  .v2-graph-outline span {
+    @apply shrink-0 rounded-lg px-2 py-1 text-[11px] font-black;
+    background: color-mix(in srgb, var(--color-primary-500) 13%, transparent);
+    color: var(--color-primary-300);
+  }
+
+  .v2-graph-outline strong {
+    @apply min-w-0 truncate text-xs font-black text-slate-200;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -860,5 +1434,17 @@ body {
 
   .v2-section-card {
     @apply rounded-xl p-3;
+  }
+
+  .v2-graph-tree {
+    @apply max-h-none;
+  }
+
+  .v2-graph-focus {
+    @apply p-4;
+  }
+
+  .v2-graph-ring {
+    @apply h-24 w-24;
   }
 }
