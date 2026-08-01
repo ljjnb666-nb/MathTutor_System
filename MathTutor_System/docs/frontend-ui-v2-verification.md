@@ -8,24 +8,90 @@ Updated: 2026-08-01
 - Branch: `feat/frontend-ui-v2-foundation`
 - Base: `feat/teacher-agent-practice-draft`
 - Status: Draft
-- Commit count: see the current PR description; this file is updated as part of the CI fix sequence
-- Merge readiness: not ready for merge while the PR remains Draft and until GitHub Actions pass on the latest head
+- Latest verified local head before this final acceptance commit: `48ff12e324d454d9d89bcbc7725ba43d65a8bba8`
+- Dependency: still depends on PR #2 / base branch work
+- GitHub Actions at the start of final acceptance: `teacher-frontend`, `student-frontend`, and `backend` were all `success`
+- Merge readiness: not ready to merge while Draft and while PR #2 remains a dependency
 
-## CI Fix
+## Final Browser Acceptance
 
-The failing teacher frontend checks had two causes. First, stale test selectors and text assertions in `frontend/src/pages/TeacherAgent.test.jsx`.
-The product UI had already moved to Chinese visible labels, while the tests still queried old English copy such as `Teaching goal` and the old English safety message.
+Environment:
 
-The test now verifies stable behavior:
+- Backend: existing local FastAPI/Uvicorn service on `http://127.0.0.1:8000`
+- Teacher frontend: fresh Vite dev server on `http://127.0.0.1:5181`
+- Student frontend: existing Vite service on `http://127.0.0.1:5174`; not required for teacher flows beyond portal link checks
+- Login used for local acceptance: repository default admin account `admin / 123456`
+- External LLM calls: no real paid provider call was configured; Teacher Agent generation reached the visible `Needs input` state because no current student was selected
 
-- TeacherAgent renders without crashing when `EventSource` is unavailable.
-- The current safety/fallback area remains visible.
-- The teaching-goal input is still available.
-- The full, non-streaming generate-plan action remains available.
-- Assertions avoid depending on the old full English product sentence.
+The previous already-running `http://127.0.0.1:5173` teacher dev server showed a stale local white-screen failure with React `Invalid hook call` logs. A fresh 5181 Vite instance using the current source rendered correctly with zero Console errors on the checked routes, so this is recorded as a local dev-server/cache issue rather than a PR code failure.
 
-Second, the remote build still contained JSX smart quotes in `StudentGrid.jsx` and `HomeworkProgressPanel.jsx`.
-Those were replaced with standard ASCII quotes so Vite/esbuild can parse the files in CI.
+Checked teacher routes:
+
+- `/` Dashboard
+- `/smart-gen` SmartGen
+- `/chat` AI chat
+- `/teacher-agent` AI Teacher Assistant
+- `/question-bank` Question Bank
+- `/knowledge-base` Knowledge Base
+- `/exams/import` Import Exam
+- `/ppt` Magic PPT
+- `/schedule` Schedule
+- `/homework-progress` Student Homework Progress
+- `/mistake-book` Mistake Book
+- `/knowledge-graph` Knowledge Graph
+- `/reports` After-class report
+- `/reports?tab=learning` Learning report
+- `/exams` Exam list
+- `/exams/9` Exam A4 preview
+- `/student-mgmt` Student management
+- `/pricing` Pricing
+- `/admin-users` User management
+- `/settings` Settings
+
+Validated interactions:
+
+- Sidebar navigation across SmartGen, Teacher Agent, Schedule, Student Management, and Settings
+- Settings theme switching through light, dark, and auto modes, followed by refresh
+- Student Management search, no-result empty state, clear-search recovery, and student card display
+- Three modals opened and closed without saving: add student, add schedule, add user
+- SmartGen parameter input, no-selected-student error state, and generate entry availability
+- Teacher Agent goal input and generation trigger; visible `Needs input` result instead of crash
+- Schedule upcoming/history filters and all-student filter
+- Homework page empty question-list state, add-from-bank/add-from-mistake buttons, and disabled assign button
+- Exam preview A4 paper area white preservation
+- Reports, PPT, and Import Exam long/workspace pages opened and scrolled without layout failure
+
+Responsive coverage:
+
+- `1440 x 900`
+- `1280 x 720`
+- `768 x 1024`
+- `390 x 844`
+
+Observed responsive result:
+
+- No checked route had horizontal document overflow.
+- Mobile width collapses the Sidebar off-canvas; the sidebar remains in the DOM for navigation state but has zero visible width.
+- TopHeader, card grids, forms, modals, schedule filters, and A4 preview remained readable.
+- A4 preview remains white on dark and mobile viewports.
+
+## Screenshot Evidence
+
+Stored under `docs/ui-verification/pr4-final/`:
+
+- `00-initial.png` - stale 5173 local white-screen evidence before switching to fresh dev server
+- `01-dashboard-dark-1440.png`
+- `02-smartgen-dark-1440.png`
+- `03-settings-auto-after-reload-1440.png`
+- `04-dashboard-light-1440.png`
+- `05-student-mgmt-dark-1440.png`
+- `06-teacher-agent-dark-1440.png`
+- `07-schedule-dark-1440.png`
+- `08-exam-a4-preview-dark-1440.png`
+- `09-mobile-dashboard-dark-390.png`
+- `10-reports-dark-1440.png`
+- `11-ppt-dark-1440.png`
+- `12-import-exam-dark-1440.png`
 
 ## Verification Results
 
@@ -34,7 +100,7 @@ Those were replaced with standard ASCII quotes so Vite/esbuild can parse the fil
 - Command: `cd MathTutor_System/frontend && npm test -- --run`
 - Result: 6 test files passed, 20 tests passed
 - Command: `cd MathTutor_System/frontend && npm run build`
-- Result: Vite production build passed in 5.23s
+- Result: Vite production build passed in 8.06s
 
 ### Backend
 
@@ -44,7 +110,7 @@ Those were replaced with standard ASCII quotes so Vite/esbuild can parse the fil
 ### Student Frontend
 
 - Command: `cd MathTutor_System/frontend-student && npm run build`
-- Result: Vite production build passed in 5.81s
+- Result: Vite production build passed in 7.25s
 
 ## Theme Migration Scope
 
@@ -63,20 +129,21 @@ Current UI V2 migration scope covers the teacher frontend foundation and theme m
 
 ## Intentional White Areas
 
-A4 and print-oriented surfaces remain intentionally white. In particular, `ExamPreview.jsx` paper preview areas are preserved for paper simulation and print fidelity, rather than forced into dark theme colors.
+A4 and print-oriented surfaces remain intentionally white. `ExamPreview.jsx` uses a white `.exam-paper-container.a4-paper` area (`rgb(255, 255, 255)`) to preserve paper simulation and print fidelity.
 
 ## Remaining Structural Work
 
-The theme migration has progressed substantially, but the PR still contains structural work that should remain separate from this CI fix:
+This final acceptance does not move the work into Phase 2. Remaining work should stay separate:
 
 - Broader page-level layout consolidation
-- Additional user-flow browser verification across all migrated pages
-- Cleaning up generated `dist/` artifacts from the working tree before merge
-- Deciding whether student frontend theme work belongs in this PR or a separate PR
+- Additional structure cleanup for legacy mixed-language copy and mojibake in older files
+- Deeper mobile navigation polish if Phase 2 changes the responsive information architecture
+- More complete data-rich validation after a stable seeded demo dataset is defined
 
 ## Current Limitations and Warnings
 
-- Teacher frontend test output did not include the previously reported Recharts width/height `-1`, TopHeader `act(...)`, or React Router future flag warnings. There are currently no `Dashboard.test` or `TopHeader.test` files in `frontend/src`.
+- `TeacherAgent.jsx` currently has no EventSource/SSE streaming implementation; the test now accurately checks that core controls still render when `EventSource` is absent.
+- Auto theme refresh kept the UI readable, but the DOM `data-theme` value was observed as `auto`; current CSS defaults still render a dark readable page. Treat this as a non-blocking theme implementation detail to revisit if auto mode needs explicit resolved `dark`/`light` state in Phase 2.
 - Teacher and student frontend builds both emit a non-blocking Browserslist warning that `caniuse-lite` data is stale.
 - Backend tests emit a non-blocking LangGraph/LangChain pending deprecation warning from the installed dependency.
-- PR #4 remains Draft and should not be treated as merge-ready until GitHub Actions pass on the pushed head.
+- PR file list does not include `dist/` assets. Local build commands still leave generated `dist/` churn in the working tree; do not stage it for this PR.

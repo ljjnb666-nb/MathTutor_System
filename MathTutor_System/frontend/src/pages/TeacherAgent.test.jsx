@@ -119,7 +119,7 @@ describe('TeacherAgent', () => {
     expect(screen.getByRole('button', { name: /生成备课计划/ })).toBeDisabled()
   })
 
-  it('degrades gracefully when EventSource is unavailable', () => {
+  it('renders core controls when EventSource is unavailable', () => {
     const originalEventSource = globalThis.EventSource
     try {
       Reflect.deleteProperty(globalThis, 'EventSource')

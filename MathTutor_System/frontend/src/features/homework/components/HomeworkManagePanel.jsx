@@ -1,4 +1,4 @@
-﻿import Latex from 'react-latex-next'
+import Latex from 'react-latex-next'
 import { BookOpen, Calendar, FileQuestion, Loader2, Trash2, Users } from 'lucide-react'
 
 import { normalizeLatexForKaTeX } from '../../../utils/latex'
