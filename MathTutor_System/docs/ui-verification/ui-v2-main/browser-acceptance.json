@@ -1,0 +1,577 @@
+{
+  "results": [
+    {
+      "theme": "dark",
+      "route": "/",
+      "name": "dashboard",
+      "resolvedTheme": "dark",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "dark",
+      "route": "/smart-gen",
+      "name": "smartgen",
+      "resolvedTheme": "dark",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "dark",
+      "route": "/chat",
+      "name": "aichat",
+      "resolvedTheme": "dark",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "dark",
+      "route": "/teacher-agent",
+      "name": "teacher-agent",
+      "resolvedTheme": "dark",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "dark",
+      "route": "/question-bank",
+      "name": "question-bank",
+      "resolvedTheme": "dark",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "dark",
+      "route": "/knowledge-base",
+      "name": "knowledge-base",
+      "resolvedTheme": "dark",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "dark",
+      "route": "/exams/import",
+      "name": "import-exam",
+      "resolvedTheme": "dark",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "dark",
+      "route": "/ppt",
+      "name": "ppt",
+      "resolvedTheme": "dark",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "dark",
+      "route": "/schedule",
+      "name": "schedule",
+      "resolvedTheme": "dark",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "dark",
+      "route": "/homework-progress",
+      "name": "homework-progress",
+      "resolvedTheme": "dark",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "dark",
+      "route": "/mistake-book",
+      "name": "mistake-book",
+      "resolvedTheme": "dark",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "dark",
+      "route": "/knowledge-graph",
+      "name": "knowledge-graph",
+      "resolvedTheme": "dark",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "dark",
+      "route": "/reports",
+      "name": "reports",
+      "resolvedTheme": "dark",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "dark",
+      "route": "/exams",
+      "name": "exam-list",
+      "resolvedTheme": "dark",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "dark",
+      "route": "/exams/9",
+      "name": "exam-preview",
+      "resolvedTheme": "dark",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "dark",
+      "route": "/student-mgmt",
+      "name": "student-mgmt",
+      "resolvedTheme": "dark",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "dark",
+      "route": "/pricing",
+      "name": "pricing",
+      "resolvedTheme": "dark",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "dark",
+      "route": "/admin-users",
+      "name": "admin-users",
+      "resolvedTheme": "dark",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "dark",
+      "route": "/settings",
+      "name": "settings",
+      "resolvedTheme": "dark",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "light",
+      "route": "/",
+      "name": "dashboard",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "light",
+      "route": "/smart-gen",
+      "name": "smartgen",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "light",
+      "route": "/chat",
+      "name": "aichat",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "light",
+      "route": "/teacher-agent",
+      "name": "teacher-agent",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "light",
+      "route": "/question-bank",
+      "name": "question-bank",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "light",
+      "route": "/knowledge-base",
+      "name": "knowledge-base",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "light",
+      "route": "/exams/import",
+      "name": "import-exam",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "light",
+      "route": "/ppt",
+      "name": "ppt",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "light",
+      "route": "/schedule",
+      "name": "schedule",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "light",
+      "route": "/homework-progress",
+      "name": "homework-progress",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "light",
+      "route": "/mistake-book",
+      "name": "mistake-book",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "light",
+      "route": "/knowledge-graph",
+      "name": "knowledge-graph",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "light",
+      "route": "/reports",
+      "name": "reports",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "light",
+      "route": "/exams",
+      "name": "exam-list",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "light",
+      "route": "/exams/9",
+      "name": "exam-preview",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "light",
+      "route": "/student-mgmt",
+      "name": "student-mgmt",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "light",
+      "route": "/pricing",
+      "name": "pricing",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "light",
+      "route": "/admin-users",
+      "name": "admin-users",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "light",
+      "route": "/settings",
+      "name": "settings",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "auto",
+      "route": "/",
+      "name": "dashboard",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "auto",
+      "route": "/smart-gen",
+      "name": "smartgen",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "auto",
+      "route": "/chat",
+      "name": "aichat",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "auto",
+      "route": "/teacher-agent",
+      "name": "teacher-agent",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "auto",
+      "route": "/question-bank",
+      "name": "question-bank",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "auto",
+      "route": "/knowledge-base",
+      "name": "knowledge-base",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "auto",
+      "route": "/exams/import",
+      "name": "import-exam",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "auto",
+      "route": "/ppt",
+      "name": "ppt",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "auto",
+      "route": "/schedule",
+      "name": "schedule",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "auto",
+      "route": "/homework-progress",
+      "name": "homework-progress",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "auto",
+      "route": "/mistake-book",
+      "name": "mistake-book",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "auto",
+      "route": "/knowledge-graph",
+      "name": "knowledge-graph",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "auto",
+      "route": "/reports",
+      "name": "reports",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "auto",
+      "route": "/exams",
+      "name": "exam-list",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "auto",
+      "route": "/exams/9",
+      "name": "exam-preview",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "auto",
+      "route": "/student-mgmt",
+      "name": "student-mgmt",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "auto",
+      "route": "/pricing",
+      "name": "pricing",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "auto",
+      "route": "/admin-users",
+      "name": "admin-users",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    },
+    {
+      "theme": "auto",
+      "route": "/settings",
+      "name": "settings",
+      "resolvedTheme": "light",
+      "blank": false,
+      "leaks": false,
+      "horizontalOverflow": false,
+      "a4White": true
+    }
+  ],
+  "failures": [],
+  "consoleErrors": [],
+  "misses": []
+}
