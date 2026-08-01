@@ -388,6 +388,14 @@ body {
     color: var(--color-text-secondary);
   }
 
+  select.v2-control,
+  input.v2-control {
+    @apply h-10 rounded-xl px-3 text-xs font-bold outline-none;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
   .v2-control select,
   .v2-control input {
     @apply h-10 rounded-xl px-3 text-xs font-bold outline-none;
@@ -455,7 +463,7 @@ body {
   }
 
   .v2-status {
-    @apply inline-flex items-center rounded-lg px-2 py-1 text-[11px] font-black;
+    @apply inline-flex items-center whitespace-nowrap rounded-lg px-2 py-1 text-[11px] font-black;
     border: 1px solid transparent;
   }
 
@@ -736,6 +744,92 @@ body {
   .v2-homework-alert-row p + p {
     @apply text-[11px] font-semibold;
     color: var(--color-text-secondary);
+  }
+
+  .v2-icon-button {
+    @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 84%, transparent);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-icon-button:hover:not(:disabled) {
+    background: var(--color-bg-card-hover);
+    color: var(--color-text-primary);
+  }
+
+  .v2-icon-button.danger {
+    color: #fb7185;
+  }
+
+  .v2-kb-library-card,
+  .v2-kb-new-card {
+    @apply relative min-h-[7.5rem] overflow-hidden rounded-2xl p-4;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 86%, transparent);
+  }
+
+  .v2-kb-library-card {
+    @apply flex items-start gap-3;
+  }
+
+  .v2-kb-library-icon,
+  .v2-kb-file-icon {
+    @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-xl;
+    background: color-mix(in srgb, var(--kb-tone, var(--color-primary-500)) 16%, transparent);
+    color: var(--kb-tone, var(--color-primary-400));
+    border: 1px solid color-mix(in srgb, var(--kb-tone, var(--color-primary-500)) 22%, transparent);
+  }
+
+  .v2-kb-library-bar {
+    @apply absolute bottom-3 left-4 right-4 h-1.5 overflow-hidden rounded-full;
+    background: color-mix(in srgb, var(--color-bg-panel) 80%, transparent);
+  }
+
+  .v2-kb-library-bar span,
+  .v2-kb-progress span {
+    @apply block h-full rounded-full;
+    background: linear-gradient(90deg, #14b8a6, #8b5cf6);
+  }
+
+  .v2-kb-new-card {
+    @apply flex flex-col items-center justify-center gap-2 border-dashed text-sm font-black;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-kb-progress {
+    @apply block h-2 min-w-20 overflow-hidden rounded-full;
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+  }
+
+  .v2-kb-stat-tile {
+    @apply min-w-0 rounded-2xl p-4;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+  }
+
+  .v2-kb-stat-tile span {
+    @apply block truncate text-xs font-bold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-kb-stat-tile strong {
+    @apply mt-2 block truncate text-2xl font-black tabular-nums;
+    color: var(--color-text-primary);
+  }
+
+  .v2-kb-dropzone {
+    @apply flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 text-center text-sm font-black transition;
+    border-color: var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-kb-dropzone.active,
+  .v2-kb-dropzone:hover {
+    border-color: var(--color-primary-500);
+    background: color-mix(in srgb, var(--color-primary-500) 10%, var(--color-bg-card));
+    color: var(--color-text-primary);
   }
 }
 
