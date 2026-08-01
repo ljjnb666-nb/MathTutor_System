@@ -11,6 +11,7 @@ import {
   getApiVersionForProvider,
 } from '../constants/ai-providers'
 import { testLlmApiKey } from '../services/toolsApi'
+import { applyTheme } from '../utils/theme'
 
 export default function Settings() {
   const { user } = useAuth()
@@ -56,7 +57,7 @@ export default function Settings() {
     setDensity(savedDensity)
 
     // 立即应用到 DOM
-    document.documentElement.dataset.theme = savedTheme
+    applyTheme(savedTheme)
     document.documentElement.dataset.accent = savedAccent
     document.documentElement.dataset.density = savedDensity
   }, [])
@@ -116,15 +117,6 @@ export default function Settings() {
     localStorage.setItem('ui_density', density)
 
     // 立即应用到 DOM
-    const applyTheme = (themeValue) => {
-      if (themeValue === 'auto') {
-        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-        document.documentElement.dataset.theme = systemPrefersDark ? 'dark' : 'light'
-      } else {
-        document.documentElement.dataset.theme = themeValue
-      }
-    }
-
     applyTheme(theme)
     document.documentElement.dataset.accent = accentColor
     document.documentElement.dataset.density = density

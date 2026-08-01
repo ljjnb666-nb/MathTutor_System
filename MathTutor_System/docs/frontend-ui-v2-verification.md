@@ -143,7 +143,7 @@ This final acceptance does not move the work into Phase 2. Remaining work should
 ## Current Limitations and Warnings
 
 - `TeacherAgent.jsx` currently has no EventSource/SSE streaming implementation; the test now accurately checks that core controls still render when `EventSource` is absent.
-- Auto theme refresh kept the UI readable, but the DOM `data-theme` value was observed as `auto`; current CSS defaults still render a dark readable page. Treat this as a non-blocking theme implementation detail to revisit if auto mode needs explicit resolved `dark`/`light` state in Phase 2.
+- Auto theme preference now resolves to a concrete DOM `data-theme` value (`light` or `dark`) through `src/utils/theme.js`; `ui_theme` still stores the user preference (`light`, `dark`, or `auto`).
 - Teacher and student frontend builds both emit a non-blocking Browserslist warning that `caniuse-lite` data is stale.
 - Backend tests emit a non-blocking LangGraph/LangChain pending deprecation warning from the installed dependency.
 - PR file list does not include `dist/` assets. Local build commands still leave generated `dist/` churn in the working tree; do not stage it for this PR.
