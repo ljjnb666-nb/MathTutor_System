@@ -17,39 +17,56 @@ export default function Reports() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50/60">
-      <header className="border-b border-gray-200 bg-white px-4 sm:px-6 py-4 sm:py-5">
-        <div className="mx-auto max-w-4xl">
-          <div className="flex flex-wrap items-start gap-3 sm:gap-4">
-            <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
-              <FileText className="h-5 w-5 sm:h-6 sm:w-6" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h1 className="text-lg sm:text-xl font-bold tracking-tight text-gray-900">课后与学习报告</h1>
-              <p className="mt-0.5 text-xs sm:text-sm text-gray-500">
-                生成发给家长的课后评语，或整理今日掌握 / 待攻克 / 预计课时的可视化学习报告
-              </p>
-            </div>
+    <div className="mx-auto max-w-6xl space-y-6 md:space-y-8 animate-fade-in-up">
+      <header className="rounded-3xl p-6 sm:p-8 shadow-sm space-y-5" style={{ border: '1px solid color-mix(in srgb, var(--color-border-primary) 90%, transparent)', backgroundColor: 'var(--color-bg-card)' }}>
+        <div className="flex items-center gap-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 text-white shadow-lg shrink-0" style={{ boxShadow: '0 10px 15px -3px color-mix(in srgb, var(--color-primary-500) 25%, transparent)' }}>
+            <FileText className="h-7 w-7" />
           </div>
-          <div className="mt-4 flex gap-1 sm:gap-2 rounded-xl border border-gray-200 bg-gray-50/80 p-1.5">
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTab(t.id)}
-                className={`flex flex-1 items-center justify-center gap-1.5 sm:gap-2 rounded-lg py-2.5 text-xs sm:text-sm font-medium transition-colors touch-manipulation ${
-                  tab === t.id ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <t.icon className="h-4 w-4 shrink-0" />
-                {t.label}
-              </button>
-            ))}
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-black tracking-tight" style={{ color: 'var(--color-text-primary)' }}>课后与学情可视化报告</h1>
+              <span className="rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase" style={{ backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--color-primary-500) 20%, transparent)', color: 'var(--color-primary-600)' }}>
+                REPORTS STUDIO
+              </span>
+            </div>
+            <p className="mt-1 text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+              自动生成面向家长的课后评语反馈卡，或导出包含掌握度与预估课时的学情报告
+            </p>
           </div>
+        </div>
+
+        <div className="flex rounded-2xl p-1" style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-panel)' }}>
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-black transition-all"
+              style={
+                tab === t.id
+                  ? { backgroundColor: 'var(--color-bg-card)', color: 'var(--color-primary-600)', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }
+                  : { color: 'var(--color-text-secondary)' }
+              }
+              onMouseEnter={(e) => {
+                if (tab !== t.id) {
+                  e.currentTarget.style.color = 'var(--color-text-primary)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (tab !== t.id) {
+                  e.currentTarget.style.color = 'var(--color-text-secondary)'
+                }
+              }}
+            >
+              <t.icon className="h-4 w-4 shrink-0" />
+              {t.label}
+            </button>
+          ))}
         </div>
       </header>
 
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 py-4 sm:py-6">
+      <div className="space-y-6">
         {tab === 'after-class' ? <AfterClassReport embedded /> : <LearningReport embedded />}
       </div>
     </div>
