@@ -44,15 +44,15 @@ The refactor should reuse real existing API state. Unsupported reference-only el
 | AIChat | Conversation list, central transcript, right context/quick actions, fixed input | Partial | NOT_REBUILT |
 | TeacherAgent | Left history, central goal/run surface, right context and safety panels | Read-only run support | MATCHED_WITH_ADAPTATION |
 | QuestionBank | Top filters, metric row, table-first question list, right preview panel | Supported | MATCHED_WITH_ADAPTATION |
-| KnowledgeBase | KB cards, document table, detail/retrieval side panel, coverage overview | Supported | NOT_REBUILT |
-| ImportExam | Stepper, upload/dropzone, files, OCR preview, result side panel | Supported | NOT_REBUILT |
+| KnowledgeBase | KB cards, document table, detail/retrieval side panel, coverage overview | Supported | MATCHED_WITH_ADAPTATION |
+| ImportExam | Stepper, upload/dropzone, files, OCR preview, result side panel | Supported | MATCHED_WITH_ADAPTATION |
 | PPTGenerator | Config, outline, preview, templates, scenarios, bottom actions | Partial | NOT_REBUILT |
 | Schedule | Week calendar canvas, today/conflict/month side panel | Supported | MATCHED_WITH_ADAPTATION |
 | HomeworkProgress | Filters, metrics, trend/chart, detail table, anomaly/intervention side panel | Partial | MATCHED_WITH_ADAPTATION |
-| MistakeBook | Filters, metrics, mistake table, detail side panel, trends/distribution | Supported | NOT_REBUILT |
-| KnowledgeGraph | Filters, metrics, graph canvas, heat/segment/suggestion side panel | Partial | NOT_REBUILT |
+| MistakeBook | Filters, metrics, mistake table, detail side panel, trends/distribution | Supported | MATCHED_WITH_ADAPTATION |
+| KnowledgeGraph | Filters, metrics, graph canvas, heat/segment/suggestion side panel | Partial | MATCHED_WITH_ADAPTATION |
 | Reports | Filters, metrics, report summaries/charts, structure/export side panel | Partial | NOT_REBUILT |
-| ExamList / ExamPreview | Filters, metrics, exam table, preview/analysis/activity side panel | Supported | NOT_REBUILT |
+| ExamList / ExamPreview | Filters, metrics, exam table, preview/analysis/activity side panel | Supported | MATCHED_WITH_ADAPTATION |
 | StudentMgmt | Filters, metrics, student table, distribution/risk/action side panel, trends | Supported | MATCHED_WITH_ADAPTATION |
 | Pricing | Plan cards, feature comparison, subscription/usage/FAQ side panel | Partial | NOT_REBUILT |
 | AdminUserPage | Search/filter, metrics, user table, detail/role/log side panel | Partial | NOT_REBUILT |
@@ -80,6 +80,16 @@ TeacherAgent was rebuilt as a read-only three-column workbench. It keeps existin
 
 TeacherAgent browser recheck was completed for dark desktop, light desktop, and mobile. Desktop keeps the reference three-column workbench, while mobile stacks history, run input, execution state, context, and safety panels in normal page scroll. The route remains read-only and does not expose PR #2 practice-draft behavior.
 
+KnowledgeBase was rebuilt around the reference knowledge-library cards, document table, coverage summary, document detail panel, and upload settings. It keeps existing RAG upload/list/chunk-preview/delete APIs, preserves `document_id` identity for same-name documents, and does not fake retrieval results when no real document data exists. Browser screenshots were captured for dark desktop, light desktop, and mobile.
+
+ImportExam was rebuilt around the reference stepper and ingestion workspace. It keeps existing Word/PDF parse, batch save, collect, and analysis APIs; unsupported image/OCR import is shown only as a disabled affordance. Browser screenshots were captured for dark desktop, light desktop, and mobile.
+
+ExamList was rebuilt as a saved-content asset console with metrics, search/type filtering, assignment modal entry, delete, preview, and import/generation links. ExamPreview was rebuilt as a print/preview/grading workspace with existing save, assign, print, quick-grade, knowledge-card, AI-chat, and graph-navigation flows. Browser screenshots were captured for both pages in dark desktop, light desktop, and mobile.
+
+MistakeBook was rebuilt around reference metrics, tabs, responsive mistake cards, manual add modal, review/master/delete, AI-chat handoff, homework insertion, and review-practice generation. It uses only existing mistake, exam, and generation APIs. Browser screenshots were captured for dark desktop, light desktop, and mobile.
+
+KnowledgeGraph was rebuilt around the reference mastery metrics, textbook tree, selected-node focus panel, weak-point action pack, unmapped weak-point list, and outline overview. It keeps existing mastery fetch, URL knowledge-point targeting, wrong-question navigation, SmartGen handoff, and weak-point generation APIs. Browser screenshots were captured for dark desktop, light desktop, and mobile.
+
 ## Remaining Gaps
 
-Eleven referenced pages are still not rebuilt in this checkpoint: AIChat, KnowledgeBase, ImportExam, PPTGenerator, MistakeBook, KnowledgeGraph, Reports, ExamList / ExamPreview, Pricing, AdminUserPage, and Settings. Full browser screenshot acceptance across all routes is still pending. Therefore this checkpoint is not PR-ready and must be reported as FAIL rather than PASS or PASS_WITH_LIMITATIONS.
+Six referenced pages are still not rebuilt in this checkpoint and remain outside the second-batch scope: AIChat, PPTGenerator, Reports, Pricing, AdminUserPage, and Settings. The second-batch content-management pages are browser checked and locally committed separately from docs. Full Phase 2 acceptance across all 18 references is still pending, so this document does not claim overall Phase 2 PASS.
