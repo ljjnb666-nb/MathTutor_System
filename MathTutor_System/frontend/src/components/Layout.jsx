@@ -21,7 +21,7 @@ export default function Layout() {
 
   return (
     <div
-      className={`layout-root flex bg-mesh-canvas min-h-screen text-slate-800 ${isWorkspaceMode ? 'h-screen max-h-screen overflow-hidden' : ''}`}
+      className={`layout-root flex bg-mesh-canvas min-h-screen text-slate-800 ${isWorkspaceMode ? 'md:h-screen md:max-h-screen md:overflow-hidden' : ''}`}
     >
       {/* 无障碍：跳过导航至主内容 */}
       <a
@@ -74,7 +74,7 @@ export default function Layout() {
         id="main-content"
         tabIndex={-1}
         className={`flex flex-1 w-full min-w-0 flex-col pt-[calc(3.5rem+env(safe-area-inset-top))] md:pt-0 md:ml-60 ${
-          isWorkspaceMode ? 'min-h-0 overflow-hidden' : 'min-h-screen'
+          isWorkspaceMode ? 'min-h-screen md:min-h-0 md:overflow-hidden' : 'min-h-screen'
         }`}
       >
         {/* TopHeader - 只在 default 模式显示 */}
@@ -92,7 +92,7 @@ export default function Layout() {
         >
           <div
             className={`flex min-h-0 min-w-0 flex-1 flex-col ${
-              isWorkspaceMode ? 'overflow-hidden' : 'overflow-y-auto'
+              isWorkspaceMode ? 'overflow-y-auto md:overflow-hidden' : 'overflow-y-auto'
             } ${
               isFullCanvasMode ? 'max-w-none' : 'max-w-[1920px] mx-auto w-full'
             }`}

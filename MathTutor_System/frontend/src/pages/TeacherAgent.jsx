@@ -86,7 +86,7 @@ export default function TeacherAgent() {
   const activeStep = loading ? 5 : run?.status === 'completed' ? 7 : run?.status === 'needs_input' ? 2 : 0
 
   return (
-    <PageShell fit className="flex flex-col">
+    <PageShell className="flex flex-col">
       <PageHeader
         title="AI 教师助手"
         description="只读教学计划工作台：基于学生、错题与知识库上下文生成计划，不写入题库或发布作业。"

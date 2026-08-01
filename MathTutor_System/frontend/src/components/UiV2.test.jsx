@@ -6,19 +6,24 @@ import { EmptyState, ErrorState, LoadingState, MetricCard, ResponsiveTable, Sear
 
 describe('UiV2 shared components', () => {
   it('renders loading, empty, error, metric, and status states', () => {
+    const onEmptyAction = vi.fn()
+    const onRetry = vi.fn()
+
     render(
       <div>
         <LoadingState title="加载中" description="读取真实接口" />
-        <EmptyState icon={BookOpen} title="暂无题目" description="调整筛选后重试" />
-        <ErrorState title="加载失败" description="网络错误" />
+        <EmptyState icon={BookOpen} title="暂无题目" description="调整筛选后重试" actionLabel="新建题目" onAction={onEmptyAction} />
+        <ErrorState title="加载失败" description="网络错误" actionLabel="重新加载" onRetry={onRetry} />
         <MetricCard label="题库总量" value="12" hint="来自 API" icon={BookOpen} />
-        <StatusBadge tone="success">已完成</StatusBadge>
+        <StatusBadge tone="info">已完成</StatusBadge>
       </div>
     )
 
     expect(screen.getByText('加载中')).toBeInTheDocument()
     expect(screen.getByText('暂无题目')).toBeInTheDocument()
     expect(screen.getByText('加载失败')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '新建题目' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '重新加载' })).toBeInTheDocument()
     expect(screen.getByText('题库总量')).toBeInTheDocument()
     expect(screen.getByText('已完成')).toBeInTheDocument()
   })

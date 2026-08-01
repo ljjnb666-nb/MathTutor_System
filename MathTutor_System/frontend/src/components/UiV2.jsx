@@ -115,18 +115,24 @@ export function LoadingState({ title = '正在加载', description = '请稍候.
   )
 }
 
-export function EmptyState({ icon: Icon, title = '暂无数据', description, action }) {
+export function EmptyState({ icon: Icon, title = '暂无数据', description, action, actionLabel, onAction }) {
+  const renderedAction = action ?? (actionLabel && onAction ? (
+    <button type="button" onClick={onAction} className="v2-btn-secondary">
+      {actionLabel}
+    </button>
+  ) : null)
+
   return (
     <div className="v2-state">
       {Icon && <Icon className="h-10 w-10 text-slate-500" />}
       <p className="mt-3 text-sm font-bold">{title}</p>
       {description && <p className="mt-1 text-xs">{description}</p>}
-      {action && <div className="mt-4">{action}</div>}
+      {renderedAction && <div className="mt-4">{renderedAction}</div>}
     </div>
   )
 }
 
-export function ErrorState({ title = '加载失败', description, onRetry }) {
+export function ErrorState({ title = '加载失败', description, onRetry, actionLabel = '重试' }) {
   return (
     <div className="v2-state v2-state-error">
       <AlertTriangle className="h-8 w-8 text-amber-400" />
@@ -134,7 +140,7 @@ export function ErrorState({ title = '加载失败', description, onRetry }) {
       {description && <p className="mt-1 text-xs">{description}</p>}
       {onRetry && (
         <button type="button" onClick={onRetry} className="v2-btn-secondary mt-4">
-          重试
+          {actionLabel}
         </button>
       )}
     </div>

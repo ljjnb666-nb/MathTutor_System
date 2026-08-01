@@ -74,17 +74,6 @@ export function useSmartGenController() {
     setParams((prev) => ({ ...prev, knowledge_point: selectedPoints.join(' + ') }))
   }, [selectedPoints, setParams])
 
-  useEffect(() => {
-    const prevBody = document.body.style.overflow
-    const prevHtml = document.documentElement.style.overflow
-    document.body.style.overflow = 'hidden'
-    document.documentElement.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = prevBody
-      document.documentElement.style.overflow = prevHtml
-    }
-  }, [])
-
   const getDetailMessage = useCallback((err) => {
     const d = err.response?.data?.detail
     if (typeof d === 'string') return d

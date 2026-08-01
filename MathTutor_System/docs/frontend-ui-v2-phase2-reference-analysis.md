@@ -40,20 +40,20 @@ The refactor should reuse real existing API state. Unsupported reference-only el
 | Page | Target reference structure | Backend support | Phase 2 status |
 |---|---|---|---|
 | Dashboard | Hero, metrics, quick actions, tasks, recent records, charts, side panels | Partial | MATCHED_WITH_ADAPTATION |
-| SmartGen | Parameter toolbar, generation workspace, result preview, coverage/distribution side panel, bottom actions | Partial | NOT_REBUILT |
+| SmartGen | Parameter toolbar, generation workspace, result preview, coverage/distribution side panel, bottom actions | Partial | MATCHED_WITH_ADAPTATION |
 | AIChat | Conversation list, central transcript, right context/quick actions, fixed input | Partial | NOT_REBUILT |
 | TeacherAgent | Left history, central goal/run surface, right context and safety panels | Read-only run support | MATCHED_WITH_ADAPTATION |
 | QuestionBank | Top filters, metric row, table-first question list, right preview panel | Supported | MATCHED_WITH_ADAPTATION |
 | KnowledgeBase | KB cards, document table, detail/retrieval side panel, coverage overview | Supported | NOT_REBUILT |
 | ImportExam | Stepper, upload/dropzone, files, OCR preview, result side panel | Supported | NOT_REBUILT |
 | PPTGenerator | Config, outline, preview, templates, scenarios, bottom actions | Partial | NOT_REBUILT |
-| Schedule | Week calendar canvas, today/conflict/month side panel | Supported | NOT_REBUILT |
-| HomeworkProgress | Filters, metrics, trend/chart, detail table, anomaly/intervention side panel | Partial | NOT_REBUILT |
+| Schedule | Week calendar canvas, today/conflict/month side panel | Supported | MATCHED_WITH_ADAPTATION |
+| HomeworkProgress | Filters, metrics, trend/chart, detail table, anomaly/intervention side panel | Partial | MATCHED_WITH_ADAPTATION |
 | MistakeBook | Filters, metrics, mistake table, detail side panel, trends/distribution | Supported | NOT_REBUILT |
 | KnowledgeGraph | Filters, metrics, graph canvas, heat/segment/suggestion side panel | Partial | NOT_REBUILT |
 | Reports | Filters, metrics, report summaries/charts, structure/export side panel | Partial | NOT_REBUILT |
 | ExamList / ExamPreview | Filters, metrics, exam table, preview/analysis/activity side panel | Supported | NOT_REBUILT |
-| StudentMgmt | Filters, metrics, student table, distribution/risk/action side panel, trends | Supported | NOT_REBUILT |
+| StudentMgmt | Filters, metrics, student table, distribution/risk/action side panel, trends | Supported | MATCHED_WITH_ADAPTATION |
 | Pricing | Plan cards, feature comparison, subscription/usage/FAQ side panel | Partial | NOT_REBUILT |
 | AdminUserPage | Search/filter, metrics, user table, detail/role/log side panel | Partial | NOT_REBUILT |
 | Settings | Category sidebar, settings forms, security/status side panel | Local preferences | NOT_REBUILT |
@@ -62,10 +62,24 @@ The refactor should reuse real existing API state. Unsupported reference-only el
 
 Dashboard was rebuilt around real dashboard stats, mistake data, student trends, and recent exams. Empty/error states use real fetch outcomes; reference-only activity and recommendation data were not faked.
 
+Dashboard browser recheck was completed for dark desktop, light desktop, and mobile. It matches the reference dashboard structure with hero, metric cards, quick actions, trend/knowledge chart, today task panel, and recent exams. Subscription and student context are read from existing state; no fake notification or unsupported action workflow was added.
+
+SmartGen was rebuilt around the reference workspace anatomy: top generation context, left condition settings, center AI result preview, right distribution/coverage/status panels, and bottom action strip. Distribution and coverage are derived only from generated questions. Unsupported copy/export controls were removed from the page-level action bar; remaining visible actions map to existing upload, generate, save-as-exam, and add-to-today-homework handlers. Browser screenshots were captured for dark desktop, light desktop, and mobile.
+
+StudentMgmt was rebuilt as a table-first management console with search, real-data metrics, responsive student rows, and right-side grade/risk/ranking panels. Distribution and risk panels are derived from the existing student and overview payloads. Reference-only charts/trends were adapted to real summary panels rather than faked. Browser screenshots were captured for dark desktop, light desktop, and mobile.
+
+Schedule was rebuilt around the reference week-calendar canvas with real schedule records, existing filters, add/edit/copy/delete actions, today-course panel, conflict panel, and month overview. The reference-only auto-arrange/export actions were not added. Browser screenshots were captured for dark desktop, light desktop, and mobile.
+
+HomeworkProgress was rebuilt around the reference progress dashboard: filters, real completion/accuracy metrics, accuracy trend bars, student summary rows, anomaly reminders, recommended interventions, and assignment details. Data is derived from existing assigned exam records. Browser screenshots were captured for dark desktop, light desktop, and mobile.
+
 QuestionBank was rebuilt as a table-first page with toolbar filters, metrics, selection, delete, compose-preview entry, mobile cards, and a right preview panel. Existing question-bank behaviors are retained.
+
+QuestionBank browser recheck was completed for dark desktop, light desktop, and mobile. It keeps the existing bank read/delete/compose-preview handlers and adapts the reference list/detail layout without introducing unsupported question-bank write flows.
 
 TeacherAgent was rebuilt as a read-only three-column workbench. It keeps existing run creation/history/detail behavior and explicitly avoids practice-draft save, question-bank write, confirmation-save, or publishing workflows.
 
+TeacherAgent browser recheck was completed for dark desktop, light desktop, and mobile. Desktop keeps the reference three-column workbench, while mobile stacks history, run input, execution state, context, and safety panels in normal page scroll. The route remains read-only and does not expose PR #2 practice-draft behavior.
+
 ## Remaining Gaps
 
-Fifteen referenced pages are still not rebuilt in this checkpoint. SmartGen and AIChat were analyzed but not implemented. Full browser screenshot acceptance across all routes is still pending. Therefore this checkpoint is not PR-ready and must be reported as FAIL rather than PASS or PASS_WITH_LIMITATIONS.
+Eleven referenced pages are still not rebuilt in this checkpoint: AIChat, KnowledgeBase, ImportExam, PPTGenerator, MistakeBook, KnowledgeGraph, Reports, ExamList / ExamPreview, Pricing, AdminUserPage, and Settings. Full browser screenshot acceptance across all routes is still pending. Therefore this checkpoint is not PR-ready and must be reported as FAIL rather than PASS or PASS_WITH_LIMITATIONS.
