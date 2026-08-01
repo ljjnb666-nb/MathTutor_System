@@ -174,7 +174,21 @@ export default function QuestionCard({
   }
 
   const iconBtnClass =
-    'p-1.5 rounded-md text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors'
+    'p-1.5 rounded-xl transition-all active:scale-95'
+
+  const iconBtnStyle = {
+    color: 'var(--color-text-secondary)'
+  }
+
+  const handleIconBtnHover = (e, isEnter) => {
+    if (isEnter) {
+      e.currentTarget.style.color = 'var(--color-primary-500)'
+      e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)'
+    } else {
+      e.currentTarget.style.color = 'var(--color-text-secondary)'
+      e.currentTarget.style.backgroundColor = 'transparent'
+    }
+  }
 
   const handleStartEdit = () => {
     setEditData(cloneEditData(data))
@@ -345,27 +359,49 @@ export default function QuestionCard({
   return (
     <article className="pro-glass-card rounded-3xl overflow-hidden transition-all duration-300">
       {/* Header: 序号 + 游戏化 Rank 勋章 + 工具栏 */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/80 px-5 py-3.5">
+      <div
+        className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5"
+        style={{
+          borderBottom: '1px solid var(--color-border-primary)',
+          backgroundColor: 'var(--color-bg-panel)'
+        }}
+      >
         <div className="flex flex-wrap items-center gap-2 min-w-0">
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-violet-600 text-xs font-black text-white shadow-md shadow-indigo-500/25">
             {index ?? 1}
           </span>
-          <span className="rounded-full bg-slate-100 border border-slate-200/80 px-3 py-0.5 text-xs font-extrabold text-slate-700">
+          <span
+            className="rounded-full px-3 py-0.5 text-xs font-extrabold"
+            style={{
+              backgroundColor: 'var(--color-bg-panel-muted)',
+              border: '1px solid var(--color-border-subtle)',
+              color: 'var(--color-text-primary)'
+            }}
+          >
             {questionTypeLabel}
           </span>
-          <span className={`rounded-full px-3 py-0.5 text-xs font-black uppercase tracking-wider ${getRankBadgeClass(difficulty)}`}>
-            {difficulty} {difficultyLabel}
+          <span className={`rounded-full px-3 py-0.5 text-xs font-black uppercase tracking-wider ${getRankBadgeClass(data.difficulty)}`}>
+            {data.difficulty} {difficultyLabel}
           </span>
           <span className="rounded-full bg-indigo-50 border border-indigo-200/70 px-3 py-0.5 text-xs font-bold text-indigo-700" title="知识点">
             知识点：{knowledgePointLabel}
           </span>
         </div>
-        <div className="flex items-center gap-1 shrink-0 bg-white/90 border border-slate-200/80 rounded-2xl p-1 shadow-2xs">
+        <div
+          className="flex items-center gap-1 shrink-0 rounded-2xl p-1 shadow-2xs"
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--color-bg-card) 90%, transparent)',
+            border: '1px solid var(--color-border-subtle)'
+          }}
+        >
           <button
             type="button"
             onClick={handleAddToMistake}
             disabled={addingToMistake}
-            className="p-1.5 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all active:scale-95"
+            className={iconBtnClass}
+            style={iconBtnStyle}
+            onMouseEnter={(e) => handleIconBtnHover(e, true)}
+            onMouseLeave={(e) => handleIconBtnHover(e, false)}
             title="加入错题本"
             aria-label="加入错题本"
           >
@@ -379,7 +415,10 @@ export default function QuestionCard({
             type="button"
             onClick={handleAddToTodayHomework}
             disabled={addingToHomework}
-            className="p-1.5 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all active:scale-95"
+            className={iconBtnClass}
+            style={iconBtnStyle}
+            onMouseEnter={(e) => handleIconBtnHover(e, true)}
+            onMouseLeave={(e) => handleIconBtnHover(e, false)}
             title="加入今日作业"
             aria-label="加入今日作业"
           >
@@ -393,7 +432,24 @@ export default function QuestionCard({
             type="button"
             onClick={handleCollect}
             disabled={collecting}
-            className={collected ? 'p-1.5 rounded-xl text-amber-500 hover:text-amber-600 hover:bg-amber-50 transition-all' : 'p-1.5 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all active:scale-95'}
+            className={iconBtnClass}
+            style={collected ? { color: '#f59e0b' } : iconBtnStyle}
+            onMouseEnter={(e) => {
+              if (collected) {
+                e.currentTarget.style.color = '#d97706'
+                e.currentTarget.style.backgroundColor = 'rgba(251, 191, 36, 0.1)'
+              } else {
+                handleIconBtnHover(e, true)
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (collected) {
+                e.currentTarget.style.color = '#f59e0b'
+                e.currentTarget.style.backgroundColor = 'transparent'
+              } else {
+                handleIconBtnHover(e, false)
+              }
+            }}
             title={collected ? '已收藏' : '收藏'}
             aria-label={collected ? '已收藏' : '收藏'}
           >
@@ -406,7 +462,10 @@ export default function QuestionCard({
           <button
             type="button"
             onClick={handleStartEdit}
-            className="p-1.5 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all active:scale-95"
+            className={iconBtnClass}
+            style={iconBtnStyle}
+            onMouseEnter={(e) => handleIconBtnHover(e, true)}
+            onMouseLeave={(e) => handleIconBtnHover(e, false)}
             title="编辑"
             aria-label="编辑"
           >
@@ -417,7 +476,14 @@ export default function QuestionCard({
               <button
                 type="button"
                 onClick={handleSaveEdit}
-                className="p-1.5 rounded-xl text-emerald-600 hover:bg-emerald-50 transition-all"
+                className="p-1.5 rounded-xl transition-all"
+                style={{ color: '#10b981' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                }}
                 title="保存"
                 aria-label="保存"
               >
@@ -426,7 +492,14 @@ export default function QuestionCard({
               <button
                 type="button"
                 onClick={handleCancelEdit}
-                className="p-1.5 rounded-xl text-rose-600 hover:bg-rose-50 transition-all"
+                className="p-1.5 rounded-xl transition-all"
+                style={{ color: '#ef4444' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                }}
                 title="取消"
                 aria-label="取消"
               >
@@ -436,7 +509,10 @@ export default function QuestionCard({
           )}
           <button
             type="button"
-            className="p-1.5 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all active:scale-95"
+            className={iconBtnClass}
+            style={iconBtnStyle}
+            onMouseEnter={(e) => handleIconBtnHover(e, true)}
+            onMouseLeave={(e) => handleIconBtnHover(e, false)}
             title="重新生成"
             aria-label="重新生成"
             onClick={onRegenerate}
@@ -450,7 +526,10 @@ export default function QuestionCard({
           </button>
           <button
             type="button"
-            className="p-1.5 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all active:scale-95"
+            className={iconBtnClass}
+            style={iconBtnStyle}
+            onMouseEnter={(e) => handleIconBtnHover(e, true)}
+            onMouseLeave={(e) => handleIconBtnHover(e, false)}
             title={verifyingActive ? '验算中...' : '校对'}
             aria-label={verifyingActive ? '验算中' : '校对'}
             onClick={handleVerify}
@@ -464,7 +543,10 @@ export default function QuestionCard({
           </button>
           <button
             type="button"
-            className="p-1.5 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all active:scale-95"
+            className={iconBtnClass}
+            style={iconBtnStyle}
+            onMouseEnter={(e) => handleIconBtnHover(e, true)}
+            onMouseLeave={(e) => handleIconBtnHover(e, false)}
             title="问 AI"
             aria-label="问 AI"
             onClick={() =>
@@ -473,18 +555,31 @@ export default function QuestionCard({
           >
             <MessageCircle className="h-4 w-4" />
           </button>
-          {actions && <div className="ml-1 pl-1 border-l border-slate-200">{actions}</div>}
+          {actions && <div className="ml-1 pl-1" style={{ borderLeft: '1px solid var(--color-border-primary)' }}>{actions}</div>}
         </div>
       </div>
 
       {/* 题干容器：电光蓝左加重线 */}
-      <div className="mx-5 my-4 rounded-r-2xl border-l-4 border-indigo-500 bg-slate-50/60 p-4 text-slate-800 leading-relaxed font-semibold">
+      <div
+        className="mx-5 my-4 rounded-r-2xl border-l-4 p-4 leading-relaxed font-semibold"
+        style={{
+          borderLeftColor: 'var(--color-primary-500)',
+          backgroundColor: 'var(--color-bg-panel)',
+          color: 'var(--color-text-primary)'
+        }}
+      >
         {isEditing ? (
           <textarea
             value={editData?.content ?? ''}
             onChange={(e) => setEditData((d) => (d ? { ...d, content: e.target.value } : d))}
             rows={6}
-            className="w-full rounded-xl border border-slate-200 p-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            className="w-full rounded-xl p-3 text-sm focus:outline-none focus:ring-2"
+            style={{
+              border: '1px solid var(--color-border-primary)',
+              backgroundColor: 'var(--color-bg-input)',
+              color: 'var(--color-text-primary)',
+              '::placeholder': { color: 'var(--color-text-muted)' }
+            }}
             placeholder="题目内容（支持 LaTeX，如 $x^2$）"
           />
         ) : (
@@ -501,7 +596,8 @@ export default function QuestionCard({
               src={src}
               alt="题目附图"
               loading="lazy"
-              className="max-w-full max-h-80 object-contain rounded-2xl border border-slate-200 shadow-sm"
+              className="max-w-full max-h-80 object-contain rounded-2xl shadow-sm"
+              style={{ border: '1px solid var(--color-border-primary)' }}
             />
           ))}
         </div>
@@ -514,7 +610,13 @@ export default function QuestionCard({
             <div className="space-y-2">
               {[0, 1, 2, 3].map((i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-700">
+                  <span
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold"
+                    style={{
+                      backgroundColor: 'var(--color-bg-panel-muted)',
+                      color: 'var(--color-text-primary)'
+                    }}
+                  >
                     {String.fromCharCode(65 + i)}
                   </span>
                   <input
@@ -525,7 +627,12 @@ export default function QuestionCard({
                       next[i] = e.target.value
                       setEditData((d) => (d ? { ...d, options: next } : d))
                     }}
-                    className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    className="min-w-0 flex-1 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2"
+                    style={{
+                      border: '1px solid var(--color-border-primary)',
+                      backgroundColor: 'var(--color-bg-input)',
+                      color: 'var(--color-text-primary)'
+                    }}
                     placeholder={`选项 ${String.fromCharCode(65 + i)}`}
                   />
                 </div>
@@ -536,12 +643,34 @@ export default function QuestionCard({
               {options.map((opt, i) => (
                 <div
                   key={i}
-                  className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3.5 hover:border-indigo-300 hover:bg-indigo-50/40 transition-all"
+                  className="flex items-start gap-3 rounded-2xl p-3.5 transition-all"
+                  style={{
+                    border: '1px solid var(--color-border-primary)',
+                    backgroundColor: 'var(--color-bg-panel)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--color-primary-300)'
+                    e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--color-primary-500) 8%, transparent)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--color-border-primary)'
+                    e.currentTarget.style.backgroundColor = 'var(--color-bg-panel)'
+                  }}
                 >
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-white border border-slate-200 text-xs font-black text-slate-700 shadow-xs">
+                  <span
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-black shadow-xs"
+                    style={{
+                      backgroundColor: 'var(--color-bg-card)',
+                      border: '1px solid var(--color-border-primary)',
+                      color: 'var(--color-text-primary)'
+                    }}
+                  >
                     {String.fromCharCode(65 + i)}
                   </span>
-                  <span className="min-w-0 text-slate-800 text-sm leading-relaxed font-medium">
+                  <span
+                    className="min-w-0 text-sm leading-relaxed font-medium"
+                    style={{ color: 'var(--color-text-primary)' }}
+                  >
                     <Latex>{normalizeLatexForKaTeX(getOptionText(opt))}</Latex>
                   </span>
                 </div>
@@ -554,23 +683,35 @@ export default function QuestionCard({
       {/* 答案：编辑模式 */}
       {isEditing && (
         <div className="px-5 pb-4">
-          <label className="mb-1.5 block text-xs font-bold text-slate-500">答案</label>
+          <label className="mb-1.5 block text-xs font-bold" style={{ color: 'var(--color-text-secondary)' }}>答案</label>
           <input
             type="text"
             value={editData?.answer ?? ''}
             onChange={(e) => setEditData((d) => (d ? { ...d, answer: e.target.value } : d))}
-            className="w-full max-w-md rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            className="w-full max-w-md rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2"
+            style={{
+              border: '1px solid var(--color-border-primary)',
+              backgroundColor: 'var(--color-bg-input)',
+              color: 'var(--color-text-primary)'
+            }}
             placeholder="答案（选择题可填 A/B/C/D，支持 LaTeX）"
           />
         </div>
       )}
 
       {/* Footer: 查看解析 */}
-      <div className="border-t border-slate-100">
+      <div style={{ borderTop: '1px solid var(--color-border-primary)' }}>
         <button
           type="button"
           onClick={() => (isControlled ? onToggle(!showAnalysis) : setInternalExpanded((v) => !v))}
-          className="flex w-full items-center justify-between gap-2 px-5 py-3 text-left text-xs font-extrabold text-indigo-600 hover:bg-indigo-50/60 transition-colors cursor-pointer"
+          className="flex w-full items-center justify-between gap-2 px-5 py-3 text-left text-xs font-extrabold transition-colors cursor-pointer"
+          style={{ color: 'var(--color-primary-500)' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent'
+          }}
         >
           <span>{isEditing ? '解析内容' : '查看详细解析'}</span>
           {showAnalysis || isEditing ? (
@@ -580,14 +721,25 @@ export default function QuestionCard({
           )}
         </button>
         {(showAnalysis || isEditing) && (
-          <div className="border-t border-slate-100 bg-slate-50/70 px-5 py-4 space-y-3">
-            <p className="text-xs font-black text-slate-500 tracking-wide">详细解析与解题步骤</p>
+          <div
+            className="px-5 py-4 space-y-3"
+            style={{
+              borderTop: '1px solid var(--color-border-primary)',
+              backgroundColor: 'var(--color-bg-panel)'
+            }}
+          >
+            <p className="text-xs font-black tracking-wide" style={{ color: 'var(--color-text-secondary)' }}>详细解析与解题步骤</p>
             {isEditing ? (
               <textarea
                 value={editData?.analysis ?? ''}
                 onChange={(e) => setEditData((d) => (d ? { ...d, analysis: e.target.value } : d))}
                 rows={8}
-                className="w-full rounded-xl border border-slate-200 p-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                className="w-full rounded-xl p-3 text-sm focus:outline-none focus:ring-2"
+                style={{
+                  border: '1px solid var(--color-border-primary)',
+                  backgroundColor: 'var(--color-bg-input)',
+                  color: 'var(--color-text-primary)'
+                }}
                 placeholder="解析内容（支持 LaTeX）"
               />
             ) : analysis ? (
@@ -598,18 +750,37 @@ export default function QuestionCard({
                       const isSteps = label === '步骤'
                       const steps = isSteps ? splitSteps(content) : []
                       return (
-                        <div key={label} className="rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-2xs">
-                          <span className="inline-block rounded-lg bg-indigo-600 px-2.5 py-0.5 text-xs font-bold text-white mb-2">{label}</span>
+                        <div
+                          key={label}
+                          className="rounded-2xl p-3.5 shadow-2xs"
+                          style={{
+                            border: '1px solid var(--color-border-primary)',
+                            backgroundColor: 'var(--color-bg-card)'
+                          }}
+                        >
+                          <span
+                            className="inline-block rounded-lg px-2.5 py-0.5 text-xs font-bold text-white mb-2"
+                            style={{ backgroundColor: 'var(--color-primary-600)' }}
+                          >
+                            {label}
+                          </span>
                           {isSteps && steps.length > 0 ? (
                             <div className="space-y-2 overflow-visible">
                               {steps.map((step, i) => (
-                                <div key={i} className="text-slate-800 text-sm leading-relaxed min-h-[1.5em] overflow-visible">
+                                <div
+                                  key={i}
+                                  className="text-sm leading-relaxed min-h-[1.5em] overflow-visible"
+                                  style={{ color: 'var(--color-text-primary)' }}
+                                >
                                   <Latex>{normalizeLatexForKaTeX(step)}</Latex>
                                 </div>
                               ))}
                             </div>
                           ) : (
-                            <div className="text-slate-800 text-sm leading-relaxed">
+                            <div
+                              className="text-sm leading-relaxed"
+                              style={{ color: 'var(--color-text-primary)' }}
+                            >
                               <Latex>{normalizeLatexForKaTeX(content)}</Latex>
                             </div>
                           )}
@@ -620,7 +791,7 @@ export default function QuestionCard({
                   return <Latex>{normalizeLatexForKaTeX(analysis)}</Latex>
                 })()
               ) : (
-                <span className="text-slate-400 text-xs font-semibold">暂无详细解析</span>
+                <span className="text-xs font-semibold" style={{ color: 'var(--color-text-muted)' }}>暂无详细解析</span>
               )}
           </div>
         )}

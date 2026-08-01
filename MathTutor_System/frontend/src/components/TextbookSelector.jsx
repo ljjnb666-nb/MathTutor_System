@@ -36,13 +36,36 @@ function LevelDropdown({ options, selectedValue, selectedLabel, placeholder, onS
         type="button"
         onClick={() => !disabled && setOpen((o) => !o)}
         disabled={disabled}
-        className="flex min-w-[100px] items-center justify-between gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-800 transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600/20"
+        className="flex min-w-[100px] items-center justify-between gap-1.5 rounded-lg px-3 py-2 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus:ring-1"
+        style={{
+          border: '1px solid var(--color-border-primary)',
+          backgroundColor: 'var(--color-bg-card)',
+          color: selectedValue ? 'var(--color-text-primary)' : 'var(--color-text-muted)'
+        }}
+        onMouseEnter={(e) => {
+          if (!disabled) {
+            e.currentTarget.style.borderColor = 'var(--color-border-hover)'
+            e.currentTarget.style.backgroundColor = 'var(--color-bg-card-hover)'
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!disabled) {
+            e.currentTarget.style.borderColor = 'var(--color-border-primary)'
+            e.currentTarget.style.backgroundColor = 'var(--color-bg-card)'
+          }
+        }}
       >
-        <span className={selectedValue ? 'font-medium' : 'text-gray-500'}>{display}</span>
-        <ChevronDown className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <span className={selectedValue ? 'font-medium' : ''}>{display}</span>
+        <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} style={{ color: 'var(--color-text-muted)' }} />
       </button>
       {open && options.length > 0 && (
-        <div className="absolute left-0 top-full z-10 mt-1 max-h-56 min-w-[160px] overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+        <div
+          className="absolute left-0 top-full z-10 mt-1 max-h-56 min-w-[160px] overflow-y-auto rounded-lg py-1 shadow-lg"
+          style={{
+            border: '1px solid var(--color-border-primary)',
+            backgroundColor: 'var(--color-bg-card)'
+          }}
+        >
           {options.map((opt) => (
             <button
               key={opt.value}
@@ -51,9 +74,26 @@ function LevelDropdown({ options, selectedValue, selectedLabel, placeholder, onS
                 onSelect(opt)
                 setOpen(false)
               }}
-              className={`block w-full px-3 py-2 text-left text-sm transition-colors hover:bg-blue-50 ${
-                selectedValue === opt.value ? 'bg-blue-50 font-medium text-blue-700' : 'text-gray-700'
-              }`}
+              className="block w-full px-3 py-2 text-left text-sm transition-colors"
+              style={
+                selectedValue === opt.value
+                  ? {
+                      backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)',
+                      color: 'var(--color-primary-700)',
+                      fontWeight: '500'
+                    }
+                  : { color: 'var(--color-text-primary)' }
+              }
+              onMouseEnter={(e) => {
+                if (selectedValue !== opt.value) {
+                  e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (selectedValue !== opt.value) {
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                }
+              }}
             >
               {opt.label}
             </button>
@@ -208,7 +248,21 @@ export default function TextbookSelector({ onChange, disabled = false, onAdd }) 
           type="button"
           onClick={handleAdd}
           disabled={disabled || !canAdd}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-blue-600 bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2"
+          style={{
+            border: '1px solid var(--color-primary-600)',
+            backgroundColor: 'var(--color-primary-600)'
+          }}
+          onMouseEnter={(e) => {
+            if (!disabled && canAdd) {
+              e.currentTarget.style.backgroundColor = 'var(--color-primary-700)'
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!disabled && canAdd) {
+              e.currentTarget.style.backgroundColor = 'var(--color-primary-600)'
+            }
+          }}
         >
           <Plus className="h-4 w-4" />
           添加知识点

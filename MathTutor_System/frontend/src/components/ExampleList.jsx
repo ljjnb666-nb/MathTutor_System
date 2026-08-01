@@ -18,28 +18,44 @@ export default function ExampleList({ data }) {
   if (examples.length === 0) return null
 
   return (
-    <div className="rounded-xl border border-blue-200/80 bg-blue-50/80 shadow-sm overflow-hidden">
-      <div className="border-b border-blue-200/60 px-5 py-3">
-        <h3 className="flex items-center gap-2 text-base font-bold text-gray-900">
-          <Lightbulb className="h-4 w-4 text-blue-600 shrink-0" />
+    <div
+      className="rounded-xl shadow-sm overflow-hidden"
+      style={{
+        border: '1px solid rgba(59, 130, 246, 0.3)',
+        backgroundColor: 'color-mix(in srgb, #3b82f6 10%, var(--color-bg-card))'
+      }}
+    >
+      <div
+        className="px-5 py-3"
+        style={{ borderBottom: '1px solid rgba(59, 130, 246, 0.2)' }}
+      >
+        <h3 className="flex items-center gap-2 text-base font-bold" style={{ color: 'var(--color-text-primary)' }}>
+          <Lightbulb className="h-4 w-4 shrink-0" style={{ color: '#2563eb' }} />
           典型例题
         </h3>
       </div>
-      <ul className="divide-y divide-blue-100">
+      <ul style={{ borderTop: '1px solid rgba(59, 130, 246, 0.15)' }}>
         {examples.map((ex, i) => {
           const content = ex.content ?? ''
           const analysis = normalizeText(ex.analysis ?? '')
           const expanded = expandedIndex === i
           return (
-            <li key={i}>
+            <li key={i} style={i > 0 ? { borderTop: '1px solid rgba(59, 130, 246, 0.15)' } : {}}>
               <div className="px-5 py-3">
-                <p className="text-gray-800 text-sm leading-relaxed">
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--color-text-primary)' }}>
                   <Latex>{normalizeLatexForKaTeX(content)}</Latex>
                 </p>
                 <button
                   type="button"
                   onClick={() => setExpandedIndex(expanded ? null : i)}
-                  className="mt-2 flex items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-800"
+                  className="mt-2 flex items-center gap-1.5 text-sm font-medium"
+                  style={{ color: '#2563eb' }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = '#1d4ed8'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = '#2563eb'
+                  }}
                 >
                   {expanded ? (
                     <ChevronUp className="h-4 w-4" />
@@ -50,9 +66,15 @@ export default function ExampleList({ data }) {
                 </button>
               </div>
               {expanded && analysis && (
-                <div className="border-t border-blue-100 bg-white/70 px-5 py-4">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">解析</p>
-                  <div className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">
+                <div
+                  className="px-5 py-4"
+                  style={{
+                    borderTop: '1px solid rgba(59, 130, 246, 0.15)',
+                    backgroundColor: 'color-mix(in srgb, var(--color-bg-card) 70%, transparent)'
+                  }}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--color-text-secondary)' }}>解析</p>
+                  <div className="text-sm leading-relaxed whitespace-pre-line" style={{ color: 'var(--color-text-primary)' }}>
                     <Latex>{normalizeLatexForKaTeX(analysis)}</Latex>
                   </div>
                 </div>
