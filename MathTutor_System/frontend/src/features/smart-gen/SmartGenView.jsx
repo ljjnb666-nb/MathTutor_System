@@ -164,16 +164,16 @@ export default function SmartGenView({
               <div className="flex flex-1 flex-col items-center justify-center rounded-xl border-2 border-dashed py-20 px-8 text-center" style={{ borderColor: 'var(--color-border-primary)', background: 'linear-gradient(to bottom, color-mix(in srgb, var(--color-primary-500) 5%, transparent), var(--color-bg-card))' }}>
                 {lastError ? (
                   <>
-                    <p className=”text-sm font-medium” style={{ color: '#92400e' }}>{lastError}</p>
-                    <p className=”mt-3 text-xs max-w-sm” style={{ color: 'var(--color-text-secondary)' }}>
+                    <p className="text-sm font-medium" style={{ color: '#92400e' }}>{lastError}</p>
+                    <p className="mt-3 text-xs max-w-sm" style={{ color: 'var(--color-text-secondary)' }}>
                       {lastError.includes('API Key') || lastError.includes('未配置')
-                        ? '请打开左上角菜单，在侧栏底部点击”设置”并填写 API Key 后保存，再重新生成。'
+                        ? '请打开左上角菜单，在侧栏底部点击"设置"并填写 API Key 后保存，再重新生成。'
                         : '请检查网络或后端服务后重试。'}
                     </p>
                     <button
-                      type=”button”
+                      type="button"
                       onClick={() => handleGenerate()}
-                      className=”mt-5 inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors active:scale-[0.98]”
+                      className="mt-5 inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors active:scale-[0.98]"
                       style={{
                         backgroundColor: 'color-mix(in srgb, #fbbf24 15%, var(--color-bg-card))',
                         color: '#92400e'
@@ -190,11 +190,11 @@ export default function SmartGenView({
                   </>
                 ) : (
                   <>
-                    <div className=”flex h-14 w-14 items-center justify-center rounded-full mb-4” style={{ backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 15%, transparent)', color: 'var(--color-primary-600)' }}>
-                      <Sparkles className=”h-7 w-7” />
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full mb-4" style={{ backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 15%, transparent)', color: 'var(--color-primary-600)' }}>
+                      <Sparkles className="h-7 w-7" />
                     </div>
-                    <p className=”text-base font-medium” style={{ color: 'var(--color-text-primary)' }}>在上方设置题型、难度与数量</p>
-                    <p className=”mt-1 text-sm” style={{ color: 'var(--color-text-secondary)' }}>点击”生成练习题”即可生成题目</p>
+                    <p className="text-base font-medium" style={{ color: 'var(--color-text-primary)' }}>在上方设置题型、难度与数量</p>
+                    <p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>点击"生成练习题"即可生成题目</p>
                   </>
                 )}
               </div>

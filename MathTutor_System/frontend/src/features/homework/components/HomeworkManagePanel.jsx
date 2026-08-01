@@ -109,26 +109,26 @@ export default function HomeworkManagePanel({
         </div>
 
         {draftLoading ? (
-          <div className=”flex items-center justify-center py-12”>
-            <Loader2 className=”h-8 w-8 animate-spin” style={{ color: 'var(--color-primary-600)' }} />
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin" style={{ color: 'var(--color-primary-600)' }} />
           </div>
         ) : !draft ? (
-          <p className=”py-6 text-center text-sm” style={{ color: 'var(--color-text-muted)' }}>暂无当日作业，点击”从题库加入”或”从错题本加入”开始组卷。</p>
+          <p className="py-6 text-center text-sm" style={{ color: 'var(--color-text-muted)' }}>暂无当日作业，点击"从题库加入"或"从错题本加入"开始组卷。</p>
         ) : (
           <ul style={{ borderTop: '1px solid var(--color-border-subtle)' }}>
             {draftQuestions.map((question, idx) => (
-              <li key={idx} className=”flex items-start gap-3 py-3” style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
-                <span className=”w-8 shrink-0 pt-0.5 text-xs font-medium” style={{ color: 'var(--color-text-muted)' }}>{idx + 1}</span>
-                <div className=”min-w-0 flex-1 break-words text-sm” style={{ color: 'var(--color-text-primary)' }}>
-                  <span className=”inline”>
+              <li key={idx} className="flex items-start gap-3 py-3" style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
+                <span className="w-8 shrink-0 pt-0.5 text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>{idx + 1}</span>
+                <div className="min-w-0 flex-1 break-words text-sm" style={{ color: 'var(--color-text-primary)' }}>
+                  <span className="inline">
                     <Latex>{normalizeLatexForKaTeX((question?.content ?? question?.body ?? '').trim() || '（无题干）')}</Latex>
                   </span>
                   {Array.isArray(question?.options) && question.options.length > 0 && (
-                    <ul className=”mt-1.5 list-none space-y-0.5 pl-0” style={{ color: 'var(--color-text-secondary)' }}>
+                    <ul className="mt-1.5 list-none space-y-0.5 pl-0" style={{ color: 'var(--color-text-secondary)' }}>
                       {question.options.map((opt, i) => (
-                        <li key={i} className=”flex gap-1.5”>
-                          <span className=”shrink-0”>{String.fromCharCode(65 + i)}.</span>
-                          <span className=”inline”>
+                        <li key={i} className="flex gap-1.5">
+                          <span className="shrink-0">{String.fromCharCode(65 + i)}.</span>
+                          <span className="inline">
                             <Latex>{normalizeLatexForKaTeX(getOptionDisplayText(opt))}</Latex>
                           </span>
                         </li>
@@ -137,10 +137,10 @@ export default function HomeworkManagePanel({
                   )}
                 </div>
                 <button
-                  type=”button”
+                  type="button"
                   onClick={() => onRemoveFromDraft(idx)}
                   disabled={removingQuestionIndex !== null}
-                  className=”shrink-0 rounded-md p-1.5 text-red-600 transition-colors disabled:opacity-50”
+                  className="shrink-0 rounded-md p-1.5 text-red-600 transition-colors disabled:opacity-50"
                   onMouseEnter={(e) => {
                     if (removingQuestionIndex === null) {
                       e.currentTarget.style.backgroundColor = 'color-mix(in srgb, #dc2626 10%, transparent)'
@@ -149,13 +149,13 @@ export default function HomeworkManagePanel({
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = 'transparent'
                   }}
-                  title=”从当日作业中移除”
-                  aria-label=”从当日作业中移除”
+                  title="从当日作业中移除"
+                  aria-label="从当日作业中移除"
                 >
                   {removingQuestionIndex === idx ? (
-                    <Loader2 className=”h-4 w-4 animate-spin” />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Trash2 className=”h-4 w-4” />
+                    <Trash2 className="h-4 w-4" />
                   )}
                 </button>
               </li>

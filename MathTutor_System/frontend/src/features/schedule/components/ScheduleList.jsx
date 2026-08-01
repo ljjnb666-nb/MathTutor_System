@@ -19,43 +19,43 @@ function EmptyState({ scheduleView, schedules, students, filterStudentId, dateRa
   const showNoStudents = students.length === 0
 
   return (
-    <div className=”flex flex-col items-center justify-center rounded-2xl py-20 shadow-sm” style={{ border: '1px solid color-mix(in srgb, var(--color-border-primary) 80%, transparent)', backgroundColor: 'var(--color-bg-card)' }}>
+    <div className="flex flex-col items-center justify-center rounded-2xl py-20 shadow-sm" style={{ border: '1px solid color-mix(in srgb, var(--color-border-primary) 80%, transparent)', backgroundColor: 'var(--color-bg-card)' }}>
       {showUpcomingDone ? (
         <>
-          <div className=”flex h-20 w-20 items-center justify-center rounded-full bg-amber-50”>
-            <History className=”h-10 w-10 text-amber-500” />
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-amber-50">
+            <History className="h-10 w-10 text-amber-500" />
           </div>
-          <p className=”mt-5 text-base font-semibold” style={{ color: 'var(--color-text-primary)' }}>当前没有即将开始的排课</p>
-          <p className=”mt-2 max-w-xs text-center text-sm” style={{ color: 'var(--color-text-muted)' }}>
-            今日已结束的课程不会显示在这里，可切换到”历史记录”查看。
+          <p className="mt-5 text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>当前没有即将开始的排课</p>
+          <p className="mt-2 max-w-xs text-center text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            今日已结束的课程不会显示在这里，可切换到"历史记录"查看。
           </p>
         </>
       ) : showNoStudents ? (
         <>
-          <div className=”flex h-20 w-20 items-center justify-center rounded-full” style={{ backgroundColor: 'var(--color-bg-panel)' }}>
-            <Users className=”h-10 w-10” style={{ color: 'var(--color-text-muted)' }} />
+          <div className="flex h-20 w-20 items-center justify-center rounded-full" style={{ backgroundColor: 'var(--color-bg-panel)' }}>
+            <Users className="h-10 w-10" style={{ color: 'var(--color-text-muted)' }} />
           </div>
-          <p className=”mt-5 text-base font-semibold” style={{ color: 'var(--color-text-primary)' }}>暂无学生</p>
-          <p className=”mt-2 max-w-xs text-center text-sm” style={{ color: 'var(--color-text-muted)' }}>请先在”学生管理”中添加学生，再到此排课。</p>
+          <p className="mt-5 text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>暂无学生</p>
+          <p className="mt-2 max-w-xs text-center text-sm" style={{ color: 'var(--color-text-muted)' }}>请先在"学生管理"中添加学生，再到此排课。</p>
         </>
       ) : (
         <>
           <div className={`flex h-20 w-20 items-center justify-center rounded-full ${scheduleView === 'history' ? 'bg-amber-50' : 'bg-blue-50'}`}>
             {scheduleView === 'history' ? (
-              <History className=”h-10 w-10 text-amber-500” />
+              <History className="h-10 w-10 text-amber-500" />
             ) : (
-              <Calendar className=”h-10 w-10” style={{ color: 'var(--color-primary-500)' }} />
+              <Calendar className="h-10 w-10" style={{ color: 'var(--color-primary-500)' }} />
             )}
           </div>
-          <p className=”mt-5 text-base font-semibold” style={{ color: 'var(--color-text-primary)' }}>
+          <p className="mt-5 text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>
             {scheduleView === 'history' ? '该时间段暂无历史记录' : '暂无排课'}
           </p>
-          <p className=”mt-2 max-w-xs text-center text-sm” style={{ color: 'var(--color-text-muted)' }}>
+          <p className="mt-2 max-w-xs text-center text-sm" style={{ color: 'var(--color-text-muted)' }}>
             {scheduleView === 'history'
               ? '历史记录仅展示已经结束的课程，可切换时间范围继续查看。'
               : filterStudentId != null || dateRange !== 'all'
-                ? '试试调整筛选条件或选择”全部”。'
-                : '点击上方”添加排课”开始安排课程。'}
+                ? '试试调整筛选条件或选择"全部"。'
+                : '点击上方"添加排课"开始安排课程。'}
           </p>
         </>
       )}
