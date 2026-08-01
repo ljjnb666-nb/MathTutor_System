@@ -341,34 +341,36 @@ export default function ExamPreview() {
             {questions.length === 0 ? (
               <EmptyState icon={FileText} title="暂无题目" description="当前试卷没有可预览的题目。" />
             ) : (
-              <div className={`v2-preview-paper ${layout.paperSize.toLowerCase()} columns-${layout.columns}`} data-show-answer={layout.showAnswer}>
-                {layout.showHeader && (
-                  <header className="v2-preview-paper-header">
-                    <h2>{title}</h2>
-                    <p>姓名：__________ 班级：__________ 日期：__________</p>
-                  </header>
-                )}
-                {Object.entries(grouped).map(([groupName, items]) => (
-                  items.length > 0 && (
-                    <section key={groupName} className="space-y-3">
-                      <h3 className="v2-preview-group-title">{groupName}题</h3>
-                      {items.map(({ question, index }) => (
-                        <QuestionPreview
-                          key={question.id ?? index}
-                          question={question}
-                          index={index}
-                          showAnswer={layout.showAnswer}
-                          grading={grading}
-                          marked={gradingResults[index]}
-                          errorType={gradingErrorTypes[index]}
-                          onMark={(isCorrect) => handleMark(index, isCorrect)}
-                          onErrorType={(errorType) => setGradingErrorTypes((prev) => ({ ...prev, [index]: errorType }))}
-                          onAskAI={() => navigate('/chat', { state: { contextQuestion: buildQuestionTextForChat(question) } })}
-                        />
-                      ))}
-                    </section>
-                  )
-                ))}
+              <div className="v2-preview-paper-frame" data-testid="exam-preview-paper-frame">
+                <div className={`v2-preview-paper ${layout.paperSize.toLowerCase()} columns-${layout.columns}`} data-show-answer={layout.showAnswer} data-testid="exam-preview-paper">
+                  {layout.showHeader && (
+                    <header className="v2-preview-paper-header">
+                      <h2>{title}</h2>
+                      <p>姓名：__________ 班级：__________ 日期：__________</p>
+                    </header>
+                  )}
+                  {Object.entries(grouped).map(([groupName, items]) => (
+                    items.length > 0 && (
+                      <section key={groupName} className="space-y-3">
+                        <h3 className="v2-preview-group-title">{groupName}题</h3>
+                        {items.map(({ question, index }) => (
+                          <QuestionPreview
+                            key={question.id ?? index}
+                            question={question}
+                            index={index}
+                            showAnswer={layout.showAnswer}
+                            grading={grading}
+                            marked={gradingResults[index]}
+                            errorType={gradingErrorTypes[index]}
+                            onMark={(isCorrect) => handleMark(index, isCorrect)}
+                            onErrorType={(errorType) => setGradingErrorTypes((prev) => ({ ...prev, [index]: errorType }))}
+                            onAskAI={() => navigate('/chat', { state: { contextQuestion: buildQuestionTextForChat(question) } })}
+                          />
+                        ))}
+                      </section>
+                    )
+                  ))}
+                </div>
               </div>
             )}
           </SectionCard>

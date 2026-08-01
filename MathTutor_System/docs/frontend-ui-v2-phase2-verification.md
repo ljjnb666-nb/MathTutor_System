@@ -342,6 +342,27 @@ Result:
 - Answer/analysis notes rendered: 6
 - Remaining adaptation: preview activity/sidebar data is limited to existing exam, grading, knowledge-card, and route-navigation workflows.
 
+Final A4 paper fix recheck:
+
+- Original blocker: `.v2-preview-paper` used theme panel/card variables, so dark theme and mobile rendered the preview as a dark themed card instead of a white A4 paper surface.
+- Root cause: the paper body, paper header, question cards, options, and note blocks inherited `var(--color-bg-panel)`, `var(--color-bg-card)`, and dark text utilities intended for the surrounding workbench.
+- Fix files: `MathTutor_System/frontend/src/pages/ExamPreview.jsx`, `MathTutor_System/frontend/src/pages/ExamPreview.test.jsx`, and `MathTutor_System/frontend/src/index.css`.
+- Paper semantics: `.v2-preview-paper` now forces `background: #ffffff`, `color: #111827`, and `color-scheme: light`; the surrounding workbench still follows dark/light/auto theme.
+- Mobile behavior: paper is wrapped by `.v2-preview-paper-frame`, which provides local horizontal containment without causing global page overflow.
+- Print behavior: print media keeps the V2 paper/header/question/note blocks white with dark text and removes paper shadow.
+- Dark desktop computed style: `backgroundColor=rgb(255, 255, 255)`, `color=rgb(17, 24, 39)`, `colorScheme=light`, `scrollWidth=1440`, `clientWidth=1440`.
+- Light desktop computed style: `backgroundColor=rgb(255, 255, 255)`, `color=rgb(17, 24, 39)`, `colorScheme=light`, `scrollWidth=1440`, `clientWidth=1440`.
+- Dark mobile computed style: `backgroundColor=rgb(255, 255, 255)`, `color=rgb(17, 24, 39)`, `colorScheme=light`, `scrollWidth=390`, `clientWidth=390`.
+- Auto theme computed style: `backgroundColor=rgb(255, 255, 255)`, `color=rgb(17, 24, 39)`, `colorScheme=light`, `scrollWidth=1440`, `clientWidth=1440`.
+- Console errors: 0
+- Request failures: 0
+- Global horizontal overflow: 0
+- Replaced screenshots:
+  - `MathTutor_System/docs/ui-verification/ui-v2-phase2/exam-preview-dark-desktop-1440x900.png`
+  - `MathTutor_System/docs/ui-verification/ui-v2-phase2/exam-preview-light-desktop-1440x900.png`
+  - `MathTutor_System/docs/ui-verification/ui-v2-phase2/exam-preview-dark-mobile-390x844.png`
+- Final status: MATCHED_WITH_ADAPTATION. The A4 paper uses forced print-white semantics, the surrounding workspace remains theme-aware, and mobile uses local paper containment instead of changing the whole page.
+
 ### StudentMgmt
 
 Screenshots:

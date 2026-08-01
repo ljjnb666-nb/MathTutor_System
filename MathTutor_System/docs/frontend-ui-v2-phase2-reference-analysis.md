@@ -84,7 +84,7 @@ KnowledgeBase was rebuilt around the reference knowledge-library cards, document
 
 ImportExam was rebuilt around the reference stepper and ingestion workspace. It keeps existing Word/PDF parse, batch save, collect, and analysis APIs; unsupported image/OCR import is shown only as a disabled affordance. Browser screenshots were captured for dark desktop, light desktop, and mobile.
 
-ExamList was rebuilt as a saved-content asset console with metrics, search/type filtering, assignment modal entry, delete, preview, and import/generation links. ExamPreview was rebuilt as a print/preview/grading workspace with existing save, assign, print, quick-grade, knowledge-card, AI-chat, and graph-navigation flows. Browser screenshots were captured for both pages in dark desktop, light desktop, and mobile.
+ExamList was rebuilt as a saved-content asset console with metrics, search/type filtering, assignment modal entry, delete, preview, and import/generation links. ExamPreview was rebuilt as a print/preview/grading workspace with existing save, assign, print, quick-grade, knowledge-card, AI-chat, and graph-navigation flows. The ExamPreview A4 paper surface is intentionally forced to white print semantics across dark, light, auto, and mobile contexts while the surrounding workbench remains theme-aware. Browser screenshots were captured for both pages in dark desktop, light desktop, and mobile.
 
 MistakeBook was rebuilt around reference metrics, tabs, responsive mistake cards, manual add modal, review/master/delete, AI-chat handoff, homework insertion, and review-practice generation. It uses only existing mistake, exam, and generation APIs. Browser screenshots were captured for dark desktop, light desktop, and mobile.
 

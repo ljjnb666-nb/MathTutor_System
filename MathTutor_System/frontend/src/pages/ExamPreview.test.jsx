@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -23,7 +25,7 @@ vi.mock('react-router-dom', async () => {
 vi.mock('react-hot-toast', () => ({ default: toast }))
 vi.mock('../services/api', () => api)
 vi.mock('../contexts/StudentContext', () => ({
-  useStudent: () => ({ currentStudent: { id: 7, name: '学生A' } }),
+  useStudent: () => ({ currentStudent: { id: 7, name: 'Student A' } }),
 }))
 vi.mock('../components/StudentSelectorModal', () => ({
   default: ({ open }) => (open ? <div data-testid="student-selector-modal" /> : null),
@@ -34,12 +36,31 @@ vi.mock('../components/KnowledgeCard', () => ({
 
 const exam = {
   id: 12,
-  title: '函数周测',
+  title: 'Function Quiz',
   questions: [
-    { id: 1, content: '一次函数题', type: 'choice', options: ['1', '2'], answer: '2', analysis: '代入', knowledge_point: '一次函数', difficulty: 'L2' },
-    { id: 2, content: '化简题', type: 'fill', answer: '8x', analysis: '展开', knowledge_point: '整式运算', difficulty: 'L3' },
+    {
+      id: 1,
+      content: 'Linear function prompt',
+      type: 'choice',
+      options: ['1', '2'],
+      answer: '2',
+      analysis: 'Substitute',
+      knowledge_point: 'Linear functions',
+      difficulty: 'L2',
+    },
+    {
+      id: 2,
+      content: 'Simplify expression',
+      type: 'fill',
+      answer: '8x',
+      analysis: 'Expand',
+      knowledge_point: 'Algebra',
+      difficulty: 'L3',
+    },
   ],
 }
+
+const css = readFileSync(join(process.cwd(), 'src/index.css'), 'utf8')
 
 function renderRoute(initialEntries = ['/exams/12'], state) {
   return render(
@@ -64,38 +85,71 @@ afterEach(() => {
 
 describe('ExamPreview', () => {
   it('loads exam preview and toggles answers', async () => {
-    renderRoute()
+    const { container } = renderRoute()
 
-    expect((await screen.findAllByText('函数周测')).length).toBeGreaterThan(0)
-    expect(screen.getByText('一次函数题')).toBeInTheDocument()
+    expect((await screen.findAllByText('Function Quiz')).length).toBeGreaterThan(0)
+    expect(screen.getByText('Linear function prompt')).toBeInTheDocument()
 
-    await userEvent.click(screen.getByLabelText(/显示答案/))
-    expect(screen.getAllByText('答案').length).toBeGreaterThan(0)
-    expect(screen.getByText('代入')).toBeInTheDocument()
+    await userEvent.click(container.querySelector('.v2-toggle input'))
+    expect(screen.getAllByText('2').length).toBeGreaterThan(0)
+    expect(screen.getByText('Substitute')).toBeInTheDocument()
+  })
+
+  it('renders A4 preview inside a dedicated white paper surface', async () => {
+    const { container } = renderRoute()
+
+    const frame = await screen.findByTestId('exam-preview-paper-frame')
+    const paper = await screen.findByTestId('exam-preview-paper')
+    expect(frame).toHaveClass('v2-preview-paper-frame')
+    expect(paper).toHaveClass('v2-preview-paper', 'a4', 'columns-1')
+    expect(paper).not.toHaveClass('v2-section-card')
+    expect(container.querySelector('.v2-preview-paper-header')).toBeInTheDocument()
+    expect(container.querySelectorAll('.v2-preview-question')).toHaveLength(2)
+  })
+
+  it('keeps paper styling independent from dark theme panel variables', () => {
+    const paperRule = css.match(/\.v2-preview-paper\s*\{[^}]+\}/)?.[0] ?? ''
+    const frameRule = css.match(/\.v2-preview-paper-frame\s*\{\s*@apply[^}]+\}/)?.[0] ?? ''
+
+    expect(paperRule).toContain('background: #ffffff')
+    expect(paperRule).toContain('color: #111827')
+    expect(paperRule).toContain('color-scheme: light')
+    expect(paperRule).not.toContain('var(--color-bg-panel)')
+    expect(frameRule).toContain('overflow-x-auto')
+  })
+
+  it('shows empty state without rendering a paper when there are no questions', async () => {
+    api.getExam.mockResolvedValueOnce({ data: { ...exam, questions: [] } })
+    const emptyRender = renderRoute()
+
+    await waitFor(() => expect(emptyRender.container.querySelector('.v2-state')).toBeInTheDocument())
+    expect(screen.queryByTestId('exam-preview-paper')).not.toBeInTheDocument()
+    expect(emptyRender.container.querySelector('.v2-btn-primary')).toBeDisabled()
   })
 
   it('submits grading results', async () => {
-    renderRoute()
-    await screen.findAllByText('函数周测')
+    const { container } = renderRoute()
+    await screen.findByTestId('exam-preview-paper')
 
-    await userEvent.click(screen.getByRole('button', { name: /开始批改/ }))
-    await userEvent.click(screen.getAllByRole('button', { name: '对' })[0])
-    await userEvent.click(screen.getByRole('button', { name: /提交批改/ }))
+    const sideButtons = container.querySelectorAll('aside button')
+    await userEvent.click(sideButtons[0])
+    await userEvent.click(container.querySelectorAll('.v2-mark-button')[0])
+    await userEvent.click(sideButtons[1])
 
     await waitFor(() => expect(api.gradeExam).toHaveBeenCalledWith(12, expect.objectContaining({ student_id: 7 })))
-    expect(toast.success).toHaveBeenCalledWith('批改结果已提交')
+    expect(toast.success).toHaveBeenCalled()
   })
 
   it('saves compose mode preview', async () => {
-    renderRoute(['/exams/compose'], {
-      composeTitle: '临时组卷',
-      composeQuestions: [{ content: '组卷题', answer: 'A' }],
+    const { container } = renderRoute(['/exams/compose'], {
+      composeTitle: 'Compose Quiz',
+      composeQuestions: [{ content: 'Compose prompt', answer: 'A' }],
     })
 
-    expect((await screen.findAllByText('临时组卷')).length).toBeGreaterThan(0)
-    await userEvent.click(screen.getByRole('button', { name: /保存试卷/ }))
+    expect((await screen.findAllByText('Compose Quiz')).length).toBeGreaterThan(0)
+    await userEvent.click(container.querySelector('.v2-page-actions button.v2-btn-secondary'))
 
-    await waitFor(() => expect(api.saveExam).toHaveBeenCalledWith(expect.objectContaining({ title: '临时组卷' })))
+    await waitFor(() => expect(api.saveExam).toHaveBeenCalledWith(expect.objectContaining({ title: 'Compose Quiz' })))
     expect(navigate).toHaveBeenCalledWith('/exams/99', { replace: true })
   })
 

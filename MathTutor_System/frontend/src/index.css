@@ -189,6 +189,20 @@ body {
       color: black;
     }
 
+    .v2-preview-paper-frame {
+      overflow: visible !important;
+      padding: 0 !important;
+    }
+
+    .v2-preview-paper,
+    .v2-preview-paper-header,
+    .v2-preview-question,
+    .v2-preview-note {
+      background: white !important;
+      color: #111827 !important;
+      box-shadow: none !important;
+    }
+
     /* 4. 隐藏非试卷元素 */
     .sidebar,
     .navbar,
@@ -1100,35 +1114,47 @@ body {
     color: var(--color-text-primary);
   }
 
+  .v2-preview-paper-frame {
+    @apply max-w-full overflow-x-auto rounded-2xl pb-2;
+  }
+
   .v2-preview-paper {
     @apply space-y-4 rounded-2xl p-4;
-    border: 1px solid var(--color-border-primary);
-    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #111827;
+    color-scheme: light;
+    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
   }
 
   .v2-preview-paper-header {
     @apply rounded-2xl p-4 text-center;
-    border: 1px solid var(--color-border-primary);
-    background: color-mix(in srgb, var(--color-bg-card) 84%, transparent);
+    border: 1px solid #e5e7eb;
+    background: #f8fafc;
   }
 
   .v2-preview-paper-header h2 {
     @apply text-xl font-black;
-    color: var(--color-text-primary);
+    color: #111827;
   }
 
   .v2-preview-paper-header p {
     @apply mt-2 text-xs font-semibold;
-    color: var(--color-text-secondary);
+    color: #475569;
   }
 
   .v2-preview-group-title {
     @apply text-sm font-black;
-    color: var(--color-text-primary);
+    color: #111827;
   }
 
   .v2-preview-question,
-  .v2-preview-note,
+  .v2-preview-note {
+    @apply rounded-2xl;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+  }
+
   .v2-preview-side-stat {
     @apply rounded-2xl;
     border: 1px solid var(--color-border-primary);
@@ -1140,28 +1166,31 @@ body {
   }
 
   .v2-preview-question.correct {
-    border-color: color-mix(in srgb, #22c55e 45%, var(--color-border-primary));
+    border-color: #22c55e;
+    background: #f0fdf4;
   }
 
   .v2-preview-question.wrong {
-    border-color: color-mix(in srgb, #f43f5e 45%, var(--color-border-primary));
+    border-color: #f43f5e;
+    background: #fff1f2;
   }
 
   .v2-preview-option {
     @apply flex items-start gap-2 rounded-xl p-3;
-    background: color-mix(in srgb, var(--color-bg-panel) 75%, transparent);
+    background: #f8fafc;
   }
 
   .v2-preview-option span {
     @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-black;
-    background: color-mix(in srgb, var(--color-primary-500) 14%, transparent);
-    color: var(--color-primary-300);
+    background: #e0e7ff;
+    color: #3730a3;
   }
 
+  .v2-preview-paper .v2-preview-question p,
   .v2-preview-option p,
   .v2-preview-note p {
     @apply min-w-0 whitespace-pre-wrap text-sm font-semibold leading-6;
-    color: var(--color-text-primary);
+    color: #111827;
   }
 
   .v2-preview-note {
@@ -1172,6 +1201,11 @@ body {
   .v2-preview-side-stat span {
     @apply block text-xs font-black;
     color: var(--color-text-secondary);
+  }
+
+  .v2-preview-paper .v2-preview-note span,
+  .v2-preview-paper .text-slate-400 {
+    color: #64748b;
   }
 
   .v2-preview-side-stat {
