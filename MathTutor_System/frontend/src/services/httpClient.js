@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { createApiClient } from '../../../shared/frontend/createApiClient'
+import { getActiveLlmConfig } from '../constants/ai-providers'
 
 const STORAGE_KEY = 'app_settings'
 export const AUTH_TOKEN_KEY = 'math_tutor_auth_token'
@@ -27,12 +28,18 @@ export function buildClientLlmHeaders(importMeta = import.meta) {
   if (!shouldSendClientLlmHeaders(importMeta)) return null
   const settings = getAppSettings()
   if (!settings) return null
+  return buildLlmHeadersFromConfig(getActiveLlmConfig(settings))
+}
+
+export function buildLlmHeadersFromConfig(config) {
+  if (!config) return null
   const headers = {}
-  if (settings.provider) headers['x-llm-provider'] = settings.provider
-  if (settings.apiKey) headers['x-llm-api-key'] = settings.apiKey
-  if (settings.baseUrl) headers['x-llm-base-url'] = settings.baseUrl
-  if (settings.model) headers['x-llm-model'] = settings.model
-  return headers
+  if (config.provider) headers['x-llm-provider'] = config.provider
+  if (config.model) headers['x-llm-model'] = config.model
+  if (config.baseUrl) headers['x-llm-base-url'] = config.baseUrl
+  if (config.apiVersion) headers['x-llm-api-version'] = config.apiVersion
+  if (config.apiKey) headers['x-llm-api-key'] = config.apiKey
+  return Object.keys(headers).length ? headers : null
 }
 
 export const apiBaseURL =

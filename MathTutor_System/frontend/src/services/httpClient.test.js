@@ -3,9 +3,10 @@ import { AUTH_TOKEN_KEY, buildAuthHeaders, buildClientLlmHeaders, shouldSendClie
 
 const settings = {
   provider: 'openai',
-  apiKey: 'client-secret',
-  baseUrl: 'https://client.example',
   model: 'client-model',
+  apiKeysByProvider: { openai: 'client-secret' },
+  baseUrlsByProvider: { openai: 'https://client.example/' },
+  apiVersionsByProvider: { openai: 'v1' },
 }
 
 beforeEach(() => {
@@ -29,6 +30,7 @@ describe('httpClient LLM headers', () => {
       'x-llm-provider': 'openai',
       'x-llm-api-key': 'client-secret',
       'x-llm-base-url': 'https://client.example',
+      'x-llm-api-version': 'v1',
       'x-llm-model': 'client-model',
     })
   })
@@ -50,5 +52,21 @@ describe('httpClient LLM headers', () => {
     } else {
       expect(headers['x-llm-api-key']).toBeUndefined()
     }
+  })
+
+  it('does not send an empty API key header', () => {
+    localStorage.setItem('app_settings', JSON.stringify({
+      provider: 'openai',
+      model: 'client-model',
+      apiKeysByProvider: { openai: '' },
+      baseUrlsByProvider: { openai: 'https://client.example' },
+    }))
+
+    expect(buildClientLlmHeaders({ env: { DEV: true } })).toEqual({
+      'x-llm-provider': 'openai',
+      'x-llm-base-url': 'https://client.example',
+      'x-llm-api-version': 'v1',
+      'x-llm-model': 'client-model',
+    })
   })
 })

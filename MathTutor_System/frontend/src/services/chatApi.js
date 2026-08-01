@@ -47,6 +47,12 @@ export function updateChatMessage(sessionId, messageId, content) {
 }
 
 export function chatWithAIStream(params, onChunk, onDone) {
+  let doneCalled = false
+  const finish = (payload) => {
+    if (doneCalled) return
+    doneCalled = true
+    onDone?.(payload)
+  }
   return fetch(`${apiBaseURL}/api/chat/stream`, {
     method: 'POST',
     headers: buildAuthHeaders(),
@@ -55,8 +61,8 @@ export function chatWithAIStream(params, onChunk, onDone) {
   })
     .then(async (res) => {
       if (!res.ok) {
-        const err = await res.text()
-        onDone?.({ error: err || res.statusText })
+        const err = await parseStreamError(res)
+        finish({ error: err })
         return
       }
       const reader = res.body.getReader()
@@ -73,8 +79,8 @@ export function chatWithAIStream(params, onChunk, onDone) {
           try {
             const data = JSON.parse(line)
             if (data.content != null) onChunk?.(data.content)
-            if (data.done === true) onDone?.(data)
-            if (data.error) onDone?.({ error: data.error })
+            if (data.done === true) finish(data)
+            if (data.error) finish({ error: data.error })
           } catch (_) {}
         }
       }
@@ -82,11 +88,26 @@ export function chatWithAIStream(params, onChunk, onDone) {
         try {
           const data = JSON.parse(buf)
           if (data.content != null) onChunk?.(data.content)
-          if (data.done === true) onDone?.(data)
+          if (data.done === true) finish(data)
         } catch (_) {}
       }
     })
     .catch((err) => {
-      onDone?.({ error: err.message || '请求失败' })
+      finish({ error: err.message || '请求失败' })
     })
+}
+
+async function parseStreamError(res) {
+  const fallback = `${res.status} ${res.statusText || '请求失败'}`.trim()
+  try {
+    const data = await res.clone().json()
+    if (typeof data?.detail === 'string') return `${data.detail}（HTTP ${res.status}）`
+    if (typeof data?.message === 'string') return `${data.message}（HTTP ${res.status}）`
+  } catch (_) {}
+  try {
+    const text = await res.text()
+    return text || fallback
+  } catch (_) {
+    return fallback
+  }
 }

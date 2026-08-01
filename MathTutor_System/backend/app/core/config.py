@@ -25,6 +25,7 @@ class AppSettings(BaseSettings):
     llm_api_key: str = Field(default="", alias="LLM_API_KEY")
     llm_provider: str = Field(default="gemini", alias="LLM_PROVIDER")
     llm_base_url: str = Field(default="", alias="LLM_BASE_URL")
+    llm_api_version: str = Field(default="", alias="LLM_API_VERSION")
     llm_model: str = Field(default="", alias="LLM_MODEL")
     llm_https_proxy: str = Field(default="", alias="LLM_HTTPS_PROXY")
     llm_http_proxy: str = Field(default="", alias="LLM_HTTP_PROXY")
@@ -104,6 +105,7 @@ DATABASE_URL = settings.database_url
 LLM_API_KEY = settings.llm_api_key.strip()
 LLM_PROVIDER = settings.llm_provider
 LLM_BASE_URL = settings.llm_base_url.strip()
+LLM_API_VERSION = settings.llm_api_version.strip()
 LLM_MODEL = settings.llm_model.strip()
 
 DEEPSEEK_API_KEY = settings.deepseek_api_key.strip()

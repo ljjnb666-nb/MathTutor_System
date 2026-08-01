@@ -22,7 +22,9 @@ export function createApiClient(axios, {
     if (token) config.headers.Authorization = `Bearer ${token}`
     const extraHeaders = getExtraHeaders ? getExtraHeaders() : null
     if (extraHeaders && typeof extraHeaders === 'object') {
-      Object.assign(config.headers, extraHeaders)
+      Object.entries(extraHeaders).forEach(([key, value]) => {
+        if (config.headers[key] == null) config.headers[key] = value
+      })
     }
     return config
   })

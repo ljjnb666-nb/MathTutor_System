@@ -2,11 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import Settings from './Settings'
+import { testLlmConnection } from '../services/llmApi'
 
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => ({
     user: { username: 'admin', role: 'admin' },
   }),
+}))
+
+vi.mock('../services/llmApi', () => ({
+  testLlmConnection: vi.fn(),
 }))
 
 function installMatchMedia(matches) {
@@ -94,7 +99,42 @@ describe('Settings V2 console', () => {
     expect(stored.model).toBe('gpt-4.1-mini')
     expect(stored.apiKeysByProvider.openai).toBe('sk-new-secret-9999')
     expect(stored.baseUrlsByProvider.openai).toBe('https://proxy.example/v1')
+    expect(stored.apiKey).toBe('sk-new-secret-9999')
+    expect(stored.baseUrl).toBe('https://proxy.example/v1')
     expect(stored.showThinking).toBe(true)
+  })
+
+  it('tests API key through the backend LLM endpoint headers', async () => {
+    testLlmConnection.mockResolvedValue({
+      ok: true,
+      provider: 'openai',
+      model: 'gpt-4.1-mini',
+      message: '模型连接正常',
+    })
+    render(<Settings />)
+
+    await screen.findByDisplayValue('https://proxy.example/v1')
+    await userEvent.click(screen.getByRole('button', { name: /测试 API Key/ }))
+
+    await waitFor(() => expect(screen.getByTestId('api-key-test-result')).toHaveTextContent('测试通过'))
+    expect(testLlmConnection).toHaveBeenCalledWith(expect.objectContaining({
+      'x-llm-provider': 'openai',
+      'x-llm-model': 'gpt-4.1-mini',
+      'x-llm-base-url': 'https://proxy.example/v1',
+      'x-llm-api-key': 'sk-test-secret-1234',
+    }))
+    expect(screen.queryByText('sk-test-secret-1234')).not.toBeInTheDocument()
+  })
+
+  it('shows test failure without exposing the API key', async () => {
+    testLlmConnection.mockResolvedValue({ ok: false, message: 'API Key 无效或没有访问该模型的权限。' })
+    render(<Settings />)
+
+    await screen.findByDisplayValue('https://proxy.example/v1')
+    await userEvent.click(screen.getByRole('button', { name: /测试 API Key/ }))
+
+    await waitFor(() => expect(screen.getByTestId('api-key-test-result')).toHaveTextContent('API Key 无效'))
+    expect(screen.queryByText('sk-test-secret-1234')).not.toBeInTheDocument()
   })
 
   it('clears only local settings after confirmation', async () => {

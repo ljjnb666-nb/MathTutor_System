@@ -117,4 +117,20 @@ describe('AIChat V2 workspace', () => {
     await waitFor(() => expect(api.chatWithAI).toHaveBeenCalledTimes(2))
     expect(await screen.findByText('重试成功')).toBeInTheDocument()
   })
+
+  it('shows stream errors without leaving an empty assistant reply', async () => {
+    api.chatWithAIStream.mockImplementation((params, onChunk, onDone) => {
+      onDone({ error: '未配置 API Key。（HTTP 400）' })
+      return Promise.resolve()
+    })
+    renderChat()
+
+    await screen.findByText('空会话')
+    await userEvent.type(screen.getByPlaceholderText(/输入数学疑问/), '测试流式错误')
+    await userEvent.click(screen.getByRole('button', { name: /发送/ }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('未配置 API Key。（HTTP 400）')
+    expect(screen.queryByText('（无回复）')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '重试' })).toBeInTheDocument()
+  })
 })
