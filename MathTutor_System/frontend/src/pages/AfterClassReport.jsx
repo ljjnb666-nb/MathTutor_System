@@ -12,7 +12,7 @@ const TEMPLATE_STORAGE_KEY = 'after_class_report_template'
 function StarRating({ value, onChange, label, activeColor, disabled }) {
   return (
     <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-      <span className="w-12 sm:w-14 shrink-0 text-xs sm:text-sm font-medium text-gray-600">{label}</span>
+      <span className="w-12 sm:w-14 shrink-0 text-xs sm:text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>{label}</span>
       <div className="flex gap-0.5" role="group" aria-label={`${label} 1-5 星`}>
         {[1, 2, 3, 4, 5].map((n) => (
           <button
@@ -20,9 +20,20 @@ function StarRating({ value, onChange, label, activeColor, disabled }) {
             type="button"
             onClick={() => onChange(n)}
             disabled={disabled}
-            className={`rounded p-0.5 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400 disabled:opacity-50 ${
-              value >= n ? activeColor : 'text-gray-300 hover:text-gray-400'
+            className={`rounded p-0.5 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 ${
+              value >= n ? activeColor : ''
             }`}
+            style={value >= n ? {} : { color: 'var(--color-border-strong)' }}
+            onMouseEnter={(e) => {
+              if (value < n) {
+                e.currentTarget.style.color = 'var(--color-text-muted)'
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (value < n) {
+                e.currentTarget.style.color = 'var(--color-border-strong)'
+              }
+            }}
             aria-label={`${n} 星`}
             aria-pressed={value >= n}
           >
@@ -30,7 +41,7 @@ function StarRating({ value, onChange, label, activeColor, disabled }) {
           </button>
         ))}
       </div>
-      <span className="text-xs text-gray-500">{STAR_LABELS[value - 1]}</span>
+      <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{STAR_LABELS[value - 1]}</span>
     </div>
   )
 }
@@ -142,19 +153,19 @@ export default function AfterClassReport({ embedded = false }) {
     <main className={embedded ? 'mx-auto max-w-4xl pt-4' : 'mx-auto max-w-4xl px-4 sm:px-6 py-4 sm:py-6'}>
         <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
           {/* 方式一：按状态与关键词生成 */}
-          <section className="rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
-            <div className="mb-5 flex items-center gap-2 border-b border-gray-100 pb-4">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+          <section className="rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm" style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)' }}>
+            <div className="mb-5 flex items-center gap-2 pb-4" style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 15%, transparent)', color: 'var(--color-primary-600)' }}>
                 <Sparkles className="h-4 w-4" />
               </span>
               <div>
-                <h2 className="text-base font-semibold text-gray-800">方式一：按状态生成</h2>
-                <p className="text-xs text-gray-500">选专注度、掌握度与关键词，一键生成评语</p>
+                <h2 className="text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>方式一：按状态生成</h2>
+                <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>选专注度、掌握度与关键词，一键生成评语</p>
               </div>
             </div>
             <div className="space-y-5">
-              <div className="rounded-xl bg-gray-50/80 p-4">
-                <span className="mb-3 block text-xs font-medium uppercase tracking-wide text-gray-500">今日状态</span>
+              <div className="rounded-xl p-4" style={{ backgroundColor: 'color-mix(in srgb, var(--color-bg-panel) 80%, transparent)' }}>
+                <span className="mb-3 block text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--color-text-muted)' }}>今日状态</span>
                 <div className="space-y-3">
                   <StarRating
                     label="专注度"
@@ -173,7 +184,7 @@ export default function AfterClassReport({ embedded = false }) {
                 </div>
               </div>
               <div>
-                <label className="mb-2 block text-xs font-medium text-gray-600">关键词（至少 1 个）</label>
+                <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>关键词（至少 1 个）</label>
                 <div className="mb-2 flex flex-wrap gap-2">
                   {QUICK_KEYWORDS.map((word) => (
                     <button
@@ -181,7 +192,22 @@ export default function AfterClassReport({ embedded = false }) {
                       type="button"
                       onClick={() => addKeyword(word)}
                       disabled={loading}
-                      className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-600 transition-colors hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1 disabled:opacity-50"
+                      className="rounded-full px-3 py-1.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50"
+                      style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-elevated)', color: 'var(--color-text-secondary)' }}
+                      onMouseEnter={(e) => {
+                        if (!loading) {
+                          e.currentTarget.style.borderColor = 'var(--color-primary-500)'
+                          e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)'
+                          e.currentTarget.style.color = 'var(--color-primary-700)'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!loading) {
+                          e.currentTarget.style.borderColor = 'var(--color-border-primary)'
+                          e.currentTarget.style.backgroundColor = 'var(--color-bg-elevated)'
+                          e.currentTarget.style.color = 'var(--color-text-secondary)'
+                        }
+                      }}
                     >
                       {word}
                     </button>
@@ -193,7 +219,16 @@ export default function AfterClassReport({ embedded = false }) {
                     value={keyword1}
                     onChange={(e) => setKeyword1(e.target.value)}
                     placeholder="关键词 1"
-                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-60"
+                    className="rounded-lg px-3 py-2 text-sm focus:outline-none disabled:opacity-60"
+                    style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-input)', color: 'var(--color-text-primary)' }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--color-primary-500)'
+                      e.currentTarget.style.boxShadow = '0 0 0 1px var(--color-primary-500)'
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--color-border-primary)'
+                      e.currentTarget.style.boxShadow = ''
+                    }}
                     disabled={loading}
                   />
                   <input
@@ -201,7 +236,16 @@ export default function AfterClassReport({ embedded = false }) {
                     value={keyword2}
                     onChange={(e) => setKeyword2(e.target.value)}
                     placeholder="关键词 2（选填）"
-                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-60"
+                    className="rounded-lg px-3 py-2 text-sm focus:outline-none disabled:opacity-60"
+                    style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-input)', color: 'var(--color-text-primary)' }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--color-primary-500)'
+                      e.currentTarget.style.boxShadow = '0 0 0 1px var(--color-primary-500)'
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--color-border-primary)'
+                      e.currentTarget.style.boxShadow = ''
+                    }}
                     disabled={loading}
                   />
                 </div>
@@ -210,14 +254,23 @@ export default function AfterClassReport({ embedded = false }) {
                 )}
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-gray-600">学生姓名（选填）</label>
+                <label className="mb-1.5 block text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>学生姓名（选填）</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={studentName}
                     onChange={(e) => setStudentName(e.target.value)}
                     placeholder={currentStudent?.name ? `当前：${currentStudent.name}` : '不填则用「孩子」'}
-                    className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-60"
+                    className="min-w-0 flex-1 rounded-lg px-3 py-2 text-sm focus:outline-none disabled:opacity-60"
+                    style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-input)', color: 'var(--color-text-primary)' }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--color-primary-500)'
+                      e.currentTarget.style.boxShadow = '0 0 0 1px var(--color-primary-500)'
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--color-border-primary)'
+                      e.currentTarget.style.boxShadow = ''
+                    }}
                     disabled={loading}
                   />
                   {currentStudent?.name && (
@@ -225,7 +278,18 @@ export default function AfterClassReport({ embedded = false }) {
                       type="button"
                       onClick={useCurrentStudent}
                       disabled={loading}
-                      className="shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 active:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50"
+                      className="shrink-0 rounded-lg px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 disabled:opacity-50"
+                      style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-elevated)', color: 'var(--color-text-secondary)' }}
+                      onMouseEnter={(e) => {
+                        if (!loading) {
+                          e.currentTarget.style.backgroundColor = 'var(--color-bg-panel)'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!loading) {
+                          e.currentTarget.style.backgroundColor = 'var(--color-bg-elevated)'
+                        }
+                      }}
                       title="使用当前学生"
                     >
                       <User className="h-4 w-4" />
@@ -237,7 +301,18 @@ export default function AfterClassReport({ embedded = false }) {
                 type="button"
                 onClick={handleGenerate}
                 disabled={!canGenerate}
-                className="w-full rounded-xl bg-blue-600 py-3 font-medium text-white shadow-sm transition-colors hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-xl py-3 font-medium text-white shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                style={{ backgroundColor: 'var(--color-primary-600)' }}
+                onMouseEnter={(e) => {
+                  if (canGenerate) {
+                    e.currentTarget.style.backgroundColor = 'var(--color-primary-700)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (canGenerate) {
+                    e.currentTarget.style.backgroundColor = 'var(--color-primary-600)'
+                  }
+                }}
               >
                 {loading ? (
                   <span className="inline-flex items-center gap-2">
@@ -255,20 +330,20 @@ export default function AfterClassReport({ embedded = false }) {
           </section>
 
           {/* 方式二：按草稿修饰 */}
-          <section className="rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
-            <div className="mb-5 flex items-center gap-2 border-b border-gray-100 pb-4">
+          <section className="rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm" style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)' }}>
+            <div className="mb-5 flex items-center gap-2 pb-4" style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
                 <PenLine className="h-4 w-4" />
               </span>
               <div>
-                <h2 className="text-base font-semibold text-gray-800">方式二：草稿 + 模板修饰</h2>
-                <p className="text-xs text-gray-500">选模板、写草稿，AI 按风格输出评语</p>
+                <h2 className="text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>方式二：草稿 + 模板修饰</h2>
+                <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>选模板、写草稿，AI 按风格输出评语</p>
               </div>
             </div>
             <div className="space-y-5">
               <div>
-                <label className="mb-2 block text-xs font-medium text-gray-600">修饰模板（可选）</label>
-                <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50/50 p-2">
+                <label className="mb-2 block text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>修饰模板（可选）</label>
+                <div className="max-h-32 overflow-y-auto rounded-lg p-2" style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'color-mix(in srgb, var(--color-bg-panel) 50%, transparent)' }}>
                   <div className="flex flex-wrap gap-1.5">
                     {AFTER_CLASS_TEMPLATES.map((t) => {
                       const isSelected = template.trim() === t.content
@@ -281,11 +356,26 @@ export default function AfterClassReport({ embedded = false }) {
                             toast.success(`已应用：${t.title}`)
                           }}
                           disabled={loading}
-                          className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1 disabled:opacity-50 ${
+                          className="rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50"
+                          style={
                             isSelected
-                              ? 'bg-indigo-600 text-white'
-                              : 'bg-white text-gray-600 shadow-sm ring-1 ring-gray-200 hover:bg-indigo-50 hover:text-indigo-700 hover:ring-indigo-200'
-                          }`}
+                              ? { backgroundColor: '#a78bfa', color: 'white' }
+                              : { backgroundColor: 'var(--color-bg-elevated)', color: 'var(--color-text-secondary)', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', border: '1px solid var(--color-border-primary)' }
+                          }
+                          onMouseEnter={(e) => {
+                            if (!isSelected && !loading) {
+                              e.currentTarget.style.backgroundColor = 'color-mix(in srgb, #a78bfa 10%, transparent)'
+                              e.currentTarget.style.color = '#a78bfa'
+                              e.currentTarget.style.borderColor = 'color-mix(in srgb, #a78bfa 50%, transparent)'
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isSelected && !loading) {
+                              e.currentTarget.style.backgroundColor = 'var(--color-bg-elevated)'
+                              e.currentTarget.style.color = 'var(--color-text-secondary)'
+                              e.currentTarget.style.borderColor = 'var(--color-border-primary)'
+                            }
+                          }}
                         >
                           {t.title}
                         </button>
@@ -299,7 +389,16 @@ export default function AfterClassReport({ embedded = false }) {
                     onChange={(e) => setTemplate(e.target.value)}
                     placeholder="或粘贴自定义范文…"
                     rows={2}
-                    className="min-h-0 min-w-0 flex-1 resize-y rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-60"
+                    className="min-h-0 min-w-0 flex-1 resize-y rounded-lg px-3 py-2 text-sm focus:outline-none disabled:opacity-60"
+                    style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-input)', color: 'var(--color-text-primary)' }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#a78bfa'
+                      e.currentTarget.style.boxShadow = '0 0 0 1px #a78bfa'
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--color-border-primary)'
+                      e.currentTarget.style.boxShadow = ''
+                    }}
                     disabled={loading}
                   />
                   {template.trim() && (
@@ -307,7 +406,20 @@ export default function AfterClassReport({ embedded = false }) {
                       type="button"
                       onClick={() => setTemplate('')}
                       disabled={loading}
-                      className="shrink-0 self-start sm:self-start rounded-lg px-2 py-1.5 text-xs text-gray-500 hover:bg-gray-100 hover:text-red-600 focus:outline-none"
+                      className="shrink-0 self-start sm:self-start rounded-lg px-2 py-1.5 text-xs focus:outline-none"
+                      style={{ color: 'var(--color-text-muted)' }}
+                      onMouseEnter={(e) => {
+                        if (!loading) {
+                          e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--color-bg-panel) 60%, transparent)'
+                          e.currentTarget.style.color = '#dc2626'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!loading) {
+                          e.currentTarget.style.backgroundColor = 'transparent'
+                          e.currentTarget.style.color = 'var(--color-text-muted)'
+                        }
+                      }}
                     >
                       清空
                     </button>
@@ -315,20 +427,40 @@ export default function AfterClassReport({ embedded = false }) {
                 </div>
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-gray-600">草稿</label>
+                <label className="mb-1.5 block text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>草稿</label>
                 <textarea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   placeholder="写一段今日表现，如：今天讲了一元二次方程，他听得认真但做题有点粗心…"
                   rows={4}
-                  className="w-full resize-y rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-60"
+                  className="w-full resize-y rounded-lg px-3 py-2.5 text-sm focus:outline-none disabled:opacity-60"
+                  style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-input)', color: 'var(--color-text-primary)' }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#a78bfa'
+                    e.currentTarget.style.boxShadow = '0 0 0 1px #a78bfa'
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--color-border-primary)'
+                    e.currentTarget.style.boxShadow = ''
+                  }}
                   disabled={loading}
                 />
                 <button
                   type="button"
                   onClick={handlePolish}
                   disabled={!canPolish}
-                  className="mt-3 w-full rounded-xl border-2 border-indigo-600 bg-white py-2.5 font-medium text-indigo-600 transition-colors hover:bg-indigo-50 active:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="mt-3 w-full rounded-xl py-2.5 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{ border: '2px solid #a78bfa', backgroundColor: 'var(--color-bg-elevated)', color: '#a78bfa' }}
+                  onMouseEnter={(e) => {
+                    if (canPolish) {
+                      e.currentTarget.style.backgroundColor = 'color-mix(in srgb, #a78bfa 10%, transparent)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (canPolish) {
+                      e.currentTarget.style.backgroundColor = 'var(--color-bg-elevated)'
+                    }
+                  }}
                 >
                   {loading ? (
                     <span className="inline-flex items-center gap-2">
@@ -350,36 +482,47 @@ export default function AfterClassReport({ embedded = false }) {
         {/* 结果区 */}
         <div ref={resultRef} className="mt-4 sm:mt-6 scroll-mt-6">
           {comment ? (
-            <div className="rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
+            <div className="rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm" style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)' }}>
               <div className="mb-4 flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-between gap-3">
-                <span className="text-sm font-semibold text-gray-700">生成的评语</span>
+                <span className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>生成的评语</span>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-500">
+                  <span className="rounded-full px-2.5 py-1 text-xs" style={{ backgroundColor: 'var(--color-bg-panel)', color: 'var(--color-text-muted)' }}>
                     {comment.length} 字
                   </span>
                   <button
                     type="button"
                     onClick={handleCopy}
                     aria-label="复制评语"
-                    className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                    className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                    style={
                       copied
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800'
-                    }`}
+                        ? { backgroundColor: 'color-mix(in srgb, #059669 15%, transparent)', color: '#047857' }
+                        : { backgroundColor: 'var(--color-primary-600)', color: 'white' }
+                    }
+                    onMouseEnter={(e) => {
+                      if (!copied) {
+                        e.currentTarget.style.backgroundColor = 'var(--color-primary-700)'
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!copied) {
+                        e.currentTarget.style.backgroundColor = 'var(--color-primary-600)'
+                      }
+                    }}
                   >
                     <Copy className="h-4 w-4" />
                     {copied ? '已复制' : '复制'}
                   </button>
                 </div>
               </div>
-              <div className="rounded-xl bg-gray-50/80 p-4">
-                <p className="whitespace-pre-wrap text-gray-800 leading-relaxed">{comment}</p>
+              <div className="rounded-xl p-4" style={{ backgroundColor: 'color-mix(in srgb, var(--color-bg-panel) 80%, transparent)' }}>
+                <p className="whitespace-pre-wrap leading-relaxed" style={{ color: 'var(--color-text-primary)' }}>{comment}</p>
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center rounded-xl sm:rounded-2xl border-2 border-dashed border-gray-200 bg-white py-10 sm:py-12 px-4 text-center">
-              <FileText className="mb-3 h-10 w-10 sm:h-12 sm:w-12 text-gray-300" />
-              <p className="max-w-sm text-xs sm:text-sm text-gray-500">
+            <div className="flex flex-col items-center justify-center rounded-xl sm:rounded-2xl py-10 sm:py-12 px-4 text-center" style={{ border: '2px dashed var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)' }}>
+              <FileText className="mb-3 h-10 w-10 sm:h-12 sm:w-12" style={{ color: 'var(--color-border-strong)' }} />
+              <p className="max-w-sm text-xs sm:text-sm" style={{ color: 'var(--color-text-muted)' }}>
                 上方用「方式一」按状态与关键词生成，或用「方式二」写草稿后 AI 修饰，评语将显示在此处。
               </p>
             </div>
@@ -390,15 +533,15 @@ export default function AfterClassReport({ embedded = false }) {
 
   if (embedded) return content
   return (
-    <div className="min-h-screen bg-gray-50/60">
-      <header className="border-b border-gray-200 bg-white px-6 py-5">
+    <div className="min-h-screen" style={{ backgroundColor: 'color-mix(in srgb, var(--color-bg-panel) 60%, transparent)' }}>
+      <header className="px-6 py-5" style={{ borderBottom: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-elevated)' }}>
         <div className="mx-auto flex max-w-4xl items-center gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-white shadow-sm" style={{ backgroundColor: 'var(--color-primary-600)' }}>
             <FileText className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-gray-900">课后报告生成器</h1>
-            <p className="mt-0.5 text-sm text-gray-500">
+            <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--color-text-primary)' }}>课后报告生成器</h1>
+            <p className="mt-0.5 text-sm" style={{ color: 'var(--color-text-muted)' }}>
               按状态与关键词生成，或输入草稿由 AI 按模板修饰，复制即可发给家长
             </p>
           </div>
