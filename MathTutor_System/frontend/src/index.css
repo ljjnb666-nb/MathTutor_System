@@ -1405,6 +1405,973 @@ body {
   .v2-graph-outline strong {
     @apply min-w-0 truncate text-xs font-black text-slate-200;
   }
+
+  .v2-report-filterbar {
+    @apply grid gap-3 rounded-2xl p-4 lg:grid-cols-[minmax(12rem,1fr)_minmax(10rem,14rem)_auto] lg:items-end;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 86%, transparent);
+  }
+
+  .v2-report-filterbar label {
+    @apply grid min-w-0 gap-2;
+  }
+
+  .v2-report-filterbar label span {
+    @apply text-xs font-black;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-report-filterbar select,
+  .v2-report-input,
+  .v2-report-weak-row input {
+    @apply min-w-0 rounded-xl px-3 py-2 text-sm font-semibold outline-none;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-report-tabs,
+  .v2-report-mode-tabs {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .v2-report-tabs button,
+  .v2-report-mode-tabs button {
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-xl px-3 text-xs font-black transition;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-report-tabs button.active,
+  .v2-report-mode-tabs button.active {
+    border-color: color-mix(in srgb, var(--color-primary-500) 44%, var(--color-border-primary));
+    background: color-mix(in srgb, var(--color-primary-500) 15%, var(--color-bg-card));
+    color: var(--color-text-primary);
+  }
+
+  .v2-report-layout {
+    @apply grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_22rem];
+  }
+
+  .v2-report-side {
+    @apply min-w-0 space-y-4;
+  }
+
+  .v2-report-empty-chart {
+    @apply grid min-h-44 place-items-center rounded-2xl p-4 text-center text-sm font-bold;
+    border: 1px dashed var(--color-border-primary);
+    color: var(--color-text-secondary);
+    background: color-mix(in srgb, var(--color-bg-panel) 72%, transparent);
+  }
+
+  .v2-report-outline {
+    @apply grid gap-2;
+  }
+
+  .v2-report-outline div {
+    @apply flex min-w-0 items-center gap-3 rounded-xl p-3;
+    border: 1px solid var(--color-border-subtle);
+    background: color-mix(in srgb, var(--color-bg-panel) 78%, transparent);
+  }
+
+  .v2-report-outline span {
+    @apply grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[11px] font-black;
+    background: color-mix(in srgb, var(--color-primary-500) 14%, transparent);
+    color: var(--color-primary-300);
+  }
+
+  .v2-report-outline strong {
+    @apply min-w-0 truncate text-sm font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-report-workbench {
+    @apply grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_24rem];
+  }
+
+  .v2-report-editor {
+    @apply min-w-0 space-y-4;
+  }
+
+  .v2-report-preview {
+    @apply min-w-0 space-y-4 rounded-2xl p-4;
+    border: 1px solid var(--color-border-primary);
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--color-primary-500) 9%, transparent), transparent 35%),
+      color-mix(in srgb, var(--color-bg-card) 88%, transparent);
+  }
+
+  .v2-report-preview h2 {
+    @apply text-base font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-report-weak-row {
+    @apply grid min-w-0 gap-2 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)_auto];
+  }
+
+  .v2-inline-error {
+    @apply rounded-xl px-3 py-2 text-sm font-bold;
+    border: 1px solid rgba(244, 63, 94, 0.32);
+    background: rgba(244, 63, 94, 0.1);
+    color: #fb7185;
+  }
+
+  .v2-report-mini {
+    @apply flex min-w-0 items-center gap-2 rounded-xl p-3;
+    border: 1px solid var(--color-border-subtle);
+    background: color-mix(in srgb, var(--color-bg-panel) 80%, transparent);
+  }
+
+  .v2-report-mini span {
+    @apply min-w-0 flex-1 truncate text-xs font-bold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-report-mini strong {
+    @apply min-w-0 truncate text-sm font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-report-list-block {
+    @apply rounded-2xl p-4;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 78%, transparent);
+  }
+
+  .v2-report-list-block h3 {
+    @apply mb-3 text-sm font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-report-list-block p,
+  .v2-report-list-block div {
+    @apply rounded-xl px-3 py-2 text-sm font-semibold leading-6;
+    color: var(--color-text-secondary);
+    background: color-mix(in srgb, var(--color-bg-card) 72%, transparent);
+  }
+
+  .v2-report-list-block div + div {
+    @apply mt-2;
+  }
+
+  .v2-report-comment {
+    @apply whitespace-pre-wrap rounded-2xl p-4 text-sm font-semibold leading-7;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 84%, transparent);
+    color: var(--color-text-primary);
+  }
+
+  .v2-star-row {
+    @apply grid gap-2 rounded-2xl p-3 sm:grid-cols-[5rem_1fr_4rem] sm:items-center;
+    border: 1px solid var(--color-border-subtle);
+    background: color-mix(in srgb, var(--color-bg-panel) 78%, transparent);
+  }
+
+  .v2-star-row > span,
+  .v2-star-row strong {
+    @apply text-xs font-black;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-star-row > div {
+    @apply flex flex-wrap gap-1;
+  }
+
+  .v2-star-row button {
+    @apply grid h-9 w-9 place-items-center rounded-xl transition disabled:cursor-not-allowed disabled:opacity-50;
+    color: var(--color-text-muted);
+  }
+
+  .v2-star-row button.active {
+    color: #fbbf24;
+    background: rgba(245, 158, 11, 0.12);
+  }
+
+  .v2-chat-shell {
+    @apply grid min-h-0 flex-1 overflow-hidden rounded-2xl;
+    grid-template-columns: 18rem minmax(0, 1fr) 20rem;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 64%, transparent);
+  }
+
+  .v2-chat-sessions,
+  .v2-chat-context {
+    @apply min-h-0 overflow-hidden;
+    background: color-mix(in srgb, var(--color-bg-card) 86%, transparent);
+  }
+
+  .v2-chat-sessions {
+    @apply border-r;
+    border-color: var(--color-border-primary);
+  }
+
+  .v2-chat-context {
+    @apply space-y-4 overflow-y-auto border-l p-4;
+    border-color: var(--color-border-primary);
+  }
+
+  .v2-chat-panel-head {
+    @apply flex items-center justify-between gap-3 border-b p-4;
+    border-color: var(--color-border-primary);
+  }
+
+  .v2-chat-panel-head span,
+  .v2-chat-context h2 {
+    @apply block text-xs font-black;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-chat-panel-head strong {
+    @apply mt-1 block text-2xl font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-chat-session-list {
+    @apply min-h-0 space-y-2 overflow-y-auto p-3;
+  }
+
+  .v2-chat-state {
+    @apply flex min-h-40 flex-col items-center justify-center gap-2 rounded-2xl p-4 text-center text-xs font-bold;
+    border: 1px dashed var(--color-border-primary);
+    color: var(--color-text-secondary);
+    background: color-mix(in srgb, var(--color-bg-panel) 72%, transparent);
+  }
+
+  .v2-chat-state.error {
+    border-color: rgba(244, 63, 94, 0.34);
+    color: #fb7185;
+  }
+
+  .v2-chat-session {
+    @apply grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-2xl p-2 transition;
+    border: 1px solid var(--color-border-subtle);
+    background: color-mix(in srgb, var(--color-bg-panel) 72%, transparent);
+  }
+
+  .v2-chat-session.active {
+    border-color: color-mix(in srgb, var(--color-primary-500) 42%, var(--color-border-primary));
+    background: color-mix(in srgb, var(--color-primary-500) 12%, var(--color-bg-card));
+  }
+
+  .v2-chat-session > button:first-child {
+    @apply min-w-0 text-left;
+  }
+
+  .v2-chat-session span {
+    @apply flex min-w-0 items-center gap-1.5 truncate text-xs font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-chat-session small {
+    @apply mt-1 block text-[11px] font-bold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-chat-session > div {
+    @apply flex items-center gap-1;
+  }
+
+  .v2-chat-main {
+    @apply flex min-h-0 min-w-0 flex-col;
+  }
+
+  .v2-chat-header {
+    @apply flex shrink-0 flex-col gap-3 border-b p-4 lg:flex-row lg:items-center lg:justify-between;
+    border-color: var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 82%, transparent);
+  }
+
+  .v2-chat-title {
+    @apply flex min-w-0 items-center gap-3;
+  }
+
+  .v2-chat-title > span {
+    @apply grid h-10 w-10 shrink-0 place-items-center rounded-xl;
+    background: color-mix(in srgb, var(--color-primary-500) 16%, transparent);
+    color: var(--color-primary-300);
+  }
+
+  .v2-chat-title h1 {
+    @apply text-base font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-chat-title p {
+    @apply mt-1 text-xs font-semibold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-chat-switches {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .v2-chat-switches label {
+    @apply inline-flex h-9 items-center gap-2 rounded-xl px-3 text-xs font-black;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-chat-messages {
+    @apply min-h-0 flex-1 space-y-4 overflow-y-auto p-4;
+  }
+
+  .v2-chat-empty {
+    @apply mx-auto flex min-h-80 max-w-xl flex-col items-center justify-center rounded-2xl p-6 text-center;
+    border: 1px dashed var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 72%, transparent);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-chat-empty h2 {
+    @apply mt-3 text-lg font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-chat-empty p {
+    @apply mt-1 text-sm font-semibold;
+  }
+
+  .v2-chat-empty div {
+    @apply mt-4 flex flex-wrap justify-center gap-2;
+  }
+
+  .v2-chat-empty button {
+    @apply rounded-xl px-3 py-2 text-xs font-black;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-chat-message {
+    @apply flex items-start gap-3;
+  }
+
+  .v2-chat-message.user {
+    @apply flex-row-reverse;
+  }
+
+  .v2-chat-avatar {
+    @apply grid h-9 w-9 shrink-0 place-items-center rounded-xl;
+    background: color-mix(in srgb, var(--color-primary-500) 14%, transparent);
+    color: var(--color-primary-300);
+  }
+
+  .v2-chat-message.user .v2-chat-avatar {
+    background: color-mix(in srgb, #10b981 15%, transparent);
+    color: #34d399;
+  }
+
+  .v2-chat-bubble {
+    @apply min-w-0 max-w-[78%] rounded-2xl p-4 text-sm font-semibold leading-7;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 86%, transparent);
+    color: var(--color-text-primary);
+  }
+
+  .v2-chat-message.user .v2-chat-bubble {
+    background: color-mix(in srgb, #10b981 12%, var(--color-bg-card));
+  }
+
+  .v2-chat-sources {
+    @apply mt-2 rounded-xl px-3 py-2 text-[11px] font-black;
+    color: var(--color-primary-300);
+    background: color-mix(in srgb, var(--color-primary-500) 10%, transparent);
+  }
+
+  .v2-chat-edit-button {
+    @apply mt-3 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-black;
+    border: 1px solid var(--color-border-primary);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-chat-edit {
+    @apply grid gap-3;
+  }
+
+  .v2-chat-edit textarea,
+  .v2-chat-composer input {
+    @apply w-full min-w-0 rounded-xl px-3 py-2 text-sm font-semibold outline-none;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-chat-edit > div {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .v2-chat-loading {
+    @apply ml-12 inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-black;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 84%, transparent);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-chat-error {
+    @apply mx-4 mb-3 flex flex-wrap items-center gap-2 rounded-xl px-3 py-2 text-xs font-black;
+    border: 1px solid rgba(244, 63, 94, 0.34);
+    background: rgba(244, 63, 94, 0.1);
+    color: #fb7185;
+  }
+
+  .v2-chat-error button {
+    @apply rounded-lg px-2 py-1;
+    background: rgba(244, 63, 94, 0.14);
+  }
+
+  .v2-chat-composer {
+    @apply flex shrink-0 gap-3 border-t p-4;
+    border-color: var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 90%, transparent);
+  }
+
+  .v2-chat-context section {
+    @apply space-y-3 rounded-2xl p-4;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 76%, transparent);
+  }
+
+  .v2-chat-context-stat {
+    @apply flex min-w-0 items-center gap-2 rounded-xl p-3;
+    background: color-mix(in srgb, var(--color-bg-card) 76%, transparent);
+  }
+
+  .v2-chat-context-stat span {
+    @apply min-w-0 flex-1 truncate text-xs font-bold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-chat-context-stat strong {
+    @apply text-sm font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-ppt-workbench {
+    @apply grid gap-4 xl:grid-cols-[20rem_minmax(0,1fr)_18rem];
+  }
+
+  .v2-ppt-config,
+  .v2-ppt-outline {
+    @apply min-w-0 space-y-4;
+  }
+
+  .v2-ppt-preview-zone {
+    @apply min-w-0;
+  }
+
+  .v2-ppt-grade-tabs {
+    @apply grid grid-cols-3 gap-2;
+  }
+
+  .v2-ppt-grade-tabs button {
+    @apply h-10 rounded-xl text-xs font-black transition disabled:cursor-not-allowed disabled:opacity-50;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-ppt-grade-tabs button.active {
+    border-color: color-mix(in srgb, var(--color-primary-500) 44%, var(--color-border-primary));
+    background: color-mix(in srgb, var(--color-primary-500) 15%, var(--color-bg-card));
+    color: var(--color-text-primary);
+  }
+
+  .v2-ppt-config-summary {
+    @apply grid gap-2;
+  }
+
+  .v2-ppt-config-summary div {
+    @apply flex items-center justify-between gap-3 rounded-xl p-3;
+    background: color-mix(in srgb, var(--color-bg-panel) 78%, transparent);
+  }
+
+  .v2-ppt-config-summary span {
+    @apply text-xs font-bold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-ppt-config-summary strong {
+    @apply min-w-0 truncate text-sm font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-ppt-loading {
+    @apply flex min-h-[28rem] flex-col items-center justify-center rounded-2xl text-center;
+    border: 1px dashed var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 74%, transparent);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-ppt-loading strong {
+    @apply mt-3 text-sm font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-ppt-stage {
+    @apply grid gap-4;
+  }
+
+  .v2-ppt-slide {
+    @apply relative aspect-video min-h-0 overflow-hidden rounded-2xl p-8 shadow-xl;
+    background: #f8fafc;
+    color: #0f172a;
+  }
+
+  .v2-ppt-slide-ribbon {
+    @apply absolute right-5 top-5 rounded-lg px-3 py-1 text-xs font-black text-white;
+    background: #0f766e;
+  }
+
+  .v2-ppt-slide h2 {
+    @apply max-w-[78%] text-2xl font-black leading-tight;
+    color: #1d4ed8;
+  }
+
+  .v2-ppt-slide p {
+    @apply mt-3 max-w-[72%] text-sm font-semibold;
+    color: #475569;
+  }
+
+  .v2-ppt-slide ul {
+    @apply mt-6 grid max-w-[82%] gap-3 rounded-2xl bg-white/90 p-5 text-sm font-semibold leading-6;
+    border: 1px solid #dbe4ef;
+  }
+
+  .v2-ppt-slide li {
+    @apply list-inside list-disc;
+  }
+
+  .v2-ppt-slide > span {
+    @apply absolute bottom-4 right-5 text-sm font-black;
+    color: #2563eb;
+  }
+
+  .v2-ppt-controls {
+    @apply flex items-center justify-center gap-3;
+  }
+
+  .v2-ppt-controls strong {
+    @apply rounded-xl px-3 py-2 text-xs font-black;
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-ppt-thumbs {
+    @apply grid gap-2;
+  }
+
+  .v2-ppt-thumbs button {
+    @apply flex min-w-0 items-center gap-2 rounded-xl p-3 text-left transition;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 78%, transparent);
+  }
+
+  .v2-ppt-thumbs button.active {
+    border-color: color-mix(in srgb, var(--color-primary-500) 42%, var(--color-border-primary));
+    background: color-mix(in srgb, var(--color-primary-500) 12%, var(--color-bg-card));
+  }
+
+  .v2-ppt-thumbs span {
+    @apply grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[11px] font-black;
+    background: color-mix(in srgb, var(--color-primary-500) 14%, transparent);
+    color: var(--color-primary-300);
+  }
+
+  .v2-ppt-thumbs strong {
+    @apply min-w-0 truncate text-xs font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-pricing-layout {
+    @apply grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem];
+  }
+
+  .v2-pricing-plans {
+    @apply grid gap-4 md:grid-cols-2 2xl:grid-cols-3;
+  }
+
+  .v2-pricing-card {
+    @apply flex min-w-0 flex-col rounded-2xl p-5;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 86%, transparent);
+  }
+
+  .v2-pricing-card.current {
+    border-color: color-mix(in srgb, var(--color-primary-500) 48%, var(--color-border-primary));
+    background: color-mix(in srgb, var(--color-primary-500) 10%, var(--color-bg-card));
+  }
+
+  .v2-pricing-card-head {
+    @apply flex items-start justify-between gap-3;
+  }
+
+  .v2-pricing-card h2 {
+    @apply text-lg font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-pricing-card p {
+    @apply mt-1 text-xs font-bold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-pricing-price {
+    @apply mt-5 flex items-baseline gap-2;
+  }
+
+  .v2-pricing-price strong {
+    @apply text-3xl font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-pricing-price span {
+    @apply text-xs font-bold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-pricing-features {
+    @apply mt-5 grid gap-3 border-t pt-5;
+    border-color: var(--color-border-subtle);
+  }
+
+  .v2-pricing-features li {
+    @apply flex items-center gap-2 text-sm font-bold;
+    color: var(--color-text-primary);
+  }
+
+  .v2-pricing-features li svg {
+    color: #34d399;
+  }
+
+  .v2-pricing-features li.disabled {
+    color: var(--color-text-muted);
+  }
+
+  .v2-pricing-features li.disabled svg {
+    color: #fb7185;
+  }
+
+  .v2-pricing-action {
+    @apply mt-auto pt-5;
+  }
+
+  .v2-pricing-action .v2-btn-primary {
+    @apply w-full;
+  }
+
+  .v2-pricing-action p,
+  .v2-pricing-note p {
+    @apply rounded-xl px-3 py-2 text-xs font-bold;
+    background: color-mix(in srgb, var(--color-bg-panel) 80%, transparent);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-pricing-side {
+    @apply min-w-0 space-y-4;
+  }
+
+  .v2-pricing-payments {
+    @apply grid gap-2;
+  }
+
+  .v2-pricing-payments div {
+    @apply flex items-center gap-2 rounded-xl p-3;
+    background: color-mix(in srgb, var(--color-bg-panel) 80%, transparent);
+    color: var(--color-text-muted);
+  }
+
+  .v2-pricing-payments div.enabled {
+    color: #34d399;
+  }
+
+  .v2-pricing-payments span {
+    @apply min-w-0 flex-1 text-xs font-bold;
+  }
+
+  .v2-pricing-payments strong {
+    @apply text-xs font-black;
+  }
+
+  .v2-pricing-note {
+    @apply grid gap-2;
+  }
+
+  .v2-payment-modal {
+    @apply w-full max-w-sm space-y-4 rounded-2xl p-5 shadow-2xl;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-card);
+  }
+
+  .v2-payment-modal h2 {
+    @apply text-lg font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-payment-modal p {
+    @apply text-sm font-semibold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-payment-periods,
+  .v2-payment-actions {
+    @apply grid grid-cols-2 gap-2;
+  }
+
+  .v2-payment-periods button,
+  .v2-payment-actions button {
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-xl text-xs font-black disabled:opacity-50;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-payment-periods button.active {
+    border-color: color-mix(in srgb, var(--color-primary-500) 44%, var(--color-border-primary));
+    background: color-mix(in srgb, var(--color-primary-500) 15%, var(--color-bg-card));
+  }
+
+  .v2-payment-qr {
+    @apply flex justify-center rounded-xl bg-white p-4;
+  }
+
+  .v2-admin-layout {
+    @apply grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem];
+  }
+
+  .v2-admin-main,
+  .v2-admin-side {
+    @apply min-w-0 space-y-4;
+  }
+
+  .v2-admin-toolbar {
+    @apply mb-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_12rem_auto] lg:items-end;
+  }
+
+  .v2-admin-toolbar label {
+    @apply grid gap-2;
+  }
+
+  .v2-admin-toolbar span {
+    @apply text-xs font-black;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-admin-toolbar input,
+  .v2-admin-toolbar select,
+  .v2-admin-inline-controls select {
+    @apply min-w-0 rounded-xl px-3 py-2 text-sm font-semibold outline-none;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-admin-inline-controls {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .v2-admin-actions {
+    @apply flex items-center gap-1;
+  }
+
+  .v2-admin-batch {
+    @apply grid gap-2;
+  }
+
+  .v2-admin-batch p,
+  .v2-admin-boundary p {
+    @apply rounded-xl px-3 py-2 text-xs font-bold;
+    background: color-mix(in srgb, var(--color-bg-panel) 80%, transparent);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-admin-boundary {
+    @apply grid gap-2;
+  }
+
+  .v2-admin-modal {
+    @apply w-full max-w-md space-y-4 rounded-2xl p-5 shadow-2xl;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-card);
+  }
+
+  .v2-admin-modal.wide {
+    @apply max-w-2xl;
+  }
+
+  .v2-admin-modal h2 {
+    @apply text-lg font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-admin-password {
+    @apply flex gap-2;
+  }
+
+  .v2-admin-password input {
+    @apply min-w-0 flex-1;
+  }
+
+  .v2-admin-password button {
+    @apply grid h-10 w-10 shrink-0 place-items-center rounded-xl;
+    border: 1px solid var(--color-border-primary);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-admin-history {
+    @apply grid gap-2;
+  }
+
+  .v2-admin-history div {
+    @apply grid gap-1 rounded-xl p-3;
+    background: color-mix(in srgb, var(--color-bg-panel) 80%, transparent);
+  }
+
+  .v2-admin-history strong {
+    @apply text-sm font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-admin-history span,
+  .v2-admin-history small {
+    @apply text-xs font-bold;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-settings-notice {
+    @apply flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black;
+    border: 1px solid rgba(16, 185, 129, 0.28);
+    background: color-mix(in srgb, #10b981 10%, var(--color-bg-card));
+    color: #047857;
+  }
+
+  .v2-settings-layout {
+    @apply grid gap-4 xl:grid-cols-[12rem_minmax(0,1fr)_18rem];
+  }
+
+  .v2-settings-nav {
+    @apply flex gap-2 overflow-x-auto rounded-2xl p-2 xl:flex-col xl:overflow-visible;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-card) 86%, transparent);
+  }
+
+  .v2-settings-nav button {
+    @apply flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-black transition-colors;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-settings-nav button.is-active {
+    background: color-mix(in srgb, var(--color-primary) 14%, var(--color-bg-card));
+    color: var(--color-text-primary);
+  }
+
+  .v2-settings-main,
+  .v2-settings-side {
+    @apply min-w-0 space-y-4;
+  }
+
+  .v2-settings-info-grid,
+  .v2-settings-control-grid {
+    @apply grid gap-3 md:grid-cols-3;
+  }
+
+  .v2-settings-control-grid.two,
+  .v2-settings-split {
+    @apply grid gap-3 md:grid-cols-2;
+  }
+
+  .v2-settings-info-tile {
+    @apply rounded-xl p-4;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 80%, transparent);
+  }
+
+  .v2-settings-info-tile span,
+  .v2-settings-status-card p,
+  .v2-settings-label,
+  .v2-settings-secret-mask {
+    @apply text-xs font-black;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-settings-info-tile strong,
+  .v2-settings-status-card strong {
+    @apply mt-2 block text-base font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-settings-label {
+    @apply grid gap-2;
+  }
+
+  .v2-settings-label input,
+  .v2-settings-label select,
+  .v2-settings-secret input {
+    @apply min-w-0 rounded-xl px-3 py-2.5 text-sm font-semibold outline-none;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-primary);
+  }
+
+  .v2-settings-secret {
+    @apply flex gap-2;
+  }
+
+  .v2-settings-secret input {
+    @apply flex-1;
+  }
+
+  .v2-settings-secret button {
+    @apply grid h-11 w-11 shrink-0 place-items-center rounded-xl;
+    border: 1px solid var(--color-border-primary);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-settings-secret-mask {
+    @apply mt-2;
+  }
+
+  .v2-settings-preview,
+  .v2-settings-readonly,
+  .v2-settings-status-card {
+    @apply mt-4 rounded-xl p-4;
+    border: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
+  }
+
+  .v2-settings-preview span,
+  .v2-settings-readonly p,
+  .v2-settings-status-card span,
+  .v2-settings-help {
+    @apply text-xs font-bold leading-6;
+    color: var(--color-text-secondary);
+  }
+
+  .v2-settings-preview strong,
+  .v2-settings-readonly strong {
+    @apply mt-1 block text-sm font-black;
+    color: var(--color-text-primary);
+  }
+
+  .v2-settings-toggle {
+    @apply mt-4 flex items-center gap-2 text-sm font-bold;
+    color: var(--color-text-primary);
+  }
+
+  .v2-settings-toggle input {
+    @apply h-4 w-4 rounded;
+  }
+
+  .v2-settings-readonly {
+    @apply flex items-start gap-3;
+  }
+
+  .v2-settings-readonly svg {
+    @apply mt-1 shrink-0;
+    color: var(--color-primary);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1446,5 +2413,89 @@ body {
 
   .v2-graph-ring {
     @apply h-24 w-24;
+  }
+
+  .v2-report-filterbar,
+  .v2-report-preview,
+  .v2-star-row {
+    @apply rounded-xl p-3;
+  }
+
+  .v2-report-tabs,
+  .v2-report-mode-tabs {
+    @apply grid grid-cols-2;
+  }
+
+  .v2-report-tabs button,
+  .v2-report-mode-tabs button,
+  .v2-report-filterbar select {
+    @apply w-full;
+  }
+
+  .v2-report-workbench,
+  .v2-report-layout {
+    @apply gap-3;
+  }
+
+  .v2-chat-shell {
+    @apply min-h-full overflow-visible rounded-xl;
+    grid-template-columns: 1fr;
+  }
+
+  .v2-chat-sessions,
+  .v2-chat-context {
+    @apply max-h-none border-0;
+  }
+
+  .v2-chat-session-list {
+    @apply max-h-60;
+  }
+
+  .v2-chat-bubble {
+    @apply max-w-[calc(100%-3rem)] rounded-xl p-3 text-xs leading-6;
+  }
+
+  .v2-chat-composer {
+    @apply sticky bottom-0 flex-col;
+  }
+
+  .v2-chat-composer button {
+    @apply w-full;
+  }
+
+  .v2-ppt-workbench {
+    @apply grid-cols-1;
+  }
+
+  .v2-ppt-slide {
+    @apply p-4;
+  }
+
+  .v2-ppt-slide h2 {
+    @apply max-w-full text-lg;
+  }
+
+  .v2-ppt-slide ul,
+  .v2-ppt-slide p {
+    @apply max-w-full;
+  }
+
+  .v2-pricing-layout,
+  .v2-pricing-plans {
+    @apply grid-cols-1;
+  }
+
+  .v2-admin-layout,
+  .v2-admin-toolbar,
+  .v2-settings-layout,
+  .v2-settings-info-grid,
+  .v2-settings-control-grid,
+  .v2-settings-control-grid.two,
+  .v2-settings-split {
+    @apply grid-cols-1;
+  }
+
+  .v2-settings-nav {
+    @apply rounded-xl;
   }
 }

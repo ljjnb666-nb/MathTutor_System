@@ -1,5 +1,18 @@
-import { useEffect, useState } from 'react'
-import { Bell, Database, Eye, EyeOff, Key, Lock, Palette, Save, Trash2, User } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  Bell,
+  Database,
+  Eye,
+  EyeOff,
+  Key,
+  Lock,
+  MonitorCog,
+  Palette,
+  Save,
+  ShieldCheck,
+  Trash2,
+  User,
+} from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import {
   PROVIDERS,
@@ -10,6 +23,33 @@ import {
   setStoredSettings,
 } from '../constants/ai-providers'
 import { applyTheme } from '../utils/theme'
+import { PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
+
+const accentOptions = [
+  ['indigo', '靛蓝'],
+  ['purple', '紫色'],
+  ['blue', '蓝色'],
+  ['green', '绿色'],
+]
+
+const densityOptions = [
+  ['compact', '紧凑'],
+  ['comfortable', '舒适'],
+  ['spacious', '宽松'],
+]
+
+const themeOptions = [
+  ['dark', '深色'],
+  ['light', '浅色'],
+  ['auto', '跟随系统'],
+]
+
+const navItems = [
+  { id: 'profile', label: '个人资料', icon: User },
+  { id: 'appearance', label: '系统外观', icon: Palette },
+  { id: 'ai', label: 'AI 本地偏好', icon: Key },
+  { id: 'local', label: '数据与隐私', icon: Database },
+]
 
 export default function Settings() {
   const { user } = useAuth()
@@ -23,8 +63,10 @@ export default function Settings() {
   const [showThinking, setShowThinking] = useState(false)
   const [showApiKey, setShowApiKey] = useState(false)
   const [notice, setNotice] = useState('')
+  const [activeSection, setActiveSection] = useState('profile')
 
   const provider = getProviderByValue(providerValue)
+  const maskedKey = useMemo(() => maskApiKey(apiKey), [apiKey])
 
   useEffect(() => {
     const stored = getStoredSettings()
@@ -89,182 +131,163 @@ export default function Settings() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 animate-fade-in-up">
-      <section className="pro-glass-card rounded-2xl p-6">
-        <h2 className="text-lg font-black" style={{ color: 'var(--color-text-primary)' }}>系统设置</h2>
-        <p className="mt-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          管理账户信息、主题外观、AI 本地偏好和隐私设置。
-        </p>
-        {notice && (
-          <p className="mt-4 rounded-xl px-4 py-2 text-sm font-semibold" style={{ border: '1px solid rgba(16,185,129,0.28)', backgroundColor: 'color-mix(in srgb, #10b981 10%, var(--color-bg-card))', color: '#047857' }}>
-            {notice}
-          </p>
-        )}
-      </section>
+    <PageShell className="space-y-5">
+      <PageHeader
+        title="系统设置"
+        description="管理账户信息、主题外观、AI 本地偏好和浏览器本地配置。"
+        icon={MonitorCog}
+        meta={<StatusBadge tone="primary">V2 设置台</StatusBadge>}
+      />
 
-      <section className="pro-glass-card rounded-2xl p-6">
-        <SectionTitle icon={User} title="个人资料" description="查看当前登录账户" tone="indigo" />
-        <div className="mt-4 divide-y" style={{ borderColor: 'var(--color-border-primary)' }}>
-          <InfoRow label="用户名" value={user?.username || '-'} />
-          <InfoRow label="角色" value={user?.role === 'admin' ? '管理员' : '教师'} />
+      {notice && (
+        <div role="status" className="v2-settings-notice">
+          <ShieldCheck className="h-4 w-4" />
+          <span>{notice}</span>
         </div>
-      </section>
+      )}
 
-      <section className="pro-glass-card rounded-2xl p-6">
-        <SectionTitle icon={Palette} title="系统外观" description="切换主题、强调色和界面密度" tone="purple" />
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
-          <SelectField label="主题模式" value={theme} onChange={setTheme} options={[
-            ['dark', '深色'],
-            ['light', '浅色'],
-            ['auto', '跟随系统'],
-          ]} />
-          <SelectField label="强调色" value={accentColor} onChange={setAccentColor} options={[
-            ['indigo', '靛蓝'],
-            ['purple', '紫色'],
-            ['blue', '蓝色'],
-            ['green', '绿色'],
-          ]} />
-          <SelectField label="布局密度" value={density} onChange={setDensity} options={[
-            ['compact', '紧凑'],
-            ['comfortable', '舒适'],
-            ['spacious', '宽松'],
-          ]} />
-        </div>
-        <ActionButton onClick={handleSaveAppearance}>保存外观设置</ActionButton>
-      </section>
+      <div className="v2-settings-layout">
+        <aside className="v2-settings-nav" aria-label="设置分类">
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={activeSection === item.id ? 'is-active' : ''}
+              onClick={() => setActiveSection(item.id)}
+            >
+              <item.icon className="h-4 w-4" />
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </aside>
 
-      <section className="pro-glass-card rounded-2xl p-6">
-        <SectionTitle icon={Key} title="AI 本地偏好" description="仅保存浏览器本地偏好，不测试或上传 API Key" tone="cyan" />
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <SelectField
-            label="默认 Provider"
-            value={providerValue}
-            onChange={handleProviderChange}
-            options={PROVIDERS.map((item) => [item.value, item.label])}
-          />
-          <SelectField
-            label="默认模型"
-            value={model}
-            onChange={setModel}
-            options={(provider.models || []).map((item) => [item.value, item.label])}
-          />
-        </div>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <TextField label="Base URL" value={baseUrl} onChange={setBaseUrl} placeholder={provider.baseUrl || ''} />
-          <div>
-            <label className="mb-2 block text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>API Key</label>
-            <div className="relative">
-              <input
-                type={showApiKey ? 'text' : 'password'}
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder={`输入 ${provider.label} API Key`}
-                className="w-full rounded-xl px-4 py-2.5 pr-11 text-sm outline-none focus:ring-2"
-                style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-input)', color: 'var(--color-text-primary)' }}
-              />
-              <button
-                type="button"
-                aria-label={showApiKey ? '隐藏 API Key' : '显示 API Key'}
-                onClick={() => setShowApiKey((value) => !value)}
-                className="absolute right-3 top-1/2 -translate-y-1/2"
-                style={{ color: 'var(--color-text-muted)' }}
-              >
-                {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+        <main className="v2-settings-main">
+          <SectionCard title="个人资料" description="查看当前登录账户，不在 UI 重构中新增账户编辑能力。">
+            <div className="v2-settings-info-grid">
+              <InfoTile label="用户名" value={user?.username || '-'} />
+              <InfoTile label="角色" value={user?.role === 'admin' ? '管理员' : '教师'} />
+              <InfoTile label="账号能力" value={user?.role === 'admin' ? '系统管理' : '教师工作台'} />
             </div>
+          </SectionCard>
+
+          <SectionCard title="系统外观" description="主题、强调色和布局密度保存在当前浏览器。">
+            <div className="v2-settings-control-grid">
+              <SelectField label="主题模式" value={theme} onChange={setTheme} options={themeOptions} />
+              <SelectField label="强调色" value={accentColor} onChange={setAccentColor} options={accentOptions} />
+              <SelectField label="布局密度" value={density} onChange={setDensity} options={densityOptions} />
+            </div>
+            <div className="v2-settings-preview" data-testid="appearance-preview">
+              <span>当前预览</span>
+              <strong>{themeLabel(theme)} · {optionLabel(accentOptions, accentColor)} · {optionLabel(densityOptions, density)}</strong>
+            </div>
+            <ActionButton onClick={handleSaveAppearance}>保存外观设置</ActionButton>
+          </SectionCard>
+
+          <SectionCard title="AI 本地偏好" description="仅写入 localStorage，不测试或上传 API Key。">
+            <div className="v2-settings-control-grid two">
+              <SelectField
+                label="默认 Provider"
+                value={providerValue}
+                onChange={handleProviderChange}
+                options={PROVIDERS.map((item) => [item.value, item.label])}
+              />
+              <SelectField
+                label="默认模型"
+                value={model}
+                onChange={setModel}
+                options={(provider.models || []).map((item) => [item.value, item.label])}
+              />
+            </div>
+            <div className="v2-settings-control-grid two">
+              <TextField label="Base URL" value={baseUrl} onChange={setBaseUrl} placeholder={provider.baseUrl || ''} />
+              <div>
+                <label className="v2-settings-label" htmlFor="settings-api-key">API Key</label>
+                <div className="v2-settings-secret">
+                  <input
+                    id="settings-api-key"
+                    type={showApiKey ? 'text' : 'password'}
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder={`输入 ${provider.label} API Key`}
+                  />
+                  <button
+                    type="button"
+                    aria-label={showApiKey ? '隐藏 API Key' : '显示 API Key'}
+                    onClick={() => setShowApiKey((value) => !value)}
+                  >
+                    {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <p className="v2-settings-secret-mask" data-testid="api-key-mask">
+                  当前保存值：{maskedKey || '未填写'}
+                </p>
+              </div>
+            </div>
+            <label className="v2-settings-toggle">
+              <input type="checkbox" checked={showThinking} onChange={(e) => setShowThinking(e.target.checked)} />
+              <span>显示 AI 思考过程</span>
+            </label>
+            <ActionButton onClick={handleSaveAI}>保存 AI 偏好</ActionButton>
+          </SectionCard>
+
+          <div className="v2-settings-split">
+            <SectionCard title="通知提醒" description="通知服务尚未接入。">
+              <ReadOnlyBlock icon={Bell} title="保留入口" description="当前版本只展示状态，不提供虚构通知渠道。" />
+            </SectionCard>
+            <SectionCard title="账户安全" description="密码与双因素服务尚未接入。">
+              <ReadOnlyBlock icon={Lock} title="沿用当前能力" description="不新增重置密码、2FA 或权限变更业务。" />
+            </SectionCard>
           </div>
-        </div>
-        <label className="mt-4 flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
-          <input type="checkbox" checked={showThinking} onChange={(e) => setShowThinking(e.target.checked)} className="h-4 w-4 rounded" />
-          显示 AI 思考过程
-        </label>
-        <p className="mt-4 rounded-xl p-4 text-xs font-medium" style={{ border: '1px solid rgba(251,191,36,0.26)', backgroundColor: 'color-mix(in srgb, #fbbf24 10%, var(--color-bg-card))', color: '#92400e' }}>
-          UI-only 分支不包含服务端 API Key 测试能力。这里的 API Key 仅保存在当前浏览器本地。
-        </p>
-        <ActionButton onClick={handleSaveAI}>保存 AI 偏好</ActionButton>
-      </section>
 
-      <section className="grid gap-6 md:grid-cols-2">
-        <div className="pro-glass-card rounded-2xl p-6">
-          <SectionTitle icon={Bell} title="通知提醒" description="通知服务尚未接入" tone="amber" />
-          <p className="mt-4 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-            当前版本保留通知入口展示，尚未提供可配置通知渠道。
-          </p>
-        </div>
-        <div className="pro-glass-card rounded-2xl p-6">
-          <SectionTitle icon={Lock} title="账户安全" description="密码与双因素服务尚未接入" tone="rose" />
-          <p className="mt-4 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-            账户安全策略仍沿用 main 当前能力。
-          </p>
-        </div>
-      </section>
+          <SectionCard title="数据与隐私" description="管理本地浏览器配置。">
+            <p className="v2-settings-help">
+              外观和 AI 偏好保存在当前浏览器 localStorage 中，切换浏览器或清除缓存后需要重新配置。
+            </p>
+            <button type="button" onClick={handleClearLocalConfig} className="v2-btn-danger">
+              <Trash2 className="h-4 w-4" />
+              清除本地配置
+            </button>
+          </SectionCard>
+        </main>
 
-      <section className="pro-glass-card rounded-2xl p-6">
-        <SectionTitle icon={Database} title="数据与隐私" description="管理本地浏览器配置" tone="emerald" />
-        <p className="mt-4 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          外观和 AI 偏好保存在当前浏览器 localStorage 中，切换浏览器或清除缓存后需要重新配置。
-        </p>
-        <button
-          type="button"
-          onClick={handleClearLocalConfig}
-          className="mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-colors"
-          style={{ border: '1px solid rgba(244,63,94,0.35)', backgroundColor: 'color-mix(in srgb, #f43f5e 9%, var(--color-bg-card))', color: '#be123c' }}
-        >
-          <Trash2 className="h-4 w-4" />
-          清除本地配置
-        </button>
-      </section>
-    </div>
+        <aside className="v2-settings-side">
+          <div className="v2-settings-status-card">
+            <p>主题实际值</p>
+            <strong>{document.documentElement.dataset.theme || '-'}</strong>
+            <span>auto 会解析为 light 或 dark，不写入 data-theme。</span>
+          </div>
+          <div className="v2-settings-status-card">
+            <p>Provider</p>
+            <strong>{provider.label}</strong>
+            <span>{provider.baseUrl || '自定义 Base URL'}</span>
+          </div>
+          <div className="v2-settings-status-card">
+            <p>本地配置</p>
+            <strong>{apiKey ? '已填写 Key' : '未填写 Key'}</strong>
+            <span>仅保存在当前浏览器。</span>
+          </div>
+        </aside>
+      </div>
+    </PageShell>
   )
 }
 
-function SectionTitle({ icon: Icon, title, description, tone }) {
-  const colors = {
-    indigo: '#818cf8',
-    purple: '#a78bfa',
-    cyan: '#22d3ee',
-    amber: '#f59e0b',
-    rose: '#fb7185',
-    emerald: '#10b981',
-  }
-  const color = colors[tone] || colors.indigo
+function InfoTile({ label, value }) {
   return (
-    <div className="flex items-center gap-3">
-      <div
-        className="flex h-10 w-10 items-center justify-center rounded-xl"
-        style={{ backgroundColor: `color-mix(in srgb, ${color} 18%, transparent)`, color }}
-      >
-        <Icon className="h-5 w-5" />
-      </div>
-      <div>
-        <h3 className="text-base font-bold" style={{ color: 'var(--color-text-primary)' }}>{title}</h3>
-        <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{description}</p>
-      </div>
-    </div>
-  )
-}
-
-function InfoRow({ label, value }) {
-  return (
-    <div className="flex items-center justify-between py-3">
-      <span className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>{label}</span>
-      <span className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>{value}</span>
+    <div className="v2-settings-info-tile">
+      <span>{label}</span>
+      <strong>{value}</strong>
     </div>
   )
 }
 
 function SelectField({ label, value, onChange, options }) {
   return (
-    <label className="block text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
+    <label className="v2-settings-label">
       {label}
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-2 w-full rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2"
-        style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-input)', color: 'var(--color-text-primary)' }}
-      >
-        {options.map(([optionValue, optionLabel]) => (
-          <option key={optionValue} value={optionValue}>{optionLabel}</option>
+      <select value={value} onChange={(e) => onChange(e.target.value)}>
+        {options.map(([optionValue, optionLabelText]) => (
+          <option key={optionValue} value={optionValue}>{optionLabelText}</option>
         ))}
       </select>
     </label>
@@ -273,28 +296,44 @@ function SelectField({ label, value, onChange, options }) {
 
 function TextField({ label, value, onChange, placeholder }) {
   return (
-    <label className="block text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
+    <label className="v2-settings-label">
       {label}
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="mt-2 w-full rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2"
-        style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-input)', color: 'var(--color-text-primary)' }}
-      />
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
     </label>
   )
 }
 
 function ActionButton({ onClick, children }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="btn-gradient-pro mt-5 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold"
-    >
+    <button type="button" onClick={onClick} className="v2-btn-primary">
       <Save className="h-4 w-4" />
       {children}
     </button>
   )
+}
+
+function ReadOnlyBlock({ icon: Icon, title, description }) {
+  return (
+    <div className="v2-settings-readonly">
+      <Icon className="h-5 w-5" />
+      <div>
+        <strong>{title}</strong>
+        <p>{description}</p>
+      </div>
+    </div>
+  )
+}
+
+function maskApiKey(value) {
+  if (!value) return ''
+  if (value.length <= 8) return '*'.repeat(value.length)
+  return `${value.slice(0, 4)}...${value.slice(-4)}`
+}
+
+function optionLabel(options, value) {
+  return options.find(([optionValue]) => optionValue === value)?.[1] || value
+}
+
+function themeLabel(value) {
+  return optionLabel(themeOptions, value)
 }

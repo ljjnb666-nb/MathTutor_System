@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 import Latex from 'react-latex-next'
-import { Send, Loader2, MessageCircle, User, Bot, X, Plus, Trash2, Pencil, Check, Pin, PinOff } from 'lucide-react'
+import { AlertCircle, Bot, Check, FileText, Loader2, MessageCircle, Pencil, Pin, PinOff, Plus, RefreshCw, Send, Trash2, User, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { chatWithAI, chatWithAIStream, getChatSessions, getChatSessionMessages, deleteChatSession, updateChatMessage, updateChatSessionPin } from '../services/api'
 import { useStudent } from '../contexts/StudentContext'
@@ -28,10 +28,13 @@ export default function AIChat() {
   const [contextQuestion, setContextQuestion] = useState(() => location.state?.contextQuestion ?? '')
   const [sessions, setSessions] = useState([])
   const [sessionsLoading, setSessionsLoading] = useState(true)
+  const [sessionsError, setSessionsError] = useState('')
   const [currentSessionId, setCurrentSessionId] = useState(null)
   const [useStream, setUseStream] = useState(true)
   const [editingMessageId, setEditingMessageId] = useState(null)
   const [editingContent, setEditingContent] = useState('')
+  const [chatError, setChatError] = useState('')
+  const [retryText, setRetryText] = useState('')
   const listRef = useRef(null)
 
   useEffect(() => {
@@ -45,10 +48,12 @@ export default function AIChat() {
 
   const fetchSessions = useCallback(async () => {
     setSessionsLoading(true)
+    setSessionsError('')
     try {
       const list = await getChatSessions()
       setSessions(Array.isArray(list) ? list : [])
-    } catch {
+    } catch (err) {
+      setSessionsError(err?.response?.data?.detail || err?.message || '会话列表加载失败')
       setSessions([])
     } finally {
       setSessionsLoading(false)
@@ -70,8 +75,10 @@ export default function AIChat() {
       const msgs = (Array.isArray(list) ? list : []).map((m) => ({ id: m.id, role: m.role, content: m.content }))
       setMessages(msgs)
       setCurrentSessionId(sessionId)
+      setChatError('')
     } catch (e) {
       toast.error('加载会话失败')
+      setChatError(e?.response?.data?.detail || e?.message || '加载会话失败')
       setMessages([])
     }
   }, [])
@@ -238,10 +245,12 @@ export default function AIChat() {
     refetchMessagesForSession,
   ])
 
-  const handleSend = async () => {
-    const text = (input || '').trim()
+  const handleSend = async (textOverride) => {
+    const text = (typeof textOverride === 'string' ? textOverride : input || '').trim()
     if (!text || loading) return
     setInput('')
+    setChatError('')
+    setRetryText(text)
     const userMsg = { role: 'user', content: text }
     setMessages((prev) => [...prev, userMsg])
     setLoading(true)
@@ -271,7 +280,12 @@ export default function AIChat() {
         },
         (data) => {
           setLoading(false)
-          if (data?.error) toast.error(data.error)
+          if (data?.error) {
+            setChatError(data.error)
+            toast.error(data.error)
+          } else {
+            setRetryText('')
+          }
           if (data?.session_id != null) {
             setCurrentSessionId(data.session_id)
             fetchSessions()
@@ -312,6 +326,7 @@ export default function AIChat() {
       }
     } catch (err) {
       const msg = err.response?.data?.detail || err.message || '对话请求失败'
+      setChatError(msg)
       toast.error(msg)
       setMessages((prev) => prev.slice(0, -1))
     } finally {
@@ -319,263 +334,165 @@ export default function AIChat() {
     }
   }
 
+  const quickQuestions = ['这道题的第一步怎么想？', '帮我拆解学生错因', '把解题步骤改得更适合初中生']
+
   return (
-    <div
-      className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl pro-glass-card md:flex-row animate-fade-in-up"
-    >
-      {/* 会话列表：左侧面板 */}
-      <aside className="flex min-h-0 shrink-0 flex-col md:w-64 md:border-b-0 md:border-r border-b" style={{ backgroundColor: 'color-mix(in srgb, var(--color-bg-card) 60%, transparent)', borderColor: 'color-mix(in srgb, var(--color-border-primary) 80%, transparent)' }}>
-        <div className="shrink-0 p-4" style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-black uppercase tracking-wider" style={{ color: 'var(--color-text-primary)' }}>历史会话节点</span>
-            <button
-              type="button"
-              onClick={() => loadSession(null)}
-              className="btn-gradient-pro inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold"
-            >
-              <Plus className="h-4 w-4" />
-              新会话
-            </button>
+    <div className="v2-chat-shell">
+      <aside className="v2-chat-sessions">
+        <div className="v2-chat-panel-head">
+          <div>
+            <span>会话列表</span>
+            <strong>{sessions.length}</strong>
           </div>
+          <button type="button" className="v2-icon-button" onClick={() => loadSession(null)} aria-label="新会话">
+            <Plus className="h-4 w-4" />
+          </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto">
+
+        <div className="v2-chat-session-list">
           {sessionsLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin" style={{ color: 'var(--color-primary-600)' }} />
+            <div className="v2-chat-state"><Loader2 className="h-5 w-5 animate-spin" /><span>加载会话中</span></div>
+          ) : sessionsError ? (
+            <div className="v2-chat-state error">
+              <AlertCircle className="h-5 w-5" />
+              <span>{sessionsError}</span>
+              <button type="button" className="v2-btn-secondary" onClick={fetchSessions}>重试</button>
             </div>
           ) : sessions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
-              <MessageCircle className="h-10 w-10" style={{ color: 'var(--color-border-primary)' }} />
-              <p className="mt-2 text-xs font-bold" style={{ color: 'var(--color-text-secondary)' }}>暂无历史会话</p>
-              <p className="mt-0.5 text-[11px]" style={{ color: 'var(--color-text-muted)' }}>输入问题后系统自动归档保存</p>
+            <div className="v2-chat-state">
+              <MessageCircle className="h-8 w-8" />
+              <span>暂无历史会话</span>
+              <p>发送消息后由现有接口归档。</p>
             </div>
-          ) : (
-            <ul className="p-2 space-y-1">
-              {sessions.map((s) => (
-                <li key={s.id} className="flex items-stretch gap-1">
-                  <button
-                    type="button"
-                    onClick={() => loadSession(s.id)}
-                    className={`min-w-0 flex-1 rounded-xl px-3 py-2.5 text-left transition-all ${
-                      currentSessionId === s.id
-                        ? 'shadow-md font-bold'
-                        : ''
-                    } ${s.pinned ? 'border-l-2' : ''}`}
-                    style={
-                      currentSessionId === s.id
-                        ? { backgroundColor: '#0B0F17', color: 'white', borderColor: s.pinned ? 'var(--color-primary-500)' : undefined }
-                        : { color: 'var(--color-text-primary)', borderColor: s.pinned ? 'var(--color-primary-500)' : undefined }
-                    }
-                    onMouseEnter={(e) => {
-                      if (currentSessionId !== s.id) {
-                        e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--color-bg-panel) 80%, transparent)'
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (currentSessionId !== s.id) {
-                        e.currentTarget.style.backgroundColor = 'transparent'
-                      }
-                    }}
-                  >
-                    <span className="line-clamp-2 flex items-center gap-1.5 text-xs font-extrabold leading-snug">
-                      {s.pinned && <Pin className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--color-primary-500)' }} />}
-                      {s.title || '新对话记录'}
-                    </span>
-                    <span className="mt-1 block text-[10px] opacity-60">
-                      {formatSessionDate(s.created_at)}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => handleTogglePin(s.id, s.pinned, e)}
-                    className="shrink-0 self-center rounded-xl p-2 transition-colors"
-                    style={{
-                      color: s.pinned ? 'var(--color-primary-600)' : 'var(--color-text-muted)'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = s.pinned ? 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)' : 'var(--color-bg-card-hover)'
-                      if (!s.pinned) {
-                        e.currentTarget.style.color = 'var(--color-text-secondary)'
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = 'transparent'
-                      e.currentTarget.style.color = s.pinned ? 'var(--color-primary-600)' : 'var(--color-text-muted)'
-                    }}
-                    title={s.pinned ? '取消固定' : '固定到顶部'}
-                  >
-                    {s.pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => handleDeleteSession(s.id, e)}
-                    className="shrink-0 self-center rounded-xl p-2 transition-colors"
-                    style={{ color: 'var(--color-text-muted)' }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = 'color-mix(in srgb, #ef4444 10%, var(--color-bg-card))'
-                      e.currentTarget.style.color = '#dc2626'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = 'transparent'
-                      e.currentTarget.style.color = 'var(--color-text-muted)'
-                    }}
-                    title="删除会话"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+          ) : sessions.map((session) => (
+            <div key={session.id} className={`v2-chat-session ${currentSessionId === session.id ? 'active' : ''}`}>
+              <button type="button" onClick={() => loadSession(session.id)}>
+                <span>{session.pinned && <Pin className="h-3.5 w-3.5" />}{session.title || '新对话记录'}</span>
+                <small>{formatSessionDate(session.created_at)}</small>
+              </button>
+              <div>
+                <button type="button" className="v2-icon-button" onClick={(event) => handleTogglePin(session.id, session.pinned, event)} aria-label={session.pinned ? '取消固定' : '固定到顶部'}>
+                  {session.pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+                </button>
+                <button type="button" className="v2-icon-button danger" onClick={(event) => handleDeleteSession(session.id, event)} aria-label="删除会话">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </aside>
 
-      {/* 主对话区 */}
-      <div className="flex min-h-0 flex-1 flex-col min-w-0" style={{ backgroundColor: 'color-mix(in srgb, var(--color-bg-panel) 40%, transparent)' }}>
-        {/* 顶部：标题 + 选项 */}
-        <header className="shrink-0 px-5 py-4" style={{ borderBottom: '1px solid color-mix(in srgb, var(--color-border-primary) 80%, transparent)', backgroundColor: 'color-mix(in srgb, var(--color-bg-card) 80%, transparent)' }}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-white shadow-md" style={{ backgroundColor: 'var(--color-primary-600)', boxShadow: '0 4px 6px -1px color-mix(in srgb, var(--color-primary-500) 20%, transparent)' }}>
-                <MessageCircle className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-base font-black tracking-tight" style={{ color: 'var(--color-text-primary)' }}>AI 智能辅导对话仓</h1>
-                  <span className="rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase" style={{ backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--color-primary-500) 20%, transparent)', color: 'var(--color-primary-600)' }}>PRO TUTOR</span>
-                </div>
-                <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>结合学生个案学情与向量知识库精准解疑答惑</p>
-              </div>
+      <main className="v2-chat-main">
+        <header className="v2-chat-header">
+          <div className="v2-chat-title">
+            <span><MessageCircle className="h-5 w-5" /></span>
+            <div>
+              <h1>AI 智能辅导对话</h1>
+              <p>围绕当前消息、学生上下文和知识点调用现有对话接口。</p>
             </div>
           </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-4 rounded-2xl px-4 py-2.5 text-xs font-bold" style={{ backgroundColor: 'color-mix(in srgb, var(--color-bg-panel) 80%, transparent)', color: 'var(--color-text-primary)' }}>
-            <label className="flex cursor-pointer items-center gap-2">
-              <input
-                type="checkbox"
-                checked={useStream}
-                onChange={(e) => setUseStream(e.target.checked)}
-                className="h-4 w-4 rounded focus:ring-2"
-                style={{ borderColor: 'var(--color-border-primary)', color: 'var(--color-primary-600)' }}
-              />
-              <span>实时流式极速回复</span>
-            </label>
-            <label className="flex cursor-pointer items-center gap-2">
-              <input
-                type="checkbox"
-                checked={useContext}
-                onChange={(e) => setUseContext(e.target.checked)}
-                className="h-4 w-4 rounded focus:ring-2"
-                style={{ borderColor: 'var(--color-border-primary)', color: 'var(--color-primary-600)' }}
-              />
-              <span>导入学生画像与知识点</span>
-            </label>
-            {useContext && (
-              <>
-                {currentStudent?.name && (
-                  <span className="rounded-full px-3 py-1 text-xs font-black" style={{ backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--color-primary-500) 20%, transparent)', color: 'var(--color-primary-700)' }}>
-                    {currentStudent.name}
-                  </span>
-                )}
-                <input
-                  type="text"
-                  value={knowledgePoint}
-                  onChange={(e) => setKnowledgePoint(e.target.value)}
-                  placeholder="知识点，如：二次函数"
-                  className="w-40 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-2"
-                  style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-input)', color: 'var(--color-text-primary)' }}
-                />
-              </>
-            )}
+          <div className="v2-chat-switches">
+            <label><input type="checkbox" checked={useStream} onChange={(event) => setUseStream(event.target.checked)} />流式回复</label>
+            <label><input type="checkbox" checked={useContext} onChange={(event) => setUseContext(event.target.checked)} />学生上下文</label>
           </div>
         </header>
 
-        {/* 消息区域 */}
-        <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
-          {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16 text-center px-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-3xl ring-1 mb-3" style={{ backgroundColor: 'color-mix(in srgb, var(--color-primary-500) 10%, transparent)', color: 'var(--color-primary-600)', borderColor: 'color-mix(in srgb, var(--color-primary-500) 20%, transparent)' }}>
-                <Bot className="h-7 w-7" />
+        <div ref={listRef} className="v2-chat-messages">
+          {messages.length === 0 ? (
+            <div className="v2-chat-empty">
+              <Bot className="h-10 w-10" />
+              <h2>空会话</h2>
+              <p>输入问题后开始对话；这里不展示伪造历史消息。</p>
+              <div>
+                {quickQuestions.map((question) => (
+                  <button key={question} type="button" onClick={() => setInput(question)}>{question}</button>
+                ))}
               </div>
-              <p className="text-sm font-extrabold" style={{ color: 'var(--color-text-primary)' }}>发送一条消息，开启 AI 智能辅导对话</p>
-              <p className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>支持 LaTeX 公式呈现、错题变式拆解与精准点拨</p>
+            </div>
+          ) : messages.map((message, index) => (
+            <article key={message.id ?? index} className={`v2-chat-message ${message.role === 'user' ? 'user' : 'assistant'}`}>
+              <span className="v2-chat-avatar">{message.role === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}</span>
+              <div className="v2-chat-bubble">
+                {editingMessageId === message.id ? (
+                  <div className="v2-chat-edit">
+                    <textarea value={editingContent} onChange={(event) => setEditingContent(event.target.value)} rows={4} />
+                    <div>
+                      <button type="button" className="v2-btn-secondary" onClick={handleCancelEdit}><X className="h-4 w-4" />取消</button>
+                      <button type="button" className="v2-btn-primary" onClick={handleSaveEdit}><Check className="h-4 w-4" />保存并重新生成</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {message.role === 'assistant' ? <Latex>{normalizeLatexForKaTeX(message.content ?? '')}</Latex> : message.content}
+                    {Array.isArray(message.rag_sources) && message.rag_sources.length > 0 && (
+                      <p className="v2-chat-sources">参考来源：{message.rag_sources.join(' · ')}</p>
+                    )}
+                    {message.id && message.role === 'user' && (
+                      <button type="button" className="v2-chat-edit-button" onClick={() => handleStartEdit(message)}>
+                        <Pencil className="h-3.5 w-3.5" />编辑
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            </article>
+          ))}
+
+          {loading && (
+            <div className="v2-chat-loading">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>AI 正在回复</span>
             </div>
           )}
-          <div className="mx-auto max-w-3xl space-y-5">
-            {messages.map((m, i) =>
-              m.role === 'user' ? (
-                <div key={m.id ?? i} className="flex justify-end">
-                  <div className="flex max-w-[88%] items-end gap-2 sm:max-w-[85%]">
-                    <div className="rounded-3xl rounded-br-none bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-3 text-xs font-bold leading-relaxed text-white shadow-md" style={{ boxShadow: '0 4px 6px -1px color-mix(in srgb, var(--color-primary-500) 20%, transparent)' }}>
-                      {m.content}
-                    </div>
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-white font-bold" style={{ backgroundColor: 'var(--color-primary-600)' }}>
-                      <User className="h-4 w-4" />
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div key={m.id ?? i} className="flex justify-start">
-                  <div className="flex max-w-[88%] items-end gap-2 sm:max-w-[85%]">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl shadow-md" style={{ backgroundColor: '#0B0F17', color: 'var(--color-primary-400)' }}>
-                      <Bot className="h-4 w-4" />
-                    </span>
-                    <div className="flex flex-col gap-1">
-                      <div className="pro-glass-card rounded-3xl rounded-bl-none px-5 py-3 text-xs font-medium leading-relaxed shadow-sm" style={{ border: '1px solid color-mix(in srgb, var(--color-border-primary) 80%, transparent)', color: 'var(--color-text-primary)' }}>
-                        <Latex>{normalizeLatexForKaTeX(m.content ?? '')}</Latex>
-                      </div>
-                      {Array.isArray(m.rag_sources) && m.rag_sources.length > 0 && (
-                        <p className="text-[10px] font-bold px-2" style={{ color: 'var(--color-primary-600)' }}>
-                          相关参考向量来源：{m.rag_sources.join(' · ')}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )
-            )}
-            {loading && (
-              <div className="flex justify-start">
-                <div className="flex items-center gap-2 rounded-3xl rounded-bl-none pro-glass-card px-4 py-3 shadow-sm" style={{ border: '1px solid var(--color-border-primary)' }}>
-                  <Loader2 className="h-4 w-4 animate-spin" style={{ color: 'var(--color-primary-600)' }} />
-                  <span className="text-xs font-bold" style={{ color: 'var(--color-text-secondary)' }}>DeepSeek AI 思考分析中…</span>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
 
-        {/* 输入区 */}
-        <div className="shrink-0 px-5 py-4" style={{ borderTop: '1px solid color-mix(in srgb, var(--color-border-primary) 80%, transparent)', backgroundColor: 'color-mix(in srgb, var(--color-bg-card) 90%, transparent)' }}>
-          <div className="mx-auto flex max-w-3xl gap-3">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-              placeholder={loading ? 'AI 思考回复中…' : '输入数学疑问或题目解法，按 Enter 发送…'}
-              disabled={loading}
-              className="flex-1 rounded-2xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-2 disabled:opacity-60"
-              style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'color-mix(in srgb, var(--color-bg-panel) 80%, transparent)', color: 'var(--color-text-primary)' }}
-            />
-            <button
-              type="button"
-              onClick={handleSend}
-              disabled={loading || !(input || '').trim()}
-              className="btn-gradient-pro shrink-0 flex items-center gap-2 rounded-2xl px-6 py-3 text-xs font-black"
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <Send className="h-4 w-4" />
-                  <span>发送提问</span>
-                </>
-              )}
-            </button>
+        {chatError && (
+          <div className="v2-chat-error" role="alert">
+            <AlertCircle className="h-4 w-4" />
+            <span>{chatError}</span>
+            {retryText && <button type="button" onClick={() => handleSend(retryText)}>重试</button>}
           </div>
-        </div>
-      </div>
+        )}
+
+        <footer className="v2-chat-composer">
+          <input
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            onKeyDown={(event) => event.key === 'Enter' && !event.shiftKey && handleSend()}
+            disabled={loading}
+            placeholder={loading ? 'AI 回复中...' : '输入数学疑问或题目解法，按 Enter 发送'}
+          />
+          <button type="button" className="v2-btn-primary" onClick={() => handleSend()} disabled={loading || !input.trim()}>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            发送
+          </button>
+        </footer>
+      </main>
+
+      <aside className="v2-chat-context">
+        <section>
+          <h2>上下文</h2>
+          <label className="v2-field">
+            <span>学生</span>
+            <input value={currentStudent?.name || '未选择学生'} readOnly />
+          </label>
+          <label className="v2-field">
+            <span>知识点</span>
+            <input value={knowledgePoint} onChange={(event) => setKnowledgePoint(event.target.value)} disabled={!useContext} placeholder="如：二次函数" />
+          </label>
+          <label className="v2-field">
+            <span>题目上下文</span>
+            <textarea rows={5} value={contextQuestion} onChange={(event) => setContextQuestion(event.target.value)} placeholder="可选：粘贴已有题目或错题文本" />
+          </label>
+        </section>
+        <section>
+          <h2>当前状态</h2>
+          <div className="v2-chat-context-stat"><FileText className="h-4 w-4" /><span>消息数</span><strong>{messages.length}</strong></div>
+          <div className="v2-chat-context-stat"><RefreshCw className="h-4 w-4" /><span>回复模式</span><strong>{useStream ? '流式' : '普通'}</strong></div>
+          <div className="v2-chat-context-stat"><User className="h-4 w-4" /><span>学生上下文</span><strong>{useContext ? '启用' : '关闭'}</strong></div>
+        </section>
+      </aside>
     </div>
   )
 }
