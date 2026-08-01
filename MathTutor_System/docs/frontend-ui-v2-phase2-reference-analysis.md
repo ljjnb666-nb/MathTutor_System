@@ -41,22 +41,22 @@ The refactor should reuse real existing API state. Unsupported reference-only el
 |---|---|---|---|
 | Dashboard | Hero, metrics, quick actions, tasks, recent records, charts, side panels | Partial | MATCHED_WITH_ADAPTATION |
 | SmartGen | Parameter toolbar, generation workspace, result preview, coverage/distribution side panel, bottom actions | Partial | MATCHED_WITH_ADAPTATION |
-| AIChat | Conversation list, central transcript, right context/quick actions, fixed input | Partial | NOT_REBUILT |
+| AIChat | Conversation list, central transcript, right context/quick actions, fixed input | Partial | MATCHED_WITH_ADAPTATION |
 | TeacherAgent | Left history, central goal/run surface, right context and safety panels | Read-only run support | MATCHED_WITH_ADAPTATION |
 | QuestionBank | Top filters, metric row, table-first question list, right preview panel | Supported | MATCHED_WITH_ADAPTATION |
 | KnowledgeBase | KB cards, document table, detail/retrieval side panel, coverage overview | Supported | MATCHED_WITH_ADAPTATION |
 | ImportExam | Stepper, upload/dropzone, files, OCR preview, result side panel | Supported | MATCHED_WITH_ADAPTATION |
-| PPTGenerator | Config, outline, preview, templates, scenarios, bottom actions | Partial | NOT_REBUILT |
+| PPTGenerator | Config, outline, preview, templates, scenarios, bottom actions | Partial | MATCHED_WITH_ADAPTATION |
 | Schedule | Week calendar canvas, today/conflict/month side panel | Supported | MATCHED_WITH_ADAPTATION |
 | HomeworkProgress | Filters, metrics, trend/chart, detail table, anomaly/intervention side panel | Partial | MATCHED_WITH_ADAPTATION |
 | MistakeBook | Filters, metrics, mistake table, detail side panel, trends/distribution | Supported | MATCHED_WITH_ADAPTATION |
 | KnowledgeGraph | Filters, metrics, graph canvas, heat/segment/suggestion side panel | Partial | MATCHED_WITH_ADAPTATION |
-| Reports | Filters, metrics, report summaries/charts, structure/export side panel | Partial | NOT_REBUILT |
+| Reports | Filters, metrics, report summaries/charts, structure/export side panel | Partial | MATCHED_WITH_ADAPTATION |
 | ExamList / ExamPreview | Filters, metrics, exam table, preview/analysis/activity side panel | Supported | MATCHED_WITH_ADAPTATION |
 | StudentMgmt | Filters, metrics, student table, distribution/risk/action side panel, trends | Supported | MATCHED_WITH_ADAPTATION |
-| Pricing | Plan cards, feature comparison, subscription/usage/FAQ side panel | Partial | NOT_REBUILT |
-| AdminUserPage | Search/filter, metrics, user table, detail/role/log side panel | Partial | NOT_REBUILT |
-| Settings | Category sidebar, settings forms, security/status side panel | Local preferences | NOT_REBUILT |
+| Pricing | Plan cards, feature comparison, subscription/usage/FAQ side panel | Partial | MATCHED_WITH_ADAPTATION |
+| AdminUserPage | Search/filter, metrics, user table, detail/role/log side panel | Partial | MATCHED_WITH_ADAPTATION |
+| Settings | Category sidebar, settings forms, security/status side panel | Local preferences | MATCHED_WITH_ADAPTATION |
 
 ## Implemented Adaptations
 
@@ -90,6 +90,22 @@ MistakeBook was rebuilt around reference metrics, tabs, responsive mistake cards
 
 KnowledgeGraph was rebuilt around the reference mastery metrics, textbook tree, selected-node focus panel, weak-point action pack, unmapped weak-point list, and outline overview. It keeps existing mastery fetch, URL knowledge-point targeting, wrong-question navigation, SmartGen handoff, and weak-point generation APIs. Browser screenshots were captured for dark desktop, light desktop, and mobile.
 
+Reports was rebuilt as a report workspace with student/period/type filters, real student metrics, embedded after-class and learning report editors, report outline, and explicit empty states for missing persistent report history/trend APIs. It keeps the existing after-class comment generation and learning-report draft parsing APIs, and does not fake report history, exports, or trend series.
+
+LearningReport was rebuilt as a V2 structured report editor with manual-input and AI-parse modes. Manual output is derived from teacher-entered fields, and AI output is rendered only from `parseLearningReportDraft`. Empty and error states remain usable without inventing persisted learning analytics.
+
+AfterClassReport was rebuilt as a V2 parent-feedback editor with real selected-student context, star ratings, keyword chips, optional local template/draft input, and preview/copy behavior. It keeps the existing `generateAfterClassComment` API and does not add unsupported messaging or export flows.
+
+AIChat was rebuilt as a three-column conversation workbench with session list, central transcript/composer, and right context/status panel. It preserves existing session loading, pin/delete/edit, streaming/non-stream reply, retry, student-context toggle, and knowledge/subject context parameters. Reference-only upload, voice, web-search, and model-switch controls were omitted.
+
+PPTGenerator was rebuilt as a V2 Magic PPT workbench with generation config, template empty state, slide preview, outline, and download action. It uses only the existing `generatePPT` and `buildPPTFile` APIs; no fake template marketplace or unsupported presentation editing workflow was added.
+
+Pricing was rebuilt around real plan cards, current subscription metrics, payment capability state, and a guarded order modal. Purchase actions are hidden/disabled when `getPaymentConfig` reports payment disabled, and no fake payment provider or upgrade success state is shown.
+
+AdminUserPage was rebuilt as an admin console with metrics, search/filter, responsive user table/cards, create-user modal, subscription controls for teachers, batch subscription panel, history modal, and delete confirmation. It keeps existing user/subscription APIs and does not add unsupported reset-password, ban, or role-edit features.
+
+Settings was rebuilt as a V2 settings console with category sidebar, appearance controls, local AI provider preferences, readonly notification/security blocks, privacy/local-storage clearing, and right-side status cards. It preserves light/dark/auto theme resolution, accent and density persistence, and API Key masking/local-only storage.
+
 ## Remaining Gaps
 
-Six referenced pages are still not rebuilt in this checkpoint and remain outside the second-batch scope: AIChat, PPTGenerator, Reports, Pricing, AdminUserPage, and Settings. The second-batch content-management pages are browser checked and locally committed separately from docs. Full Phase 2 acceptance across all 18 references is still pending, so this document does not claim overall Phase 2 PASS.
+All 18 referenced teacher pages have been rebuilt or adapted within existing API boundaries. Remaining differences are intentional adaptations where the reference shows unsupported backend capabilities: persistent report history/trend/export, PPT template marketplace, fake payment providers, notification channels, password reset/ban/role mutation, and PR #2 practice-draft behavior.

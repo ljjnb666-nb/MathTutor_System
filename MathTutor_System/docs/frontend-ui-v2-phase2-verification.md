@@ -12,7 +12,7 @@ Date: 2026-08-01
 
 ## Scope
 
-This is an in-progress Phase 2 UI-only refactor. It does not add backend business logic, database migrations, student frontend changes, payment capability, notification capability, or PR #2 practice-draft behavior.
+This is a completed Phase 2 UI-only refactor across the 18 referenced teacher pages. It does not add backend business logic, database migrations, student frontend changes, payment capability, notification capability, or PR #2 practice-draft behavior.
 
 ## Implemented So Far
 
@@ -30,6 +30,12 @@ This is an in-progress Phase 2 UI-only refactor. It does not add backend busines
 - Rebuilt KnowledgeGraph toward reference `12`: mastery metrics, textbook tree, selected-node focus panel, weak-point action pack, unmapped weak-point list, and outline overview.
 - Rebuilt ExamList / ExamPreview toward reference `14`: saved-content console, asset metrics/search/filter, assignment entry, print/preview controls, quick grading, AI-chat, knowledge-card, and graph navigation.
 - Rebuilt StudentMgmt toward reference `15`: search, real metrics, responsive table/cards, grade distribution, risk review, and class ranking panels.
+- Rebuilt Reports / LearningReport / AfterClassReport toward reference `13`: report workspace, real student context, existing after-class comment API, existing learning-report parse API, and explicit empty states for missing report-history/trend APIs.
+- Rebuilt AIChat toward reference `03`: session list, central transcript/composer, right context/status panel, existing session/pin/delete/edit/send/retry flows, and omitted unsupported upload/voice/web/model controls.
+- Rebuilt PPTGenerator toward reference `08`: generation config, real template empty state, slide preview, outline, download action, and existing PPT generation/build APIs.
+- Rebuilt Pricing toward reference `16`: real plan cards, current subscription metrics, payment config gating, and existing order API only when payment is enabled.
+- Rebuilt AdminUserPage toward reference `17`: metrics, search/filter, responsive user table/cards, create modal, teacher subscription controls, batch panel, history modal, and existing admin APIs.
+- Rebuilt Settings toward reference `18`: category sidebar, appearance/local AI preferences, readonly notification/security blocks, local privacy controls, and theme/accent/density/API-key persistence semantics.
 - Created an 18-screen reference analysis document.
 
 ## Page Status
@@ -38,26 +44,44 @@ This is an in-progress Phase 2 UI-only refactor. It does not add backend busines
 |---|---|---|
 | Dashboard | MATCHED_WITH_ADAPTATION | Implemented and browser checked |
 | SmartGen | MATCHED_WITH_ADAPTATION | Implemented and browser checked |
-| AIChat | IN_PROGRESS | Not rebuilt in this checkpoint |
+| AIChat | MATCHED_WITH_ADAPTATION | Implemented and browser checked |
 | TeacherAgent | MATCHED_WITH_ADAPTATION | Implemented and browser checked |
 | QuestionBank | MATCHED_WITH_ADAPTATION | Implemented and browser checked |
 | KnowledgeBase | MATCHED_WITH_ADAPTATION | Implemented and browser checked |
 | ImportExam | MATCHED_WITH_ADAPTATION | Implemented and browser checked |
-| PPTGenerator | NOT_STARTED | Not rebuilt |
+| PPTGenerator | MATCHED_WITH_ADAPTATION | Implemented and browser checked |
 | Schedule | MATCHED_WITH_ADAPTATION | Implemented and browser checked |
 | HomeworkProgress | MATCHED_WITH_ADAPTATION | Implemented and browser checked |
 | MistakeBook | MATCHED_WITH_ADAPTATION | Implemented and browser checked |
 | KnowledgeGraph | MATCHED_WITH_ADAPTATION | Implemented and browser checked |
-| Reports | NOT_STARTED | Not rebuilt |
+| Reports | MATCHED_WITH_ADAPTATION | Implemented and browser checked |
 | ExamList / ExamPreview | MATCHED_WITH_ADAPTATION | Implemented and browser checked |
 | StudentMgmt | MATCHED_WITH_ADAPTATION | Implemented and browser checked |
-| Pricing | NOT_STARTED | Not rebuilt |
-| AdminUserPage | NOT_STARTED | Not rebuilt |
-| Settings | NOT_STARTED | Not rebuilt |
+| Pricing | MATCHED_WITH_ADAPTATION | Implemented and browser checked |
+| AdminUserPage | MATCHED_WITH_ADAPTATION | Implemented and browser checked |
+| Settings | MATCHED_WITH_ADAPTATION | Implemented and browser checked |
 
 ## Verification Commands
 
-Second-batch teacher frontend tests:
+Third-batch teacher frontend tests:
+
+```powershell
+cd MathTutor_System/frontend
+npm test -- --run src/pages/Reports.test.jsx src/pages/LearningReport.test.jsx src/pages/AfterClassReport.test.jsx src/pages/AIChat.test.jsx src/pages/PPTGenerator.test.jsx src/pages/Pricing.test.jsx src/pages/AdminUserPage.test.jsx src/pages/Settings.test.jsx
+```
+
+Result: passed, 8 files and 32 tests.
+
+Full teacher frontend tests:
+
+```powershell
+cd MathTutor_System/frontend
+npm test -- --run
+```
+
+Result: passed, 23 files and 87 tests. Non-blocking Browserslist `caniuse-lite` stale warning and React Router future-flag warnings observed.
+
+Second-batch teacher frontend tests from previous checkpoint:
 
 ```powershell
 cd MathTutor_System/frontend
@@ -82,22 +106,21 @@ cd MathTutor_System/backend
 python -m pytest -q
 ```
 
-Result from earlier Phase 2 checkpoint: passed, 139 tests. One upstream LangChain/LangGraph pending deprecation warning observed.
+Result: passed, 139 tests. One upstream LangChain/LangGraph pending deprecation warning observed.
 
 Student frontend build:
 
 ```powershell
 cd MathTutor_System/frontend-student
-npm ci
 npm run build
 ```
 
-Result from earlier Phase 2 checkpoint: passed. Non-blocking Browserslist `caniuse-lite` stale warning observed.
+Result: passed. Non-blocking Browserslist `caniuse-lite` stale warning observed.
 
 ## Scope Audit
 
-- Backend source diff: expected empty; final audit still pending.
-- Student frontend source diff: expected empty; final audit still pending.
+- Backend source diff: empty.
+- Student frontend source diff: empty.
 - PR #2 behavior: not implemented.
 - PR #2 UI wording: no new visible TeacherAgent wording remains.
 - Existing negative test assertions still mention prohibited PR #2 strings to verify they are absent from the rendered UI.
@@ -105,6 +128,16 @@ Result from earlier Phase 2 checkpoint: passed. Non-blocking Browserslist `caniu
 ## Browser Checkpoint
 
 All browser checks below used local Chrome against the Phase 2 dev server on `http://127.0.0.1:5178`. Auth and read endpoints were mocked only for browser rendering. No write endpoint was mocked or exercised.
+
+Final full-route browser pass:
+
+- Routes: 19 route entries covering all 18 references, including `ExamList` and `ExamPreview` separately.
+- Viewports/themes: dark desktop 1440x900, light desktop 1440x900, dark mobile 390x844.
+- Total screenshots: 57.
+- Console errors: 0.
+- Request failures: 0.
+- Global horizontal overflow: 0.
+- Blank page checks: 0 blank pages.
 
 ### Dashboard
 
@@ -323,18 +356,125 @@ Result:
 - Mobile collapses the table into card rows and uses normal page scrolling.
 - Remaining adaptation: reference-only trend charts are represented as real-data summary/risk/ranking panels instead of fake charts.
 
+### Reports
+
+Screenshots:
+
+- `MathTutor_System/docs/ui-verification/ui-v2-phase2/reports-dark-desktop-1440x900.png`
+- `MathTutor_System/docs/ui-verification/ui-v2-phase2/reports-light-desktop-1440x900.png`
+- `MathTutor_System/docs/ui-verification/ui-v2-phase2/reports-dark-mobile-390x844.png`
+
+Result:
+
+- Console errors: 0
+- Request failures: 0
+- Global horizontal overflow: 0
+- Report workspace renders filters, metrics, after-class feedback editor, report list empty state, trend empty state, and report outline.
+- Remaining adaptation: persistent report history, trend charts, and export workflows are not displayed without backend APIs.
+
+### LearningReport / AfterClassReport
+
+Covered through `Reports` route plus direct component tests:
+
+- `LearningReport.test.jsx`: manual validation/generation, existing AI parse API, and API error state.
+- `AfterClassReport.test.jsx`: existing after-class comment API, API error state, local draft polish, and unsupported-action absence.
+
+Result:
+
+- Component tests: 8 passed.
+- Browser evidence: embedded in the `Reports` screenshots.
+- Remaining adaptation: generated report content is page-local unless a future persistent report API is added.
+
+### AIChat
+
+Screenshots:
+
+- `MathTutor_System/docs/ui-verification/ui-v2-phase2/ai-chat-dark-desktop-1440x900.png`
+- `MathTutor_System/docs/ui-verification/ui-v2-phase2/ai-chat-light-desktop-1440x900.png`
+- `MathTutor_System/docs/ui-verification/ui-v2-phase2/ai-chat-dark-mobile-390x844.png`
+
+Result:
+
+- Console errors: 0
+- Request failures: 0
+- Global horizontal overflow: 0
+- Three-column desktop and stacked mobile layouts render with real session/message/context boundaries.
+- Remaining adaptation: upload, voice, web search, and model-switch affordances are omitted because no matching API is present.
+
+### PPTGenerator
+
+Screenshots:
+
+- `MathTutor_System/docs/ui-verification/ui-v2-phase2/ppt-generator-dark-desktop-1440x900.png`
+- `MathTutor_System/docs/ui-verification/ui-v2-phase2/ppt-generator-light-desktop-1440x900.png`
+- `MathTutor_System/docs/ui-verification/ui-v2-phase2/ppt-generator-dark-mobile-390x844.png`
+
+Result:
+
+- Console errors: 0
+- Request failures: 0
+- Global horizontal overflow: 0
+- Config, preview, outline, and real template empty state render.
+- Remaining adaptation: template marketplace and in-browser slide editor are not added.
+
+### Pricing
+
+Screenshots:
+
+- `MathTutor_System/docs/ui-verification/ui-v2-phase2/pricing-dark-desktop-1440x900.png`
+- `MathTutor_System/docs/ui-verification/ui-v2-phase2/pricing-light-desktop-1440x900.png`
+- `MathTutor_System/docs/ui-verification/ui-v2-phase2/pricing-dark-mobile-390x844.png`
+
+Result:
+
+- Console errors: 0
+- Request failures: 0
+- Global horizontal overflow: 0
+- Real plan cards, subscription metrics, and payment-disabled boundary render.
+- Remaining adaptation: no fake purchase flow or provider success state is shown when payment config is disabled.
+
+### AdminUserPage
+
+Screenshots:
+
+- `MathTutor_System/docs/ui-verification/ui-v2-phase2/admin-users-dark-desktop-1440x900.png`
+- `MathTutor_System/docs/ui-verification/ui-v2-phase2/admin-users-light-desktop-1440x900.png`
+- `MathTutor_System/docs/ui-verification/ui-v2-phase2/admin-users-dark-mobile-390x844.png`
+
+Result:
+
+- Console errors: 0
+- Request failures: 0
+- Global horizontal overflow: 0
+- User metrics, table/cards, subscription controls, batch panel, and operation-boundary panel render from real user-shaped data.
+- Remaining adaptation: reset password, ban, and role mutation are not added because they are not supported by existing APIs.
+
+### Settings
+
+Screenshots:
+
+- `MathTutor_System/docs/ui-verification/ui-v2-phase2/settings-dark-desktop-1440x900.png`
+- `MathTutor_System/docs/ui-verification/ui-v2-phase2/settings-light-desktop-1440x900.png`
+- `MathTutor_System/docs/ui-verification/ui-v2-phase2/settings-dark-mobile-390x844.png`
+
+Result:
+
+- Console errors: 0
+- Request failures: 0
+- Global horizontal overflow: 0
+- Category sidebar, appearance form, AI local preference form, readonly security/notification blocks, local privacy controls, and status cards render.
+- Remaining adaptation: notification channels, 2FA, and password operations remain readonly because there is no existing backend support.
+
 ## Current Counts
 
 - MATCHED: 0
-- MATCHED_WITH_ADAPTATION: 12
+- MATCHED_WITH_ADAPTATION: 18
 - NOT_MATCHED: 0
-- Not rebuilt / not browser accepted: 6
+- Not rebuilt / not browser accepted: 0
 
 ## Limitations
 
-- This checkpoint completes only the second-batch content-management pages plus previous Phase 2 pages; it does not complete all 18 referenced page rebuilds.
-- Browser screenshot acceptance has not been completed for third-batch/out-of-scope routes.
-- Backend and student frontend regressions were not rerun after the latest first-batch UI changes; earlier checkpoint results are recorded above.
-- First-batch UI changes and KnowledgeBase were committed locally. The remaining second-batch content-management work is committed separately from this docs update.
-- No push or draft PR has been created.
-- Because 6 referenced pages remain unreworked outside this batch, this document does not mark overall Phase 2 PASS. The second-batch content-management scope passed local validation.
+- Unsupported reference-only capabilities remain intentionally absent: persistent report history/trends/export, PPT template marketplace, fake payment providers, notification channels, password reset, account ban, role mutation, and PR #2 practice-draft behavior.
+- Browser checks used mocked auth/read responses to render pages deterministically. Write endpoints were not exercised in browser checks; write-path coverage is in component tests against existing service calls.
+- Non-blocking warnings remain: stale Browserslist `caniuse-lite`, React Router future-flag warnings in tests, and one upstream LangChain/LangGraph pending deprecation warning in backend tests.
+- No push or draft PR is recorded in this document; those are handled after validation and commits.
