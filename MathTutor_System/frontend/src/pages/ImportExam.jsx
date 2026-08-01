@@ -667,12 +667,6 @@ export default function ImportExam() {
                     : { border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-card)' }
                 }
               >
-                <div className="p-4">{/* Question content will continue below */}</div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
                 {editingIndex === i ? (
                   /* 编辑态 */
                   <div className="space-y-4">
