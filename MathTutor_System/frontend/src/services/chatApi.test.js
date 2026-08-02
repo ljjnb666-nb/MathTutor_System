@@ -41,14 +41,32 @@ describe('chat stream API', () => {
       clone() {
         return this
       },
-      json: () => Promise.resolve({ detail: '未配置 API Key。' }),
-      text: () => Promise.resolve('{"detail":"未配置 API Key。"}'),
+      json: () => Promise.resolve({ detail: 'Missing API Key.' }),
+      text: () => Promise.resolve('{"detail":"Missing API Key."}'),
     }))
     const onDone = vi.fn()
 
     await chatWithAIStream({ messages: [{ role: 'user', content: 'hi' }] }, vi.fn(), onDone)
 
     expect(onDone).toHaveBeenCalledTimes(1)
-    expect(onDone).toHaveBeenCalledWith({ error: '未配置 API Key。（HTTP 400）' })
+    expect(onDone).toHaveBeenCalledWith({ error: 'Missing API Key.（HTTP 400）' })
+  })
+
+  it('does not display raw JSON text when stream errors are not JSON parsed', async () => {
+    globalThis.fetch = vi.fn(() => Promise.resolve({
+      ok: false,
+      status: 400,
+      statusText: 'Bad Request',
+      clone() {
+        return this
+      },
+      json: () => Promise.reject(new Error('not json')),
+      text: () => Promise.resolve('{"detail":"Client Base URL is not trusted or allowed."}'),
+    }))
+    const onDone = vi.fn()
+
+    await chatWithAIStream({ messages: [{ role: 'user', content: 'hi' }] }, vi.fn(), onDone)
+
+    expect(onDone).toHaveBeenCalledWith({ error: '400 Bad Request' })
   })
 })

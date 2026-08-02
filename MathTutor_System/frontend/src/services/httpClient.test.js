@@ -29,7 +29,7 @@ describe('httpClient LLM headers', () => {
     expect(buildClientLlmHeaders(meta)).toEqual({
       'x-llm-provider': 'openai',
       'x-llm-api-key': 'client-secret',
-      'x-llm-base-url': 'https://client.example',
+      'x-llm-base-url': 'https://api.openai.com/v1',
       'x-llm-api-version': 'v1',
       'x-llm-model': 'client-model',
     })
@@ -65,7 +65,7 @@ describe('httpClient LLM headers', () => {
 
     expect(buildClientLlmHeaders({ env: { DEV: true } })).toEqual({
       'x-llm-provider': 'openai',
-      'x-llm-base-url': 'https://client.example',
+      'x-llm-base-url': 'https://api.openai.com/v1',
       'x-llm-api-version': 'v1',
       'x-llm-model': 'client-model',
     })

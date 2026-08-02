@@ -1,17 +1,28 @@
+import sys
+from types import SimpleNamespace
+
 import pytest
 
 from app.services.llm_chat_service import (
     build_chat_messages,
     chat_completion_async,
+    chat_completion_stream_async,
     messages_to_proxy_prompt,
 )
 
 
-class FakeConfig:
+class EmptyConfig:
     provider = "openai"
     api_key = ""
     base_url = ""
     model = ""
+
+
+class OpenAIConfig:
+    provider = "openai"
+    api_key = "fake-key"
+    base_url = "https://api.openai.com/v1"
+    model = "fake-model"
 
 
 def test_build_chat_messages_adds_system_and_maps_roles():
@@ -36,20 +47,59 @@ def test_build_chat_messages_adds_system_and_maps_roles():
 def test_messages_to_proxy_prompt_flattens_chat_history():
     messages = build_chat_messages(
         [
-            {"role": "user", "content": "你好"},
-            {"role": "assistant", "content": "你好，有什么问题？"},
+            {"role": "user", "content": "hello"},
+            {"role": "assistant", "content": "hi"},
         ],
-        "你是数学老师",
+        "system prompt",
     )
 
-    assert messages_to_proxy_prompt(messages) == (
-        "[System]\n你是数学老师\n\n"
-        "[User]\n你好\n\n"
-        "[Assistant]\n你好，有什么问题？"
-    )
+    assert messages_to_proxy_prompt(messages) == "[System]\nsystem prompt\n\n[User]\nhello\n\n[Assistant]\nhi"
 
 
 @pytest.mark.asyncio
 async def test_chat_completion_requires_api_key_before_provider_imports():
-    with pytest.raises(ValueError, match="未配置 API Key"):
-        await chat_completion_async([{"role": "user", "content": "hello"}], None, FakeConfig())
+    with pytest.raises(ValueError):
+        await chat_completion_async([{"role": "user", "content": "hello"}], None, EmptyConfig())
+
+
+@pytest.mark.asyncio
+async def test_chat_completion_async_disables_redirects(monkeypatch):
+    captured = {}
+
+    class FakeChatOpenAI:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        async def ainvoke(self, messages):
+            return SimpleNamespace(content="ok")
+
+    monkeypatch.setitem(sys.modules, "langchain_openai", SimpleNamespace(ChatOpenAI=FakeChatOpenAI))
+
+    out = await chat_completion_async([{"role": "user", "content": "hello"}], None, OpenAIConfig())
+
+    assert out == "ok"
+    assert captured["http_async_client"].follow_redirects is False
+    await captured["http_async_client"].aclose()
+
+
+@pytest.mark.asyncio
+async def test_chat_completion_stream_async_disables_redirects(monkeypatch):
+    captured = {}
+
+    class FakeChatOpenAI:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        async def astream(self, messages):
+            yield SimpleNamespace(content="ok")
+
+    monkeypatch.setitem(sys.modules, "langchain_openai", SimpleNamespace(ChatOpenAI=FakeChatOpenAI))
+
+    chunks = [
+        chunk
+        async for chunk in chat_completion_stream_async([{"role": "user", "content": "hello"}], None, OpenAIConfig())
+    ]
+
+    assert chunks == ["ok"]
+    assert captured["http_async_client"].follow_redirects is False
+    await captured["http_async_client"].aclose()

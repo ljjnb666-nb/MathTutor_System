@@ -82,7 +82,7 @@ describe('Settings V2 console', () => {
   it('keeps API key masked in status text and saves AI local preferences', async () => {
     render(<Settings />)
 
-    expect(await screen.findByDisplayValue('https://proxy.example/v1')).toBeInTheDocument()
+    expect(await screen.findByDisplayValue('https://api.openai.com/v1')).toBeDisabled()
     const keyInput = screen.getByLabelText('API Key')
     expect(keyInput).toHaveAttribute('type', 'password')
     expect(screen.getByTestId('api-key-mask')).toHaveTextContent('sk-t...1234')
@@ -98,9 +98,9 @@ describe('Settings V2 console', () => {
     expect(stored.provider).toBe('openai')
     expect(stored.model).toBe('gpt-4.1-mini')
     expect(stored.apiKeysByProvider.openai).toBe('sk-new-secret-9999')
-    expect(stored.baseUrlsByProvider.openai).toBe('https://proxy.example/v1')
+    expect(stored.baseUrlsByProvider.openai).toBe('https://api.openai.com/v1')
     expect(stored.apiKey).toBe('sk-new-secret-9999')
-    expect(stored.baseUrl).toBe('https://proxy.example/v1')
+    expect(stored.baseUrl).toBe('https://api.openai.com/v1')
     expect(stored.showThinking).toBe(true)
   })
 
@@ -113,14 +113,14 @@ describe('Settings V2 console', () => {
     })
     render(<Settings />)
 
-    await screen.findByDisplayValue('https://proxy.example/v1')
+    await screen.findByDisplayValue('https://api.openai.com/v1')
     await userEvent.click(screen.getByRole('button', { name: /测试 API Key/ }))
 
     await waitFor(() => expect(screen.getByTestId('api-key-test-result')).toHaveTextContent('测试通过'))
     expect(testLlmConnection).toHaveBeenCalledWith(expect.objectContaining({
       'x-llm-provider': 'openai',
       'x-llm-model': 'gpt-4.1-mini',
-      'x-llm-base-url': 'https://proxy.example/v1',
+      'x-llm-base-url': 'https://api.openai.com/v1',
       'x-llm-api-key': 'sk-test-secret-1234',
     }))
     expect(screen.queryByText('sk-test-secret-1234')).not.toBeInTheDocument()
@@ -130,11 +130,40 @@ describe('Settings V2 console', () => {
     testLlmConnection.mockResolvedValue({ ok: false, message: 'API Key 无效或没有访问该模型的权限。' })
     render(<Settings />)
 
-    await screen.findByDisplayValue('https://proxy.example/v1')
+    await screen.findByDisplayValue('https://api.openai.com/v1')
     await userEvent.click(screen.getByRole('button', { name: /测试 API Key/ }))
 
     await waitFor(() => expect(screen.getByTestId('api-key-test-result')).toHaveTextContent('API Key 无效'))
     expect(screen.queryByText('sk-test-secret-1234')).not.toBeInTheDocument()
+  })
+
+  it('shows backend Base URL rejection without exposing key or full URL', async () => {
+    testLlmConnection.mockRejectedValue({
+      response: {
+        data: {
+          detail: 'Client Base URL is not trusted or allowed. sk-test-secret-1234 https://api.openai.com/v1',
+        },
+      },
+    })
+    render(<Settings />)
+
+    await screen.findByDisplayValue('https://api.openai.com/v1')
+    await userEvent.click(screen.getByRole('button', { name: /测试 API Key/ }))
+
+    await waitFor(() => expect(screen.getByTestId('api-key-test-result')).toHaveTextContent('[redacted]'))
+    expect(screen.getByTestId('api-key-test-result')).toHaveTextContent('Client Base URL is not trusted or allowed.')
+    expect(screen.getByTestId('api-key-test-result')).not.toHaveTextContent('sk-test-secret-1234')
+    expect(screen.getByTestId('api-key-test-result')).not.toHaveTextContent('https://api.openai.com/v1')
+  })
+
+  it('explains that custom Base URL requires backend allowlist', async () => {
+    render(<Settings />)
+
+    await userEvent.selectOptions(await screen.findByLabelText('默认 Provider'), 'custom')
+
+    expect(screen.getByLabelText('Base URL')).not.toBeDisabled()
+    expect(screen.getByTestId('base-url-security-hint')).toHaveTextContent('ALLOW_CUSTOM_LLM_BASE_URL')
+    expect(screen.getByTestId('base-url-security-hint')).toHaveTextContent('CLIENT_LLM_ALLOWED_HOSTS')
   })
 
   it('clears only local settings after confirmation', async () => {

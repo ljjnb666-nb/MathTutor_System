@@ -70,6 +70,7 @@ export default function Settings() {
   const [activeSection, setActiveSection] = useState('profile')
 
   const provider = getProviderByValue(providerValue)
+  const isCustomProvider = provider.value === 'custom'
   const maskedKey = useMemo(() => maskApiKey(apiKey), [apiKey])
 
   useEffect(() => {
@@ -92,6 +93,13 @@ export default function Settings() {
     document.documentElement.dataset.accent = savedAccent
     document.documentElement.dataset.density = savedDensity
   }, [])
+
+  useEffect(() => {
+    const safeMessage = safeApiErrorMessage(apiTestState.message, { apiKey, baseUrl })
+    if (safeMessage !== apiTestState.message) {
+      setApiTestState((state) => ({ ...state, message: safeMessage }))
+    }
+  }, [apiKey, apiTestState.message, baseUrl])
 
   function handleProviderChange(value) {
     const nextProvider = getProviderByValue(value)
@@ -243,7 +251,13 @@ export default function Settings() {
               />
             </div>
             <div className="v2-settings-control-grid two">
-              <TextField label="Base URL" value={baseUrl} onChange={setBaseUrl} placeholder={provider.baseUrl || ''} />
+              <TextField
+                label="Base URL"
+                value={baseUrl}
+                onChange={setBaseUrl}
+                placeholder={provider.baseUrl || ''}
+                disabled={!isCustomProvider}
+              />
               <div>
                 <label className="v2-settings-label" htmlFor="settings-api-key">API Key</label>
                 <div className="v2-settings-secret">
@@ -267,6 +281,11 @@ export default function Settings() {
                 </p>
               </div>
             </div>
+            <p className="v2-settings-help" data-testid="base-url-security-hint">
+              {isCustomProvider
+                ? 'Custom Base URL requires backend ALLOW_CUSTOM_LLM_BASE_URL and CLIENT_LLM_ALLOWED_HOSTS.'
+                : 'Preset providers use the official Base URL; arbitrary browser Base URLs are rejected by the backend.'}
+            </p>
             <label className="v2-settings-toggle">
               <input type="checkbox" checked={showThinking} onChange={(e) => setShowThinking(e.target.checked)} />
               <span>显示 AI 思考过程</span>
@@ -346,11 +365,11 @@ function SelectField({ label, value, onChange, options }) {
   )
 }
 
-function TextField({ label, value, onChange, placeholder }) {
+function TextField({ label, value, onChange, placeholder, disabled = false }) {
   return (
     <label className="v2-settings-label">
       {label}
-      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} disabled={disabled} />
     </label>
   )
 }
@@ -389,6 +408,15 @@ function maskApiKey(value) {
   if (!value) return ''
   if (value.length <= 8) return '*'.repeat(value.length)
   return `${value.slice(0, 4)}...${value.slice(-4)}`
+}
+
+function safeApiErrorMessage(message, config) {
+  let text = String(message || '').trim()
+  for (const sensitive of [config?.apiKey, config?.baseUrl]) {
+    const value = String(sensitive || '').trim()
+    if (value) text = text.split(value).join('[redacted]')
+  }
+  return text
 }
 
 function optionLabel(options, value) {

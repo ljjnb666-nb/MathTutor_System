@@ -35,7 +35,7 @@ describe('active LLM config storage', () => {
     expect(getActiveLlmConfig()).toMatchObject({
       provider: 'openai',
       apiKey: 'legacy-key',
-      baseUrl: 'https://legacy.example/v1',
+      baseUrl: 'https://api.openai.com/v1',
     })
   })
 
@@ -55,5 +55,21 @@ describe('active LLM config storage', () => {
     expect(stored.apiKey).toBe('saved-key')
     expect(stored.baseUrl).toBe('https://api.deepseek.com')
     expect(getActiveLlmConfig().apiKey).toBe('saved-key')
+  })
+
+  it('keeps custom provider Base URL configurable in localStorage', () => {
+    saveActiveLlmConfig({
+      provider: 'custom',
+      model: 'custom-model',
+      apiKey: 'custom-key',
+      baseUrl: 'https://proxy.example/v1/',
+      apiVersion: '',
+    })
+
+    expect(getActiveLlmConfig()).toMatchObject({
+      provider: 'custom',
+      apiKey: 'custom-key',
+      baseUrl: 'https://proxy.example/v1',
+    })
   })
 })

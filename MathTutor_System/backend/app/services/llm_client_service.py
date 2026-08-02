@@ -4,6 +4,8 @@ import json
 import logging
 from typing import Any
 
+import httpx
+
 from app.services.gemini_rest_service import (
     gemini_rest_with_proxy as _gemini_rest_with_proxy,
     resolve_gemini_proxy as _resolve_gemini_proxy,
@@ -51,6 +53,7 @@ def _openai_kwargs(
     temperature: float,
     max_tokens: int,
     json_mode: bool,
+    async_mode: bool = False,
 ) -> dict[str, Any]:
     is_deepseek = bool(base_url and "deepseek" in base_url.lower())
     kwargs: dict[str, Any] = {
@@ -64,6 +67,10 @@ def _openai_kwargs(
         kwargs["model_kwargs"] = {"response_format": {"type": "json_object"}}
     if base_url:
         kwargs["base_url"] = base_url.rstrip("/")
+    if async_mode:
+        kwargs["http_async_client"] = httpx.AsyncClient(follow_redirects=False)
+    else:
+        kwargs["http_client"] = httpx.Client(follow_redirects=False)
     return kwargs
 
 
@@ -126,6 +133,7 @@ def call_llm(prompt: str, llm_config: Any, *, temperature: float = 0.3) -> str:
                     temperature=temperature,
                     max_tokens=8192,
                     json_mode=True,
+                    async_mode=False,
                 )
             )
             return _extract_normalized_message(llm.invoke(prompt))
@@ -208,6 +216,7 @@ async def call_llm_async(
                     temperature=temperature,
                     max_tokens=max_tokens,
                     json_mode=True,
+                    async_mode=True,
                 )
             )
             try:

@@ -160,8 +160,9 @@ export function getApiKeyForProvider(providerValue) {
 }
 
 export function getBaseUrlForProvider(providerValue) {
-  const stored = getStoredSettings()
   const p = getProviderByValue(providerValue)
+  if (p.value !== 'custom') return (p.baseUrl ?? '').trim()
+  const stored = getStoredSettings()
   const byProvider = stored.baseUrlsByProvider || {}
   if (Object.prototype.hasOwnProperty.call(byProvider, providerValue))
     return byProvider[providerValue] ?? ''
@@ -205,7 +206,9 @@ export function getActiveLlmConfig(settings = getStoredSettings()) {
   const hasProviderApiVersion = Object.prototype.hasOwnProperty.call(apiVersionsByProvider, providerValue)
 
   const apiKey = hasProviderKey ? apiKeysByProvider[providerValue] ?? '' : settings.apiKey ?? ''
-  const baseUrl = hasProviderBaseUrl ? baseUrlsByProvider[providerValue] ?? '' : settings.baseUrl ?? provider.baseUrl ?? ''
+  const baseUrl = providerValue === 'custom'
+    ? (hasProviderBaseUrl ? baseUrlsByProvider[providerValue] ?? '' : settings.baseUrl ?? '')
+    : provider.baseUrl ?? ''
   const apiVersion = hasProviderApiVersion
     ? apiVersionsByProvider[providerValue] ?? ''
     : settings.apiVersion ?? provider.apiVersion ?? ''
@@ -230,7 +233,7 @@ export function saveActiveLlmConfig(config) {
     model: config.model ?? provider.models?.[0]?.value ?? '',
     showThinking: Boolean(config.showThinking),
     apiKey: String(config.apiKey || '').trim(),
-    baseUrl: normalizeBaseUrl(config.baseUrl ?? provider.baseUrl ?? ''),
+    baseUrl: normalizeBaseUrl(providerValue === 'custom' ? config.baseUrl ?? '' : provider.baseUrl ?? ''),
     apiVersion: String(config.apiVersion ?? provider.apiVersion ?? '').trim(),
     apiKeysByProvider: {
       ...(stored.apiKeysByProvider || {}),
@@ -238,7 +241,7 @@ export function saveActiveLlmConfig(config) {
     },
     baseUrlsByProvider: {
       ...(stored.baseUrlsByProvider || {}),
-      [providerValue]: normalizeBaseUrl(config.baseUrl ?? provider.baseUrl ?? ''),
+      [providerValue]: normalizeBaseUrl(providerValue === 'custom' ? config.baseUrl ?? '' : provider.baseUrl ?? ''),
     },
     apiVersionsByProvider: {
       ...(stored.apiVersionsByProvider || {}),

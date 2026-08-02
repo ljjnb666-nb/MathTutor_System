@@ -23,6 +23,8 @@ def test_openai_kwargs_enables_json_mode_for_non_deepseek():
     assert kwargs["temperature"] == 0.2
     assert kwargs["base_url"] == "https://api.openai.com/v1"
     assert kwargs["model_kwargs"] == {"response_format": {"type": "json_object"}}
+    assert kwargs["http_client"].follow_redirects is False
+    kwargs["http_client"].close()
 
 
 def test_openai_kwargs_disables_json_mode_and_forces_temperature_for_deepseek():
@@ -37,6 +39,24 @@ def test_openai_kwargs_disables_json_mode_and_forces_temperature_for_deepseek():
 
     assert kwargs["temperature"] == 1.0
     assert "model_kwargs" not in kwargs
+    assert kwargs["http_client"].follow_redirects is False
+    kwargs["http_client"].close()
+
+
+@pytest.mark.asyncio
+async def test_openai_kwargs_disables_redirects_for_async_client():
+    kwargs = _openai_kwargs(
+        api_key="key",
+        model="model",
+        base_url="https://api.openai.com/v1",
+        temperature=0.2,
+        max_tokens=100,
+        json_mode=False,
+        async_mode=True,
+    )
+
+    assert kwargs["http_async_client"].follow_redirects is False
+    await kwargs["http_async_client"].aclose()
 
 
 def test_call_llm_requires_api_key_before_provider_imports():

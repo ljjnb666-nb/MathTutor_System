@@ -106,7 +106,9 @@ async function parseStreamError(res) {
   } catch (_) {}
   try {
     const text = await res.text()
-    return text || fallback
+    const trimmed = String(text || '').trim()
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) return fallback
+    return trimmed || fallback
   } catch (_) {
     return fallback
   }
