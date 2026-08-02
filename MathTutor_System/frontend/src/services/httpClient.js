@@ -87,4 +87,46 @@ export function buildAuthHeaders() {
   return headers
 }
 
+export function normalizeApiError(error, defaultMessage = '操作失败') {
+  if (!error) return defaultMessage
+  if (typeof error === 'string') return error.trim() || defaultMessage
+
+  const detail = error?.response?.data?.detail ?? error?.detail ?? error?.message ?? error
+
+  if (typeof detail === 'string') {
+    return detail.trim() || defaultMessage
+  }
+
+  if (Array.isArray(detail)) {
+    const formatted = detail
+      .map((item) => {
+        if (typeof item === 'string') return item
+        if (item && typeof item === 'object') {
+          const loc = Array.isArray(item.loc)
+            ? item.loc.filter((l) => l !== 'body' && l !== 'query' && l !== 'path').join('.')
+            : ''
+          const msg = item.msg || item.message || item.type || ''
+          return loc ? `${loc}: ${msg}` : msg
+        }
+        return String(item)
+      })
+      .filter(Boolean)
+      .join('; ')
+    return formatted || defaultMessage
+  }
+
+  if (typeof detail === 'object' && detail !== null) {
+    if (typeof detail.msg === 'string') return detail.msg
+    if (typeof detail.message === 'string') return detail.message
+    try {
+      return JSON.stringify(detail)
+    } catch {
+      return defaultMessage
+    }
+  }
+
+  return String(detail || defaultMessage)
+}
+
 export default api
+

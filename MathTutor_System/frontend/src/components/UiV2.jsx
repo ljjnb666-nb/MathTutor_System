@@ -133,11 +133,17 @@ export function EmptyState({ icon: Icon, title = '暂无数据', description, ac
 }
 
 export function ErrorState({ title = '加载失败', description, onRetry, actionLabel = '重试' }) {
+  const safeDescription = typeof description === 'string'
+    ? description
+    : (description && typeof description === 'object' && 'msg' in description)
+      ? description.msg
+      : String(description?.message || description || '')
+
   return (
     <div className="v2-state v2-state-error">
       <AlertTriangle className="h-8 w-8 text-amber-400" />
       <p className="mt-3 text-sm font-bold">{title}</p>
-      {description && <p className="mt-1 text-xs">{description}</p>}
+      {safeDescription ? <p className="mt-1 text-xs">{safeDescription}</p> : null}
       {onRetry && (
         <button type="button" onClick={onRetry} className="v2-btn-secondary mt-4">
           {actionLabel}

@@ -16,11 +16,67 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getExam, gradeExam, saveExam } from '../services/api'
+import { normalizeApiError } from '../services/httpClient'
 import KnowledgeCard from '../components/KnowledgeCard'
 import StudentSelectorModal from '../components/StudentSelectorModal'
 import { useStudent } from '../contexts/StudentContext'
 import { EmptyState, ErrorState, LoadingState, PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
 import 'katex/dist/katex.min.css'
+
+export const COMPOSE_DRAFT_KEY = 'mathtutor_compose_draft'
+
+export function parseValidExamId(value) {
+  if (value == null) return null
+  const str = String(value).trim()
+  if (!str || str === 'compose') return null
+  if (/^\d+$/.test(str)) {
+    const num = Number(str)
+    return Number.isFinite(num) && num > 0 ? num : null
+  }
+  return null
+}
+
+export function saveComposeDraft(draft) {
+  try {
+    if (!draft || !Array.isArray(draft.questions) || draft.questions.length === 0) {
+      sessionStorage.removeItem(COMPOSE_DRAFT_KEY)
+      return
+    }
+    const payload = {
+      version: 1,
+      createdAt: Date.now(),
+      title: draft.title || '组卷预览',
+      questions: draft.questions,
+    }
+    sessionStorage.setItem(COMPOSE_DRAFT_KEY, JSON.stringify(payload))
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+export function loadComposeDraft() {
+  try {
+    const raw = sessionStorage.getItem(COMPOSE_DRAFT_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (parsed && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
+      return parsed
+    }
+    sessionStorage.removeItem(COMPOSE_DRAFT_KEY)
+    return null
+  } catch {
+    sessionStorage.removeItem(COMPOSE_DRAFT_KEY)
+    return null
+  }
+}
+
+export function clearComposeDraft() {
+  try {
+    sessionStorage.removeItem(COMPOSE_DRAFT_KEY)
+  } catch {
+    // Ignore storage errors
+  }
+}
 
 const DEFAULT_LAYOUT = {
   showAnswer: false,
@@ -147,23 +203,49 @@ export default function ExamPreview() {
   const [submittingGrade, setSubmittingGrade] = useState(false)
   const [submittedGrades, setSubmittedGrades] = useState(false)
 
-  const isComposeMode = id === 'compose' && location.state?.composeQuestions != null
+  const isComposeMode = id === 'compose'
 
   useEffect(() => {
     if (isComposeMode) {
-      const title = (location.state?.composeTitle ?? '组卷预览').trim() || '组卷预览'
-      setExam({ title, questions: location.state.composeQuestions || [] })
-      setComposeTitle(title)
+      if (location.state?.composeQuestions && Array.isArray(location.state.composeQuestions) && location.state.composeQuestions.length > 0) {
+        const title = (location.state?.composeTitle ?? '组卷预览').trim() || '组卷预览'
+        const questions = location.state.composeQuestions
+        saveComposeDraft({ title, questions })
+        setExam({ title, questions })
+        setComposeTitle(title)
+        setLoading(false)
+        setError('')
+        return
+      }
+
+      const draft = loadComposeDraft()
+      if (draft && draft.questions && draft.questions.length > 0) {
+        setExam({ title: draft.title || '组卷预览', questions: draft.questions })
+        setComposeTitle(draft.title || '组卷预览')
+        setLoading(false)
+        setError('')
+        return
+      }
+
+      setExam({ title: '组卷预览', questions: [] })
+      setComposeTitle('组卷预览')
       setLoading(false)
       setError('')
       return
     }
-    if (!id) return
+
+    const validId = parseValidExamId(id)
+    if (validId == null) {
+      setLoading(false)
+      setError('无效的试卷 ID')
+      return
+    }
+
     setLoading(true)
     setError('')
-    getExam(Number(id))
+    getExam(validId)
       .then((response) => setExam(response.data))
-      .catch((err) => setError(err?.response?.data?.detail || err?.message || '加载试卷失败'))
+      .catch((err) => setError(normalizeApiError(err, '加载试卷失败')))
       .finally(() => setLoading(false))
   }, [id, isComposeMode, location.state])
 
@@ -195,10 +277,11 @@ export default function ExamPreview() {
           difficulty: question.difficulty ?? '',
         })),
       })
+      clearComposeDraft()
       toast.success('试卷已保存')
       if (data?.id != null) navigate(`/exams/${data.id}`, { replace: true })
     } catch (err) {
-      toast.error(err?.response?.data?.detail || err?.message || '保存失败')
+      toast.error(normalizeApiError(err, '保存失败'))
     } finally {
       setSaving(false)
     }
@@ -339,7 +422,18 @@ export default function ExamPreview() {
             )}
 
             {questions.length === 0 ? (
-              <EmptyState icon={FileText} title="暂无题目" description="当前试卷没有可预览的题目。" />
+              <EmptyState
+                icon={FileText}
+                title={isComposeMode ? '当前没有可预览的组卷草稿' : '暂无题目'}
+                description={isComposeMode ? '请先从题库管理中勾选题目并生成预览试卷。' : '当前试卷没有可预览的题目。'}
+                action={
+                  isComposeMode ? (
+                    <div className="flex justify-center gap-2">
+                      <Link to="/question-bank" className="v2-btn-primary">返回题库选择题目</Link>
+                    </div>
+                  ) : undefined
+                }
+              />
             ) : (
               <div className="v2-preview-paper-frame" data-testid="exam-preview-paper-frame">
                 <div className={`v2-preview-paper ${layout.paperSize.toLowerCase()} columns-${layout.columns}`} data-show-answer={layout.showAnswer} data-testid="exam-preview-paper">

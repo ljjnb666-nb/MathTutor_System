@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { Settings, ChevronDown, Search, Plus, LogOut, X, Sparkles } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useStudent } from '../contexts/StudentContext'
@@ -29,6 +29,7 @@ export default function Sidebar({ onCloseDrawer }) {
   const [searchTerm, setSearchTerm] = useState('')
   const panelRef = useRef(null)
   const navigate = useNavigate()
+  const location = useLocation()
   const { user, logout } = useAuth()
   const { currentStudent, students, selectStudent, refreshStudents } = useStudent()
   const { atStudentLimit } = useSubscription()
@@ -42,6 +43,10 @@ export default function Sidebar({ onCloseDrawer }) {
     logout()
     navigate('/login', { replace: true })
   }
+
+  useEffect(() => {
+    setSwitcherOpen(false)
+  }, [location.pathname])
 
   useEffect(() => {
     if (switcherOpen) refreshStudents()

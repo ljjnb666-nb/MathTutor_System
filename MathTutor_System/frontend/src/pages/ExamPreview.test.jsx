@@ -159,4 +159,122 @@ describe('ExamPreview', () => {
 
     expect(await screen.findByText('not found')).toBeInTheDocument()
   })
+
+  describe('V3-01 Phase 3A Hardened Requirements', () => {
+    afterEach(() => {
+      sessionStorage.clear()
+    })
+
+    it('1. compose mode does not call getExam', async () => {
+      renderRoute(['/exams/compose'], {
+        composeTitle: 'Draft Exam',
+        composeQuestions: [{ content: 'Q1' }],
+      })
+      expect((await screen.findAllByText('Draft Exam')).length).toBeGreaterThan(0)
+      expect(api.getExam).not.toHaveBeenCalled()
+    })
+
+    it('2. valid numeric id calls getExam', async () => {
+      renderRoute(['/exams/42'])
+      await waitFor(() => expect(api.getExam).toHaveBeenCalledWith(42))
+    })
+
+    it('3. compose route is not converted to NaN API request', async () => {
+      renderRoute(['/exams/compose'])
+      await screen.findByText('当前没有可预览的组卷草稿')
+      expect(api.getExam).not.toHaveBeenCalledWith(NaN)
+    })
+
+    it('4. invalid string id does not call getExam', async () => {
+      renderRoute(['/exams/invalid-id'])
+      await screen.findByText('无效的试卷 ID')
+      expect(api.getExam).not.toHaveBeenCalled()
+    })
+
+    it('5. location.state draft is displayed and stored in sessionStorage', async () => {
+      renderRoute(['/exams/compose'], {
+        composeTitle: 'State Quiz',
+        composeQuestions: [{ content: 'State Prompt' }],
+      })
+      expect(await screen.findByText('State Prompt')).toBeInTheDocument()
+      const stored = JSON.parse(sessionStorage.getItem('mathtutor_compose_draft') || '{}')
+      expect(stored.title).toBe('State Quiz')
+      expect(stored.questions).toHaveLength(1)
+    })
+
+    it('6. sessionStorage draft is restored on refresh (when location.state is missing)', async () => {
+      sessionStorage.setItem(
+        'mathtutor_compose_draft',
+        JSON.stringify({ title: 'Restored Draft', questions: [{ content: 'Restored Q' }] })
+      )
+      renderRoute(['/exams/compose'])
+      expect(await screen.findByText('Restored Q')).toBeInTheDocument()
+      expect(api.getExam).not.toHaveBeenCalled()
+    })
+
+    it('7. damaged JSON in sessionStorage is safely handled', async () => {
+      sessionStorage.setItem('mathtutor_compose_draft', '{ invalid json ...')
+      renderRoute(['/exams/compose'])
+      expect(await screen.findByText('当前没有可预览的组卷草稿')).toBeInTheDocument()
+      expect(sessionStorage.getItem('mathtutor_compose_draft')).toBeNull()
+    })
+
+    it('8. empty draft displays friendly empty state with action link to question bank', async () => {
+      renderRoute(['/exams/compose'])
+      expect(await screen.findByText('当前没有可预览的组卷草稿')).toBeInTheDocument()
+      const link = screen.getByRole('link', { name: '返回题库选择题目' })
+      expect(link).toHaveAttribute('href', '/question-bank')
+    })
+
+    it('9. successful save clears sessionStorage draft', async () => {
+      sessionStorage.setItem(
+        'mathtutor_compose_draft',
+        JSON.stringify({ title: 'Saved Draft', questions: [{ content: 'Q' }] })
+      )
+      const { container } = renderRoute(['/exams/compose'])
+      expect(screen.getByDisplayValue('Saved Draft')).toBeInTheDocument()
+      await userEvent.click(container.querySelector('.v2-page-actions button.v2-btn-secondary'))
+
+      await waitFor(() => expect(api.saveExam).toHaveBeenCalled())
+      expect(sessionStorage.getItem('mathtutor_compose_draft')).toBeNull()
+    })
+
+    it('10. normal exam preview does not read compose draft', async () => {
+      sessionStorage.setItem(
+        'mathtutor_compose_draft',
+        JSON.stringify({ title: 'Draft Title', questions: [{ content: 'Draft Q' }] })
+      )
+      renderRoute(['/exams/12'])
+      await waitFor(() => expect(api.getExam).toHaveBeenCalledWith(12))
+      expect(screen.queryByText('Draft Title')).not.toBeInTheDocument()
+    })
+
+    it('11. converts FastAPI validation detail array to clean string', async () => {
+      api.getExam.mockRejectedValueOnce({
+        response: {
+          data: {
+            detail: [
+              { loc: ['body', 'id'], msg: 'field required', type: 'value_error.missing' },
+            ],
+          },
+        },
+      })
+      renderRoute(['/exams/99'])
+      expect(await screen.findByText('id: field required')).toBeInTheDocument()
+    })
+
+    it('12. React page does not crash when error detail is a structured object', async () => {
+      api.getExam.mockRejectedValueOnce({
+        response: {
+          data: {
+            detail: [{ loc: ['path', 'id'], msg: 'value is not a valid integer' }],
+          },
+        },
+      })
+      const { container } = renderRoute(['/exams/99'])
+      await waitFor(() => expect(container.querySelector('.v2-state-error')).toBeInTheDocument())
+      expect(screen.getByText('id: value is not a valid integer')).toBeInTheDocument()
+    })
+  })
 })
+

@@ -365,7 +365,7 @@ export default function ImportExam() {
         )}
       />
 
-      <div className="grid gap-3 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         <StepCard index="1" title="上传文件" description={file ? file.name : '选择试卷'} complete={!!file} active={!file} />
         <StepCard index="2" title="OCR识别" description="图片试卷待后端支持" active={!!file && parsing} complete={hasQuestions} />
         <StepCard index="3" title="结构解析" description="题干/选项/答案" active={parsing} complete={hasQuestions} />
