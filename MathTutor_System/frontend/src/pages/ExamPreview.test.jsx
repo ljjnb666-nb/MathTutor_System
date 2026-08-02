@@ -321,6 +321,135 @@ describe('ExamPreview', () => {
       await waitFor(() => expect(container.querySelector('.v2-state-error')).toBeInTheDocument())
       expect(screen.getByText('id: value is not a valid integer')).toBeInTheDocument()
     })
+
+    it('15. Priority Scenario 1: new location.state selection completely overwrites stale sessionStorage draft', async () => {
+      sessionStorage.setItem(
+        'mathtutor_compose_draft:v1:101',
+        JSON.stringify({ version: 1, createdAt: Date.now(), title: 'Old Draft', questions: [{ content: 'Old Question' }] })
+      )
+
+      renderRoute(['/exams/compose'], {
+        composeTitle: 'New Draft',
+        composeQuestions: [{ content: 'New Question 1' }, { content: 'New Question 2' }],
+      })
+
+      expect(await screen.findByText('New Question 1')).toBeInTheDocument()
+      expect(screen.getByText('New Question 2')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('New Draft')).toBeInTheDocument()
+
+      expect(screen.queryByText('Old Draft')).not.toBeInTheDocument()
+      expect(screen.queryByText('Old Question')).not.toBeInTheDocument()
+
+      const stored = JSON.parse(sessionStorage.getItem('mathtutor_compose_draft:v1:101') || '{}')
+      expect(stored.title).toBe('New Draft')
+      expect(stored.questions).toHaveLength(2)
+      expect(stored.questions[0].content).toBe('New Question 1')
+    })
+
+    it('16. Priority Scenario 2: F5 refresh after new compose restores new selection', async () => {
+      sessionStorage.setItem(
+        'mathtutor_compose_draft:v1:101',
+        JSON.stringify({ version: 1, createdAt: Date.now(), title: 'Old Draft', questions: [{ content: 'Old Q' }] })
+      )
+
+      const { unmount } = renderRoute(['/exams/compose'], {
+        composeTitle: 'New Selection',
+        composeQuestions: [{ content: 'New Selection Question' }],
+      })
+
+      expect(await screen.findByText('New Selection Question')).toBeInTheDocument()
+      unmount()
+
+      renderRoute(['/exams/compose'])
+      expect(await screen.findByText('New Selection Question')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('New Selection')).toBeInTheDocument()
+      expect(screen.queryByText('Old Q')).not.toBeInTheDocument()
+    })
+
+    it('17. Priority Scenario 3: Teacher B new compose selection does not corrupt or overwrite Teacher A draft', async () => {
+      sessionStorage.setItem(
+        'mathtutor_compose_draft:v1:101',
+        JSON.stringify({ version: 1, createdAt: Date.now(), title: 'Teacher A Old Draft', questions: [{ content: 'Teacher A Q' }] })
+      )
+
+      mockAuthUser.id = 102
+      mockAuthUser.username = 'teacher_b'
+
+      renderRoute(['/exams/compose'], {
+        composeTitle: 'Teacher B New Draft',
+        composeQuestions: [{ content: 'Teacher B Q' }],
+      })
+
+      expect(await screen.findByText('Teacher B Q')).toBeInTheDocument()
+      const teacherBDraft = JSON.parse(sessionStorage.getItem('mathtutor_compose_draft:v1:102') || '{}')
+      expect(teacherBDraft.title).toBe('Teacher B New Draft')
+
+      const teacherADraft = JSON.parse(sessionStorage.getItem('mathtutor_compose_draft:v1:101') || '{}')
+      expect(teacherADraft.title).toBe('Teacher A Old Draft')
+
+      mockAuthUser.id = 101
+      mockAuthUser.username = 'teacher_a'
+    })
+
+    it('18. Priority Scenario 4: restores old draft when no location.state is passed', async () => {
+      sessionStorage.setItem(
+        'mathtutor_compose_draft:v1:101',
+        JSON.stringify({ version: 1, createdAt: Date.now(), title: 'Only Draft', questions: [{ content: 'Only Q' }] })
+      )
+
+      renderRoute(['/exams/compose'])
+      expect(await screen.findByText('Only Q')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('Only Draft')).toBeInTheDocument()
+    })
+
+    it('19. Strict Schema: draft with 1 valid question + 1 null is rejected completely', async () => {
+      sessionStorage.setItem(
+        'mathtutor_compose_draft:v1:101',
+        JSON.stringify({ version: 1, createdAt: Date.now(), title: 'Mixed Draft', questions: [{ content: 'Valid Q' }, null] })
+      )
+
+      renderRoute(['/exams/compose'])
+      expect(await screen.findByText('当前没有可预览的组卷草稿')).toBeInTheDocument()
+      expect(sessionStorage.getItem('mathtutor_compose_draft:v1:101')).toBeNull()
+    })
+
+    it('20. Strict Schema: draft with 1 valid question + 1 string is rejected completely', async () => {
+      sessionStorage.setItem(
+        'mathtutor_compose_draft:v1:101',
+        JSON.stringify({ version: 1, createdAt: Date.now(), title: 'Mixed Draft', questions: [{ content: 'Valid Q' }, 'invalid string'] })
+      )
+
+      renderRoute(['/exams/compose'])
+      expect(await screen.findByText('当前没有可预览的组卷草稿')).toBeInTheDocument()
+      expect(sessionStorage.getItem('mathtutor_compose_draft:v1:101')).toBeNull()
+    })
+
+    it('21. Strict Schema: draft with array element in questions is rejected completely', async () => {
+      sessionStorage.setItem(
+        'mathtutor_compose_draft:v1:101',
+        JSON.stringify({ version: 1, createdAt: Date.now(), title: 'Mixed Draft', questions: [{ content: 'Valid Q' }, [{ nested: 'arr' }]] })
+      )
+
+      renderRoute(['/exams/compose'])
+      expect(await screen.findByText('当前没有可预览的组卷草稿')).toBeInTheDocument()
+      expect(sessionStorage.getItem('mathtutor_compose_draft:v1:101')).toBeNull()
+    })
+
+    it('22. Strict Schema: clearing invalid draft for Teacher A does not affect Teacher B draft', async () => {
+      sessionStorage.setItem(
+        'mathtutor_compose_draft:v1:101',
+        JSON.stringify({ version: 1, createdAt: Date.now(), title: 'Invalid A Draft', questions: [null] })
+      )
+      sessionStorage.setItem(
+        'mathtutor_compose_draft:v1:102',
+        JSON.stringify({ version: 1, createdAt: Date.now(), title: 'Valid B Draft', questions: [{ content: 'B Q' }] })
+      )
+
+      renderRoute(['/exams/compose'])
+      expect(await screen.findByText('当前没有可预览的组卷草稿')).toBeInTheDocument()
+      expect(sessionStorage.getItem('mathtutor_compose_draft:v1:101')).toBeNull()
+      expect(sessionStorage.getItem('mathtutor_compose_draft:v1:102')).not.toBeNull()
+    })
   })
 })
 

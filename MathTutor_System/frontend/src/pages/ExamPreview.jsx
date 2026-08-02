@@ -48,12 +48,13 @@ export function saveComposeDraft(user, draft) {
   try {
     const key = getComposeDraftKey(user)
     if (!key) return
-    if (!draft || !Array.isArray(draft.questions) || draft.questions.length === 0) {
-      sessionStorage.removeItem(key)
-      return
-    }
-    const validQuestions = draft.questions.filter((q) => q && typeof q === 'object')
-    if (validQuestions.length === 0) {
+    if (
+      !draft ||
+      typeof draft !== 'object' ||
+      !Array.isArray(draft.questions) ||
+      draft.questions.length === 0 ||
+      !draft.questions.every((q) => q && typeof q === 'object' && !Array.isArray(q))
+    ) {
       sessionStorage.removeItem(key)
       return
     }
@@ -61,7 +62,7 @@ export function saveComposeDraft(user, draft) {
       version: 1,
       createdAt: Date.now(),
       title: typeof draft.title === 'string' ? draft.title : '组卷预览',
-      questions: validQuestions,
+      questions: draft.questions,
     }
     sessionStorage.setItem(key, JSON.stringify(payload))
   } catch {
@@ -79,12 +80,14 @@ export function loadComposeDraft(user) {
 
     if (
       !parsed ||
+      typeof parsed !== 'object' ||
       parsed.version !== 1 ||
       typeof parsed.createdAt !== 'number' ||
       !Number.isFinite(parsed.createdAt) ||
       typeof parsed.title !== 'string' ||
       !Array.isArray(parsed.questions) ||
-      parsed.questions.length === 0
+      parsed.questions.length === 0 ||
+      !parsed.questions.every((q) => q && typeof q === 'object' && !Array.isArray(q))
     ) {
       sessionStorage.removeItem(key)
       return null
@@ -95,13 +98,7 @@ export function loadComposeDraft(user) {
       return null
     }
 
-    const validQuestions = parsed.questions.filter((q) => q && typeof q === 'object')
-    if (validQuestions.length === 0) {
-      sessionStorage.removeItem(key)
-      return null
-    }
-
-    return { title: parsed.title, questions: validQuestions }
+    return { title: parsed.title, questions: parsed.questions }
   } catch {
     const key = getComposeDraftKey(user)
     if (key) sessionStorage.removeItem(key)
@@ -248,21 +245,27 @@ export default function ExamPreview() {
 
   useEffect(() => {
     if (isComposeMode) {
-      const draft = loadComposeDraft(user)
-      if (draft && draft.questions && draft.questions.length > 0) {
-        setExam({ title: draft.title || '组卷预览', questions: draft.questions })
-        setComposeTitle(draft.title || '组卷预览')
+      if (
+        location.state?.composeQuestions &&
+        Array.isArray(location.state.composeQuestions) &&
+        location.state.composeQuestions.length > 0 &&
+        location.state.composeQuestions.every((q) => q && typeof q === 'object' && !Array.isArray(q))
+      ) {
+        const title = (location.state?.composeTitle ?? '组卷预览').trim() || '组卷预览'
+        const questions = location.state.composeQuestions
+        const newDraft = { title, questions }
+        saveComposeDraft(user, newDraft)
+        setExam(newDraft)
+        setComposeTitle(title)
         setLoading(false)
         setError('')
         return
       }
 
-      if (location.state?.composeQuestions && Array.isArray(location.state.composeQuestions) && location.state.composeQuestions.length > 0) {
-        const title = (location.state?.composeTitle ?? '组卷预览').trim() || '组卷预览'
-        const questions = location.state.composeQuestions
-        saveComposeDraft(user, { title, questions })
-        setExam({ title, questions })
-        setComposeTitle(title)
+      const storedDraft = loadComposeDraft(user)
+      if (storedDraft && storedDraft.questions && storedDraft.questions.length > 0) {
+        setExam({ title: storedDraft.title || '组卷预览', questions: storedDraft.questions })
+        setComposeTitle(storedDraft.title || '组卷预览')
         setLoading(false)
         setError('')
         return
