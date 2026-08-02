@@ -1,4 +1,5 @@
 import { AlertTriangle, Loader2, Search } from 'lucide-react'
+import { normalizeApiError } from '../utils/normalizeApiError'
 
 export function PageShell({ children, className = '', fit = false }) {
   return (
@@ -133,11 +134,7 @@ export function EmptyState({ icon: Icon, title = '暂无数据', description, ac
 }
 
 export function ErrorState({ title = '加载失败', description, onRetry, actionLabel = '重试' }) {
-  const safeDescription = typeof description === 'string'
-    ? description
-    : (description && typeof description === 'object' && 'msg' in description)
-      ? description.msg
-      : String(description?.message || description || '')
+  const safeDescription = description == null ? '' : normalizeApiError(description, '加载失败')
 
   return (
     <div className="v2-state v2-state-error">

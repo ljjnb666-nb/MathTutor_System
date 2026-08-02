@@ -16,14 +16,22 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getExam, gradeExam, saveExam } from '../services/api'
-import { normalizeApiError } from '../services/httpClient'
-import KnowledgeCard from '../components/KnowledgeCard'
 import StudentSelectorModal from '../components/StudentSelectorModal'
+import { useAuth } from '../contexts/AuthContext'
 import { useStudent } from '../contexts/StudentContext'
 import { EmptyState, ErrorState, LoadingState, PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
+import { normalizeApiError } from '../utils/normalizeApiError'
 import 'katex/dist/katex.min.css'
 
-export const COMPOSE_DRAFT_KEY = 'mathtutor_compose_draft'
+export const COMPOSE_DRAFT_PREFIX = 'mathtutor_compose_draft:v1:'
+export const COMPOSE_DRAFT_TTL_MS = 12 * 60 * 60 * 1000
+
+export function getComposeDraftKey(user) {
+  if (!user) return null
+  const userId = user.id != null ? user.id : (user.username ? String(user.username).trim().toLowerCase() : null)
+  if (!userId) return null
+  return `${COMPOSE_DRAFT_PREFIX}${userId}`
+}
 
 export function parseValidExamId(value) {
   if (value == null) return null
@@ -36,43 +44,75 @@ export function parseValidExamId(value) {
   return null
 }
 
-export function saveComposeDraft(draft) {
+export function saveComposeDraft(user, draft) {
   try {
+    const key = getComposeDraftKey(user)
+    if (!key) return
     if (!draft || !Array.isArray(draft.questions) || draft.questions.length === 0) {
-      sessionStorage.removeItem(COMPOSE_DRAFT_KEY)
+      sessionStorage.removeItem(key)
+      return
+    }
+    const validQuestions = draft.questions.filter((q) => q && typeof q === 'object')
+    if (validQuestions.length === 0) {
+      sessionStorage.removeItem(key)
       return
     }
     const payload = {
       version: 1,
       createdAt: Date.now(),
-      title: draft.title || '组卷预览',
-      questions: draft.questions,
+      title: typeof draft.title === 'string' ? draft.title : '组卷预览',
+      questions: validQuestions,
     }
-    sessionStorage.setItem(COMPOSE_DRAFT_KEY, JSON.stringify(payload))
+    sessionStorage.setItem(key, JSON.stringify(payload))
   } catch {
     // Ignore storage errors
   }
 }
 
-export function loadComposeDraft() {
+export function loadComposeDraft(user) {
   try {
-    const raw = sessionStorage.getItem(COMPOSE_DRAFT_KEY)
+    const key = getComposeDraftKey(user)
+    if (!key) return null
+    const raw = sessionStorage.getItem(key)
     if (!raw) return null
     const parsed = JSON.parse(raw)
-    if (parsed && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
-      return parsed
+
+    if (
+      !parsed ||
+      parsed.version !== 1 ||
+      typeof parsed.createdAt !== 'number' ||
+      !Number.isFinite(parsed.createdAt) ||
+      typeof parsed.title !== 'string' ||
+      !Array.isArray(parsed.questions) ||
+      parsed.questions.length === 0
+    ) {
+      sessionStorage.removeItem(key)
+      return null
     }
-    sessionStorage.removeItem(COMPOSE_DRAFT_KEY)
-    return null
+
+    if (Date.now() - parsed.createdAt > COMPOSE_DRAFT_TTL_MS) {
+      sessionStorage.removeItem(key)
+      return null
+    }
+
+    const validQuestions = parsed.questions.filter((q) => q && typeof q === 'object')
+    if (validQuestions.length === 0) {
+      sessionStorage.removeItem(key)
+      return null
+    }
+
+    return { title: parsed.title, questions: validQuestions }
   } catch {
-    sessionStorage.removeItem(COMPOSE_DRAFT_KEY)
+    const key = getComposeDraftKey(user)
+    if (key) sessionStorage.removeItem(key)
     return null
   }
 }
 
-export function clearComposeDraft() {
+export function clearComposeDraft(user) {
   try {
-    sessionStorage.removeItem(COMPOSE_DRAFT_KEY)
+    const key = getComposeDraftKey(user)
+    if (key) sessionStorage.removeItem(key)
   } catch {
     // Ignore storage errors
   }
@@ -189,6 +229,7 @@ export default function ExamPreview() {
   const { id } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { currentStudent } = useStudent()
   const [exam, setExam] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -207,21 +248,21 @@ export default function ExamPreview() {
 
   useEffect(() => {
     if (isComposeMode) {
-      if (location.state?.composeQuestions && Array.isArray(location.state.composeQuestions) && location.state.composeQuestions.length > 0) {
-        const title = (location.state?.composeTitle ?? '组卷预览').trim() || '组卷预览'
-        const questions = location.state.composeQuestions
-        saveComposeDraft({ title, questions })
-        setExam({ title, questions })
-        setComposeTitle(title)
+      const draft = loadComposeDraft(user)
+      if (draft && draft.questions && draft.questions.length > 0) {
+        setExam({ title: draft.title || '组卷预览', questions: draft.questions })
+        setComposeTitle(draft.title || '组卷预览')
         setLoading(false)
         setError('')
         return
       }
 
-      const draft = loadComposeDraft()
-      if (draft && draft.questions && draft.questions.length > 0) {
-        setExam({ title: draft.title || '组卷预览', questions: draft.questions })
-        setComposeTitle(draft.title || '组卷预览')
+      if (location.state?.composeQuestions && Array.isArray(location.state.composeQuestions) && location.state.composeQuestions.length > 0) {
+        const title = (location.state?.composeTitle ?? '组卷预览').trim() || '组卷预览'
+        const questions = location.state.composeQuestions
+        saveComposeDraft(user, { title, questions })
+        setExam({ title, questions })
+        setComposeTitle(title)
         setLoading(false)
         setError('')
         return
@@ -247,7 +288,7 @@ export default function ExamPreview() {
       .then((response) => setExam(response.data))
       .catch((err) => setError(normalizeApiError(err, '加载试卷失败')))
       .finally(() => setLoading(false))
-  }, [id, isComposeMode, location.state])
+  }, [id, isComposeMode, location.state, user])
 
   const questions = useMemo(() => getQuestions(exam), [exam])
   const lessonPlan = isLessonPlan(exam)
@@ -255,6 +296,12 @@ export default function ExamPreview() {
   const canGrade = !isComposeMode && exam?.id != null && questions.length > 0
   const markedCount = Object.keys(gradingResults).length
   const correctCount = Object.values(gradingResults).filter(Boolean).length
+
+  useEffect(() => {
+    if (isComposeMode && user && questions.length > 0 && !loading) {
+      saveComposeDraft(user, { title: composeTitle, questions })
+    }
+  }, [isComposeMode, user, composeTitle, questions, loading])
 
   const grouped = useMemo(() => {
     const groups = { 选择: [], 填空: [], 解答: [] }
@@ -277,7 +324,7 @@ export default function ExamPreview() {
           difficulty: question.difficulty ?? '',
         })),
       })
-      clearComposeDraft()
+      clearComposeDraft(user)
       toast.success('试卷已保存')
       if (data?.id != null) navigate(`/exams/${data.id}`, { replace: true })
     } catch (err) {

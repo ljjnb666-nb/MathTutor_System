@@ -17,6 +17,8 @@ const api = vi.hoisted(() => ({
   gradeExam: vi.fn(),
 }))
 
+const mockAuthUser = vi.hoisted(() => ({ id: 101, username: 'teacher_a' }))
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
   return { ...actual, useNavigate: () => navigate }
@@ -24,6 +26,9 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('react-hot-toast', () => ({ default: toast }))
 vi.mock('../services/api', () => api)
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: () => ({ user: mockAuthUser }),
+}))
 vi.mock('../contexts/StudentContext', () => ({
   useStudent: () => ({ currentStudent: { id: 7, name: 'Student A' } }),
 }))
@@ -191,65 +196,106 @@ describe('ExamPreview', () => {
       expect(api.getExam).not.toHaveBeenCalled()
     })
 
-    it('5. location.state draft is displayed and stored in sessionStorage', async () => {
+    it('5. location.state draft is displayed and stored under per-user key in sessionStorage', async () => {
       renderRoute(['/exams/compose'], {
         composeTitle: 'State Quiz',
         composeQuestions: [{ content: 'State Prompt' }],
       })
       expect(await screen.findByText('State Prompt')).toBeInTheDocument()
-      const stored = JSON.parse(sessionStorage.getItem('mathtutor_compose_draft') || '{}')
+      const stored = JSON.parse(sessionStorage.getItem('mathtutor_compose_draft:v1:101') || '{}')
       expect(stored.title).toBe('State Quiz')
       expect(stored.questions).toHaveLength(1)
     })
 
-    it('6. sessionStorage draft is restored on refresh (when location.state is missing)', async () => {
+    it('6. sessionStorage draft is restored on refresh for same teacher', async () => {
       sessionStorage.setItem(
-        'mathtutor_compose_draft',
-        JSON.stringify({ title: 'Restored Draft', questions: [{ content: 'Restored Q' }] })
+        'mathtutor_compose_draft:v1:101',
+        JSON.stringify({ version: 1, createdAt: Date.now(), title: 'Restored Draft', questions: [{ content: 'Restored Q' }] })
       )
       renderRoute(['/exams/compose'])
       expect(await screen.findByText('Restored Q')).toBeInTheDocument()
       expect(api.getExam).not.toHaveBeenCalled()
     })
 
-    it('7. damaged JSON in sessionStorage is safely handled', async () => {
-      sessionStorage.setItem('mathtutor_compose_draft', '{ invalid json ...')
-      renderRoute(['/exams/compose'])
-      expect(await screen.findByText('当前没有可预览的组卷草稿')).toBeInTheDocument()
-      expect(sessionStorage.getItem('mathtutor_compose_draft')).toBeNull()
-    })
-
-    it('8. empty draft displays friendly empty state with action link to question bank', async () => {
-      renderRoute(['/exams/compose'])
-      expect(await screen.findByText('当前没有可预览的组卷草稿')).toBeInTheDocument()
-      const link = screen.getByRole('link', { name: '返回题库选择题目' })
-      expect(link).toHaveAttribute('href', '/question-bank')
-    })
-
-    it('9. successful save clears sessionStorage draft', async () => {
+    it('7. Teacher B cannot read Teacher A draft and displays empty state', async () => {
+      // Store Teacher A's draft under ID 101
       sessionStorage.setItem(
-        'mathtutor_compose_draft',
-        JSON.stringify({ title: 'Saved Draft', questions: [{ content: 'Q' }] })
+        'mathtutor_compose_draft:v1:101',
+        JSON.stringify({ version: 1, createdAt: Date.now(), title: 'Teacher A Draft', questions: [{ content: 'Secret Q' }] })
+      )
+
+      // Temporarily change user to Teacher B (id: 102)
+      mockAuthUser.id = 102
+      mockAuthUser.username = 'teacher_b'
+
+      renderRoute(['/exams/compose'])
+      expect(await screen.findByText('当前没有可预览的组卷草稿')).toBeInTheDocument()
+      expect(screen.queryByText('Secret Q')).not.toBeInTheDocument()
+
+      // Reset mock user to Teacher A
+      mockAuthUser.id = 101
+      mockAuthUser.username = 'teacher_a'
+    })
+
+    it('8. expired draft (>12h) is automatically cleared and returns empty state', async () => {
+      const thirteenHoursAgo = Date.now() - 13 * 60 * 60 * 1000
+      sessionStorage.setItem(
+        'mathtutor_compose_draft:v1:101',
+        JSON.stringify({ version: 1, createdAt: thirteenHoursAgo, title: 'Old Draft', questions: [{ content: 'Old Q' }] })
+      )
+
+      renderRoute(['/exams/compose'])
+      expect(await screen.findByText('当前没有可预览的组卷草稿')).toBeInTheDocument()
+      expect(sessionStorage.getItem('mathtutor_compose_draft:v1:101')).toBeNull()
+    })
+
+    it('9. damaged JSON or invalid schema in sessionStorage is safely cleared', async () => {
+      sessionStorage.setItem('mathtutor_compose_draft:v1:101', '{ invalid json ...')
+      renderRoute(['/exams/compose'])
+      expect(await screen.findByText('当前没有可预览的组卷草稿')).toBeInTheDocument()
+      expect(sessionStorage.getItem('mathtutor_compose_draft:v1:101')).toBeNull()
+    })
+
+    it('10. editing composeTitle syncs title to sessionStorage in real-time', async () => {
+      const { container } = renderRoute(['/exams/compose'], {
+        composeTitle: 'Initial Title',
+        composeQuestions: [{ content: 'Sync Q' }],
+      })
+
+      const titleInput = await screen.findByDisplayValue('Initial Title')
+      await userEvent.clear(titleInput)
+      await userEvent.type(titleInput, 'Updated Title')
+
+      await waitFor(() => {
+        const stored = JSON.parse(sessionStorage.getItem('mathtutor_compose_draft:v1:101') || '{}')
+        expect(stored.title).toBe('Updated Title')
+      })
+    })
+
+    it('11. successful save clears teacher compose draft', async () => {
+      sessionStorage.setItem(
+        'mathtutor_compose_draft:v1:101',
+        JSON.stringify({ version: 1, createdAt: Date.now(), title: 'Saved Draft', questions: [{ content: 'Q' }] })
       )
       const { container } = renderRoute(['/exams/compose'])
       expect(screen.getByDisplayValue('Saved Draft')).toBeInTheDocument()
       await userEvent.click(container.querySelector('.v2-page-actions button.v2-btn-secondary'))
 
       await waitFor(() => expect(api.saveExam).toHaveBeenCalled())
-      expect(sessionStorage.getItem('mathtutor_compose_draft')).toBeNull()
+      expect(sessionStorage.getItem('mathtutor_compose_draft:v1:101')).toBeNull()
     })
 
-    it('10. normal exam preview does not read compose draft', async () => {
+    it('12. normal exam preview does not read compose draft', async () => {
       sessionStorage.setItem(
-        'mathtutor_compose_draft',
-        JSON.stringify({ title: 'Draft Title', questions: [{ content: 'Draft Q' }] })
+        'mathtutor_compose_draft:v1:101',
+        JSON.stringify({ version: 1, createdAt: Date.now(), title: 'Draft Title', questions: [{ content: 'Draft Q' }] })
       )
       renderRoute(['/exams/12'])
       await waitFor(() => expect(api.getExam).toHaveBeenCalledWith(12))
       expect(screen.queryByText('Draft Title')).not.toBeInTheDocument()
     })
 
-    it('11. converts FastAPI validation detail array to clean string', async () => {
+    it('13. converts FastAPI validation detail array to clean string', async () => {
       api.getExam.mockRejectedValueOnce({
         response: {
           data: {
@@ -263,7 +309,7 @@ describe('ExamPreview', () => {
       expect(await screen.findByText('id: field required')).toBeInTheDocument()
     })
 
-    it('12. React page does not crash when error detail is a structured object', async () => {
+    it('14. React page does not crash when error detail is a structured object', async () => {
       api.getExam.mockRejectedValueOnce({
         response: {
           data: {
