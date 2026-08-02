@@ -182,7 +182,17 @@ export default function AIChat() {
           },
           (data) => {
             setLoading(false)
-            if (data?.error) toast.error(data.error)
+            if (data?.error) {
+              setChatError(data.error)
+              toast.error(data.error)
+              setMessages((m) => {
+                const next = [...m]
+                const last = next[next.length - 1]
+                if (last?.role === 'assistant' && !(last.content || '').trim()) return next.slice(0, -1)
+                return next
+              })
+              return
+            }
             if (data?.session_id != null) {
               setCurrentSessionId(data.session_id)
               fetchSessions()
@@ -283,6 +293,13 @@ export default function AIChat() {
           if (data?.error) {
             setChatError(data.error)
             toast.error(data.error)
+            setMessages((m) => {
+              const next = [...m]
+              const last = next[next.length - 1]
+              if (last?.role === 'assistant' && !(last.content || '').trim()) return next.slice(0, -1)
+              return next
+            })
+            return
           } else {
             setRetryText('')
           }

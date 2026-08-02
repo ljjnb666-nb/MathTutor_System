@@ -3,7 +3,7 @@ API 路由汇总
 """
 from fastapi import APIRouter
 
-from app.api.endpoints import analysis, auth, chat, dashboard, exams, generation, mistakes, orders, plans, question_bank, questions, rag, reports, schedule, students, subscription as subscription_ep, student_router, teacher_agent, tools, upload, users
+from app.api.endpoints import analysis, auth, chat, dashboard, exams, generation, llm, mistakes, orders, plans, question_bank, questions, rag, reports, schedule, students, subscription as subscription_ep, student_router, teacher_agent, tools, upload, users
 
 api_router = APIRouter()
 
@@ -13,6 +13,7 @@ api_router.include_router(subscription_ep.router, prefix="/subscription", tags=[
 api_router.include_router(orders.router, prefix="", tags=["订单与支付"])
 api_router.include_router(users.router, prefix="/users", tags=["管理员管理"])
 api_router.include_router(generation.router, prefix="", tags=["智能出题"])  # POST /api/generate
+api_router.include_router(llm.router, prefix="/llm", tags=["LLM 配置"])
 api_router.include_router(chat.router, prefix="/chat", tags=["AI 对话"])
 api_router.include_router(teacher_agent.router, prefix="/teacher-agent", tags=["Teacher Agent"])
 api_router.include_router(questions.router, prefix="/questions", tags=["questions"])

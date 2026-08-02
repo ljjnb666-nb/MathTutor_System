@@ -3,9 +3,10 @@ import { AUTH_TOKEN_KEY, buildAuthHeaders, buildClientLlmHeaders, shouldSendClie
 
 const settings = {
   provider: 'openai',
-  apiKey: 'client-secret',
-  baseUrl: 'https://client.example',
   model: 'client-model',
+  apiKeysByProvider: { openai: 'client-secret' },
+  baseUrlsByProvider: { openai: 'https://client.example/' },
+  apiVersionsByProvider: { openai: 'v1' },
 }
 
 beforeEach(() => {
@@ -28,7 +29,8 @@ describe('httpClient LLM headers', () => {
     expect(buildClientLlmHeaders(meta)).toEqual({
       'x-llm-provider': 'openai',
       'x-llm-api-key': 'client-secret',
-      'x-llm-base-url': 'https://client.example',
+      'x-llm-base-url': 'https://api.openai.com/v1',
+      'x-llm-api-version': 'v1',
       'x-llm-model': 'client-model',
     })
   })
@@ -36,6 +38,7 @@ describe('httpClient LLM headers', () => {
   it('uses explicit VITE_ALLOW_CLIENT_LLM_CONFIG before DEV default', () => {
     expect(shouldSendClientLlmHeaders({ env: { DEV: true, VITE_ALLOW_CLIENT_LLM_CONFIG: 'false' } })).toBe(false)
     expect(shouldSendClientLlmHeaders({ env: { DEV: false, VITE_ALLOW_CLIENT_LLM_CONFIG: 'true' } })).toBe(true)
+    expect(shouldSendClientLlmHeaders({ DEV: false, VITE_ALLOW_CLIENT_LLM_CONFIG: 'true' })).toBe(true)
   })
 
   it('keeps buildAuthHeaders consistent with client LLM header policy', () => {
@@ -50,5 +53,21 @@ describe('httpClient LLM headers', () => {
     } else {
       expect(headers['x-llm-api-key']).toBeUndefined()
     }
+  })
+
+  it('does not send an empty API key header', () => {
+    localStorage.setItem('app_settings', JSON.stringify({
+      provider: 'openai',
+      model: 'client-model',
+      apiKeysByProvider: { openai: '' },
+      baseUrlsByProvider: { openai: 'https://client.example' },
+    }))
+
+    expect(buildClientLlmHeaders({ env: { DEV: true } })).toEqual({
+      'x-llm-provider': 'openai',
+      'x-llm-base-url': 'https://api.openai.com/v1',
+      'x-llm-api-version': 'v1',
+      'x-llm-model': 'client-model',
+    })
   })
 })

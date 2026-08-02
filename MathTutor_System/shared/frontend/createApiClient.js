@@ -6,13 +6,14 @@ export function buildApiBaseURL(importMeta) {
 
 export function createApiClient(axios, {
   importMeta,
+  baseURL,
   tokenStorageKey,
   getExtraHeaders,
   onUnauthorized,
   onForbidden,
 }) {
   const api = axios.create({
-    baseURL: buildApiBaseURL(importMeta),
+    baseURL: baseURL ?? buildApiBaseURL(importMeta),
     timeout: 60000,
     headers: { 'Content-Type': 'application/json' },
   })
@@ -22,7 +23,9 @@ export function createApiClient(axios, {
     if (token) config.headers.Authorization = `Bearer ${token}`
     const extraHeaders = getExtraHeaders ? getExtraHeaders() : null
     if (extraHeaders && typeof extraHeaders === 'object') {
-      Object.assign(config.headers, extraHeaders)
+      Object.entries(extraHeaders).forEach(([key, value]) => {
+        if (config.headers[key] == null) config.headers[key] = value
+      })
     }
     return config
   })

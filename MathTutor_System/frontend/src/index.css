@@ -2398,6 +2398,35 @@ body {
     @apply h-4 w-4 rounded;
   }
 
+  .v2-settings-ai-actions {
+    @apply mt-4 flex flex-wrap gap-2;
+  }
+
+  .v2-settings-test-result {
+    @apply mt-4 rounded-xl px-3 py-2 text-xs font-black;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-input);
+    color: var(--color-text-secondary);
+  }
+
+  .v2-settings-test-result.is-testing {
+    border-color: rgba(59, 130, 246, 0.28);
+    background: color-mix(in srgb, #3b82f6 10%, var(--color-bg-card));
+    color: #60a5fa;
+  }
+
+  .v2-settings-test-result.is-success {
+    border-color: rgba(16, 185, 129, 0.28);
+    background: color-mix(in srgb, #10b981 10%, var(--color-bg-card));
+    color: #34d399;
+  }
+
+  .v2-settings-test-result.is-error {
+    border-color: rgba(244, 63, 94, 0.32);
+    background: color-mix(in srgb, #f43f5e 10%, var(--color-bg-card));
+    color: #fb7185;
+  }
+
   .v2-settings-readonly {
     @apply flex items-start gap-3;
   }

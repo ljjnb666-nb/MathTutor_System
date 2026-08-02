@@ -1,9 +1,17 @@
 import axios from 'axios'
 import { createApiClient } from '../../../shared/frontend/createApiClient'
+import { getActiveLlmConfig } from '../constants/ai-providers'
 
 const STORAGE_KEY = 'app_settings'
 export const AUTH_TOKEN_KEY = 'math_tutor_auth_token'
 export const SESSION_EXPIRED_KEY = 'math_tutor_session_expired'
+const VITE_ALLOW_CLIENT_LLM_CONFIG = import.meta.env.VITE_ALLOW_CLIENT_LLM_CONFIG
+const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+const IS_DEV = import.meta.env.DEV
+const DEFAULT_CLIENT_LLM_ENV = {
+  DEV: IS_DEV,
+  VITE_ALLOW_CLIENT_LLM_CONFIG,
+}
 
 export function getAppSettings() {
   try {
@@ -15,33 +23,45 @@ export function getAppSettings() {
   }
 }
 
-export function shouldSendClientLlmHeaders(importMeta = import.meta) {
-  const explicit = importMeta?.env?.VITE_ALLOW_CLIENT_LLM_CONFIG
+function resolveEnv(importMetaOrEnv = DEFAULT_CLIENT_LLM_ENV) {
+  return importMetaOrEnv?.env ?? importMetaOrEnv ?? DEFAULT_CLIENT_LLM_ENV
+}
+
+export function shouldSendClientLlmHeaders(importMetaOrEnv = DEFAULT_CLIENT_LLM_ENV) {
+  const env = resolveEnv(importMetaOrEnv)
+  const explicit = env?.VITE_ALLOW_CLIENT_LLM_CONFIG
   if (explicit != null && explicit !== '') {
     return String(explicit).toLowerCase() === 'true'
   }
-  return Boolean(importMeta?.env?.DEV)
+  return Boolean(env?.DEV)
 }
 
-export function buildClientLlmHeaders(importMeta = import.meta) {
-  if (!shouldSendClientLlmHeaders(importMeta)) return null
+export function buildClientLlmHeaders(importMetaOrEnv = DEFAULT_CLIENT_LLM_ENV) {
+  if (!shouldSendClientLlmHeaders(importMetaOrEnv)) return null
   const settings = getAppSettings()
   if (!settings) return null
+  return buildLlmHeadersFromConfig(getActiveLlmConfig(settings))
+}
+
+export function buildLlmHeadersFromConfig(config) {
+  if (!config) return null
   const headers = {}
-  if (settings.provider) headers['x-llm-provider'] = settings.provider
-  if (settings.apiKey) headers['x-llm-api-key'] = settings.apiKey
-  if (settings.baseUrl) headers['x-llm-base-url'] = settings.baseUrl
-  if (settings.model) headers['x-llm-model'] = settings.model
-  return headers
+  if (config.provider) headers['x-llm-provider'] = config.provider
+  if (config.model) headers['x-llm-model'] = config.model
+  if (config.baseUrl) headers['x-llm-base-url'] = config.baseUrl
+  if (config.apiVersion) headers['x-llm-api-version'] = config.apiVersion
+  if (config.apiKey) headers['x-llm-api-key'] = config.apiKey
+  return Object.keys(headers).length ? headers : null
 }
 
 export const apiBaseURL =
-  typeof import.meta !== 'undefined' && import.meta.env?.DEV
+  IS_DEV
     ? ''
-    : (import.meta.env?.VITE_API_BASE_URL || '')
+    : (VITE_API_BASE_URL || '')
 
 const api = createApiClient(axios, {
   importMeta: import.meta,
+  baseURL: apiBaseURL,
   tokenStorageKey: AUTH_TOKEN_KEY,
   getExtraHeaders: buildClientLlmHeaders,
   onUnauthorized: () => {

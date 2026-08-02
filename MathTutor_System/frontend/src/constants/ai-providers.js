@@ -160,8 +160,9 @@ export function getApiKeyForProvider(providerValue) {
 }
 
 export function getBaseUrlForProvider(providerValue) {
-  const stored = getStoredSettings()
   const p = getProviderByValue(providerValue)
+  if (p.value !== 'custom') return (p.baseUrl ?? '').trim()
+  const stored = getStoredSettings()
   const byProvider = stored.baseUrlsByProvider || {}
   if (Object.prototype.hasOwnProperty.call(byProvider, providerValue))
     return byProvider[providerValue] ?? ''
@@ -187,4 +188,66 @@ export function setStoredSettings(settings) {
 
 export function getProviderByValue(value) {
   return PROVIDERS.find((p) => p.value === value) ?? PROVIDERS.find((p) => p.value === 'deepseek') ?? PROVIDERS[0]
+}
+
+export function normalizeBaseUrl(value) {
+  return String(value || '').trim().replace(/\/+$/, '')
+}
+
+export function getActiveLlmConfig(settings = getStoredSettings()) {
+  const provider = getProviderByValue(settings.provider ?? defaultSettings.provider)
+  const providerValue = provider.value
+  const apiKeysByProvider = settings.apiKeysByProvider || {}
+  const baseUrlsByProvider = settings.baseUrlsByProvider || {}
+  const apiVersionsByProvider = settings.apiVersionsByProvider || {}
+
+  const hasProviderKey = Object.prototype.hasOwnProperty.call(apiKeysByProvider, providerValue)
+  const hasProviderBaseUrl = Object.prototype.hasOwnProperty.call(baseUrlsByProvider, providerValue)
+  const hasProviderApiVersion = Object.prototype.hasOwnProperty.call(apiVersionsByProvider, providerValue)
+
+  const apiKey = hasProviderKey ? apiKeysByProvider[providerValue] ?? '' : settings.apiKey ?? ''
+  const baseUrl = providerValue === 'custom'
+    ? (hasProviderBaseUrl ? baseUrlsByProvider[providerValue] ?? '' : settings.baseUrl ?? '')
+    : provider.baseUrl ?? ''
+  const apiVersion = hasProviderApiVersion
+    ? apiVersionsByProvider[providerValue] ?? ''
+    : settings.apiVersion ?? provider.apiVersion ?? ''
+
+  return {
+    provider: providerValue,
+    model: settings.model ?? provider.models?.[0]?.value ?? '',
+    apiKey: String(apiKey || '').trim(),
+    baseUrl: normalizeBaseUrl(baseUrl),
+    apiVersion: String(apiVersion || '').trim(),
+    showThinking: Boolean(settings.showThinking),
+  }
+}
+
+export function saveActiveLlmConfig(config) {
+  const stored = getStoredSettings()
+  const provider = getProviderByValue(config.provider ?? stored.provider ?? defaultSettings.provider)
+  const providerValue = provider.value
+  const next = {
+    ...stored,
+    provider: providerValue,
+    model: config.model ?? provider.models?.[0]?.value ?? '',
+    showThinking: Boolean(config.showThinking),
+    apiKey: String(config.apiKey || '').trim(),
+    baseUrl: normalizeBaseUrl(providerValue === 'custom' ? config.baseUrl ?? '' : provider.baseUrl ?? ''),
+    apiVersion: String(config.apiVersion ?? provider.apiVersion ?? '').trim(),
+    apiKeysByProvider: {
+      ...(stored.apiKeysByProvider || {}),
+      [providerValue]: String(config.apiKey || '').trim(),
+    },
+    baseUrlsByProvider: {
+      ...(stored.baseUrlsByProvider || {}),
+      [providerValue]: normalizeBaseUrl(providerValue === 'custom' ? config.baseUrl ?? '' : provider.baseUrl ?? ''),
+    },
+    apiVersionsByProvider: {
+      ...(stored.apiVersionsByProvider || {}),
+      [providerValue]: String(config.apiVersion ?? provider.apiVersion ?? '').trim(),
+    },
+  }
+  setStoredSettings(next)
+  return next
 }

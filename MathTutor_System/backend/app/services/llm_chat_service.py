@@ -3,6 +3,8 @@ import asyncio
 import logging
 from typing import Any, AsyncGenerator
 
+import httpx
+
 from app.core.config import AI_REQUEST_TIMEOUT
 from app.services.gemini_rest_service import (
     gemini_rest_with_proxy as _gemini_rest_with_proxy,
@@ -119,6 +121,7 @@ async def chat_completion_async(
             }
             if base_url:
                 kwargs["base_url"] = base_url.rstrip("/")
+            kwargs["http_async_client"] = httpx.AsyncClient(follow_redirects=False)
             llm = ChatOpenAI(**kwargs)
             if hasattr(llm, "ainvoke"):
                 msg = await llm.ainvoke(lc_messages)
@@ -179,6 +182,7 @@ async def chat_completion_stream_async(
     }
     if base_url:
         kwargs["base_url"] = base_url.rstrip("/")
+    kwargs["http_async_client"] = httpx.AsyncClient(follow_redirects=False)
     llm = ChatOpenAI(**kwargs)
     if hasattr(llm, "astream"):
         async for chunk in llm.astream(lc_messages):

@@ -6,6 +6,7 @@ import {
   EyeOff,
   Key,
   Lock,
+  Loader2,
   MonitorCog,
   Palette,
   Save,
@@ -20,8 +21,10 @@ import {
   getBaseUrlForProvider,
   getProviderByValue,
   getStoredSettings,
-  setStoredSettings,
+  saveActiveLlmConfig,
 } from '../constants/ai-providers'
+import { buildLlmHeadersFromConfig, shouldSendClientLlmHeaders } from '../services/httpClient'
+import { testLlmConnection } from '../services/llmApi'
 import { applyTheme } from '../utils/theme'
 import { PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
 
@@ -63,9 +66,11 @@ export default function Settings() {
   const [showThinking, setShowThinking] = useState(false)
   const [showApiKey, setShowApiKey] = useState(false)
   const [notice, setNotice] = useState('')
+  const [apiTestState, setApiTestState] = useState({ status: 'idle', message: '' })
   const [activeSection, setActiveSection] = useState('profile')
 
   const provider = getProviderByValue(providerValue)
+  const isCustomProvider = provider.value === 'custom'
   const maskedKey = useMemo(() => maskApiKey(apiKey), [apiKey])
 
   useEffect(() => {
@@ -89,6 +94,13 @@ export default function Settings() {
     document.documentElement.dataset.density = savedDensity
   }, [])
 
+  useEffect(() => {
+    const safeMessage = safeApiErrorMessage(apiTestState.message, { apiKey, baseUrl })
+    if (safeMessage !== apiTestState.message) {
+      setApiTestState((state) => ({ ...state, message: safeMessage }))
+    }
+  }, [apiKey, apiTestState.message, baseUrl])
+
   function handleProviderChange(value) {
     const nextProvider = getProviderByValue(value)
     setProviderValue(nextProvider.value)
@@ -96,6 +108,7 @@ export default function Settings() {
     setApiKey(getApiKeyForProvider(nextProvider.value))
     setBaseUrl(getBaseUrlForProvider(nextProvider.value))
     setNotice('')
+    setApiTestState({ status: 'idle', message: '' })
   }
 
   function handleSaveAppearance() {
@@ -109,16 +122,55 @@ export default function Settings() {
   }
 
   function handleSaveAI() {
-    const stored = getStoredSettings()
-    setStoredSettings({
-      ...stored,
+    saveActiveLlmConfig({
       provider: providerValue,
       model,
       showThinking,
-      apiKeysByProvider: { ...(stored.apiKeysByProvider || {}), [providerValue]: apiKey },
-      baseUrlsByProvider: { ...(stored.baseUrlsByProvider || {}), [providerValue]: baseUrl.trim() },
+      apiKey,
+      baseUrl,
+      apiVersion: provider.apiVersion ?? '',
     })
     setNotice('AI 偏好已保存到当前浏览器')
+  }
+
+  async function handleTestApiKey() {
+    if (!shouldSendClientLlmHeaders()) {
+      setApiTestState({
+        status: 'error',
+        message: '当前部署未启用浏览器 API Key 模式，请由管理员配置后端密钥',
+      })
+      return
+    }
+    const config = {
+      provider: providerValue,
+      model,
+      apiKey: apiKey.trim(),
+      baseUrl: baseUrl.trim(),
+      apiVersion: provider.apiVersion ?? '',
+    }
+    if (!config.apiKey) {
+      setApiTestState({ status: 'error', message: '请先填写 API Key' })
+      return
+    }
+    saveActiveLlmConfig({ ...config, showThinking })
+    setApiTestState({ status: 'testing', message: '正在通过后端测试当前 API Key...' })
+    try {
+      const result = await testLlmConnection(buildLlmHeadersFromConfig(config) || {})
+      if (result?.ok || result?.success) {
+        setApiTestState({
+          status: 'success',
+          message: `测试通过，${result.provider || providerValue} / ${result.model || model} 可用`,
+        })
+      } else {
+        setApiTestState({ status: 'error', message: result?.message || '测试失败，请检查 API 配置' })
+      }
+    } catch (error) {
+      const detail = error?.response?.data?.detail
+      setApiTestState({
+        status: 'error',
+        message: typeof detail === 'string' ? detail : error?.response?.data?.message || error?.message || '测试失败，请检查 API 配置',
+      })
+    }
   }
 
   function handleClearLocalConfig() {
@@ -183,7 +235,7 @@ export default function Settings() {
             <ActionButton onClick={handleSaveAppearance}>保存外观设置</ActionButton>
           </SectionCard>
 
-          <SectionCard title="AI 本地偏好" description="仅写入 localStorage，不测试或上传 API Key。">
+          <SectionCard title="AI 本地偏好" description="保存到 localStorage，测试会走与聊天一致的后端配置链路。">
             <div className="v2-settings-control-grid two">
               <SelectField
                 label="默认 Provider"
@@ -199,7 +251,13 @@ export default function Settings() {
               />
             </div>
             <div className="v2-settings-control-grid two">
-              <TextField label="Base URL" value={baseUrl} onChange={setBaseUrl} placeholder={provider.baseUrl || ''} />
+              <TextField
+                label="Base URL"
+                value={baseUrl}
+                onChange={setBaseUrl}
+                placeholder={provider.baseUrl || ''}
+                disabled={!isCustomProvider}
+              />
               <div>
                 <label className="v2-settings-label" htmlFor="settings-api-key">API Key</label>
                 <div className="v2-settings-secret">
@@ -223,11 +281,24 @@ export default function Settings() {
                 </p>
               </div>
             </div>
+            <p className="v2-settings-help" data-testid="base-url-security-hint">
+              {isCustomProvider
+                ? 'Custom Base URL requires backend ALLOW_CUSTOM_LLM_BASE_URL and CLIENT_LLM_ALLOWED_HOSTS.'
+                : 'Preset providers use the official Base URL; arbitrary browser Base URLs are rejected by the backend.'}
+            </p>
             <label className="v2-settings-toggle">
               <input type="checkbox" checked={showThinking} onChange={(e) => setShowThinking(e.target.checked)} />
               <span>显示 AI 思考过程</span>
             </label>
-            <ActionButton onClick={handleSaveAI}>保存 AI 偏好</ActionButton>
+            {apiTestState.message && (
+              <p className={`v2-settings-test-result is-${apiTestState.status}`} role="status" data-testid="api-key-test-result">
+                {apiTestState.message}
+              </p>
+            )}
+            <div className="v2-settings-ai-actions">
+              <ActionButton onClick={handleSaveAI}>保存 AI 偏好</ActionButton>
+              <TestButton onClick={handleTestApiKey} loading={apiTestState.status === 'testing'} />
+            </div>
           </SectionCard>
 
           <div className="v2-settings-split">
@@ -294,11 +365,11 @@ function SelectField({ label, value, onChange, options }) {
   )
 }
 
-function TextField({ label, value, onChange, placeholder }) {
+function TextField({ label, value, onChange, placeholder, disabled = false }) {
   return (
     <label className="v2-settings-label">
       {label}
-      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} disabled={disabled} />
     </label>
   )
 }
@@ -308,6 +379,15 @@ function ActionButton({ onClick, children }) {
     <button type="button" onClick={onClick} className="v2-btn-primary">
       <Save className="h-4 w-4" />
       {children}
+    </button>
+  )
+}
+
+function TestButton({ onClick, loading }) {
+  return (
+    <button type="button" onClick={onClick} className="v2-btn-secondary" disabled={loading}>
+      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Key className="h-4 w-4" />}
+      {loading ? '测试中...' : '测试 API Key'}
     </button>
   )
 }
@@ -328,6 +408,15 @@ function maskApiKey(value) {
   if (!value) return ''
   if (value.length <= 8) return '*'.repeat(value.length)
   return `${value.slice(0, 4)}...${value.slice(-4)}`
+}
+
+function safeApiErrorMessage(message, config) {
+  let text = String(message || '').trim()
+  for (const sensitive of [config?.apiKey, config?.baseUrl]) {
+    const value = String(sensitive || '').trim()
+    if (value) text = text.split(value).join('[redacted]')
+  }
+  return text
 }
 
 function optionLabel(options, value) {
