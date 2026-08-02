@@ -121,4 +121,21 @@ describe('ImportExam', () => {
     expect(await screen.findByText('重试成功')).toBeInTheDocument()
     expect(api.parseWordExam).toHaveBeenCalledTimes(2)
   })
+
+  it('V3-03 regression: renders 5 StepCards inside responsive grid container with mobile, sm, and xl classes', () => {
+    const { container } = render(<ImportExam />)
+
+    const stepCards = container.querySelectorAll('.v2-import-step')
+    expect(stepCards).toHaveLength(5)
+
+    expect(screen.getByText('上传文件')).toBeInTheDocument()
+    expect(screen.getByText('OCR识别')).toBeInTheDocument()
+    expect(screen.getByText('结构解析')).toBeInTheDocument()
+    expect(screen.getByText('知识点标注')).toBeInTheDocument()
+    expect(screen.getByText('入库完成')).toBeInTheDocument()
+
+    const gridContainer = stepCards[0].parentElement
+    expect(gridContainer).toHaveClass('grid', 'grid-cols-2', 'sm:grid-cols-3', 'xl:grid-cols-5')
+  })
 })
+

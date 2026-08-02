@@ -87,4 +87,9 @@ export function buildAuthHeaders() {
   return headers
 }
 
+import { normalizeApiError } from '../utils/normalizeApiError'
+
+export { normalizeApiError }
 export default api
+
+

@@ -18,9 +18,103 @@ import toast from 'react-hot-toast'
 import { getExam, gradeExam, saveExam } from '../services/api'
 import KnowledgeCard from '../components/KnowledgeCard'
 import StudentSelectorModal from '../components/StudentSelectorModal'
+import { useAuth } from '../contexts/AuthContext'
 import { useStudent } from '../contexts/StudentContext'
 import { EmptyState, ErrorState, LoadingState, PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
+import { normalizeApiError } from '../utils/normalizeApiError'
 import 'katex/dist/katex.min.css'
+
+export const COMPOSE_DRAFT_PREFIX = 'mathtutor_compose_draft:v1:'
+export const COMPOSE_DRAFT_TTL_MS = 12 * 60 * 60 * 1000
+
+export function getComposeDraftKey(user) {
+  if (!user) return null
+  const userId = user.id != null ? user.id : (user.username ? String(user.username).trim().toLowerCase() : null)
+  if (!userId) return null
+  return `${COMPOSE_DRAFT_PREFIX}${userId}`
+}
+
+export function parseValidExamId(value) {
+  if (value == null) return null
+  const str = String(value).trim()
+  if (!str || str === 'compose') return null
+  if (/^\d+$/.test(str)) {
+    const num = Number(str)
+    return Number.isFinite(num) && num > 0 ? num : null
+  }
+  return null
+}
+
+export function saveComposeDraft(user, draft) {
+  try {
+    const key = getComposeDraftKey(user)
+    if (!key) return
+    if (
+      !draft ||
+      typeof draft !== 'object' ||
+      !Array.isArray(draft.questions) ||
+      draft.questions.length === 0 ||
+      !draft.questions.every((q) => q && typeof q === 'object' && !Array.isArray(q))
+    ) {
+      sessionStorage.removeItem(key)
+      return
+    }
+    const payload = {
+      version: 1,
+      createdAt: Date.now(),
+      title: typeof draft.title === 'string' ? draft.title : '组卷预览',
+      questions: draft.questions,
+    }
+    sessionStorage.setItem(key, JSON.stringify(payload))
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+export function loadComposeDraft(user) {
+  try {
+    const key = getComposeDraftKey(user)
+    if (!key) return null
+    const raw = sessionStorage.getItem(key)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+
+    if (
+      !parsed ||
+      typeof parsed !== 'object' ||
+      parsed.version !== 1 ||
+      typeof parsed.createdAt !== 'number' ||
+      !Number.isFinite(parsed.createdAt) ||
+      typeof parsed.title !== 'string' ||
+      !Array.isArray(parsed.questions) ||
+      parsed.questions.length === 0 ||
+      !parsed.questions.every((q) => q && typeof q === 'object' && !Array.isArray(q))
+    ) {
+      sessionStorage.removeItem(key)
+      return null
+    }
+
+    if (Date.now() - parsed.createdAt > COMPOSE_DRAFT_TTL_MS) {
+      sessionStorage.removeItem(key)
+      return null
+    }
+
+    return { title: parsed.title, questions: parsed.questions }
+  } catch {
+    const key = getComposeDraftKey(user)
+    if (key) sessionStorage.removeItem(key)
+    return null
+  }
+}
+
+export function clearComposeDraft(user) {
+  try {
+    const key = getComposeDraftKey(user)
+    if (key) sessionStorage.removeItem(key)
+  } catch {
+    // Ignore storage errors
+  }
+}
 
 const DEFAULT_LAYOUT = {
   showAnswer: false,
@@ -133,6 +227,7 @@ export default function ExamPreview() {
   const { id } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { currentStudent } = useStudent()
   const [exam, setExam] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -147,25 +242,68 @@ export default function ExamPreview() {
   const [submittingGrade, setSubmittingGrade] = useState(false)
   const [submittedGrades, setSubmittedGrades] = useState(false)
 
-  const isComposeMode = id === 'compose' && location.state?.composeQuestions != null
+  const isComposeMode = id === 'compose'
 
   useEffect(() => {
     if (isComposeMode) {
-      const title = (location.state?.composeTitle ?? '组卷预览').trim() || '组卷预览'
-      setExam({ title, questions: location.state.composeQuestions || [] })
-      setComposeTitle(title)
+      if (
+        location.state?.composeQuestions &&
+        Array.isArray(location.state.composeQuestions) &&
+        location.state.composeQuestions.length > 0 &&
+        location.state.composeQuestions.every((q) => q && typeof q === 'object' && !Array.isArray(q))
+      ) {
+        const title = (location.state?.composeTitle ?? '组卷预览').trim() || '组卷预览'
+        const questions = location.state.composeQuestions
+        const newDraft = { title, questions }
+        saveComposeDraft(user, newDraft)
+        setExam(newDraft)
+        setComposeTitle(title)
+        setLoading(false)
+        setError('')
+        navigate(
+          {
+            pathname: location.pathname,
+            search: location.search,
+            hash: location.hash,
+          },
+          {
+            replace: true,
+            state: null,
+          }
+        )
+        return
+      }
+
+      const storedDraft = loadComposeDraft(user)
+      if (storedDraft && storedDraft.questions && storedDraft.questions.length > 0) {
+        setExam({ title: storedDraft.title || '组卷预览', questions: storedDraft.questions })
+        setComposeTitle(storedDraft.title || '组卷预览')
+        setLoading(false)
+        setError('')
+        return
+      }
+
+      setExam({ title: '组卷预览', questions: [] })
+      setComposeTitle('组卷预览')
       setLoading(false)
       setError('')
       return
     }
-    if (!id) return
+
+    const validId = parseValidExamId(id)
+    if (validId == null) {
+      setLoading(false)
+      setError('无效的试卷 ID')
+      return
+    }
+
     setLoading(true)
     setError('')
-    getExam(Number(id))
+    getExam(validId)
       .then((response) => setExam(response.data))
-      .catch((err) => setError(err?.response?.data?.detail || err?.message || '加载试卷失败'))
+      .catch((err) => setError(normalizeApiError(err, '加载试卷失败')))
       .finally(() => setLoading(false))
-  }, [id, isComposeMode, location.state])
+  }, [id, isComposeMode, location.hash, location.pathname, location.search, location.state, navigate, user])
 
   const questions = useMemo(() => getQuestions(exam), [exam])
   const lessonPlan = isLessonPlan(exam)
@@ -173,6 +311,12 @@ export default function ExamPreview() {
   const canGrade = !isComposeMode && exam?.id != null && questions.length > 0
   const markedCount = Object.keys(gradingResults).length
   const correctCount = Object.values(gradingResults).filter(Boolean).length
+
+  useEffect(() => {
+    if (isComposeMode && user && questions.length > 0 && !loading) {
+      saveComposeDraft(user, { title: composeTitle, questions })
+    }
+  }, [isComposeMode, user, composeTitle, questions, loading])
 
   const grouped = useMemo(() => {
     const groups = { 选择: [], 填空: [], 解答: [] }
@@ -195,10 +339,11 @@ export default function ExamPreview() {
           difficulty: question.difficulty ?? '',
         })),
       })
+      clearComposeDraft(user)
       toast.success('试卷已保存')
       if (data?.id != null) navigate(`/exams/${data.id}`, { replace: true })
     } catch (err) {
-      toast.error(err?.response?.data?.detail || err?.message || '保存失败')
+      toast.error(normalizeApiError(err, '保存失败'))
     } finally {
       setSaving(false)
     }
@@ -339,7 +484,18 @@ export default function ExamPreview() {
             )}
 
             {questions.length === 0 ? (
-              <EmptyState icon={FileText} title="暂无题目" description="当前试卷没有可预览的题目。" />
+              <EmptyState
+                icon={FileText}
+                title={isComposeMode ? '当前没有可预览的组卷草稿' : '暂无题目'}
+                description={isComposeMode ? '请先从题库管理中勾选题目并生成预览试卷。' : '当前试卷没有可预览的题目。'}
+                action={
+                  isComposeMode ? (
+                    <div className="flex justify-center gap-2">
+                      <Link to="/question-bank" className="v2-btn-primary">返回题库选择题目</Link>
+                    </div>
+                  ) : undefined
+                }
+              />
             ) : (
               <div className="v2-preview-paper-frame" data-testid="exam-preview-paper-frame">
                 <div className={`v2-preview-paper ${layout.paperSize.toLowerCase()} columns-${layout.columns}`} data-show-answer={layout.showAnswer} data-testid="exam-preview-paper">
