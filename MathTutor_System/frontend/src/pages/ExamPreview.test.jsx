@@ -68,8 +68,20 @@ const exam = {
 const css = readFileSync(join(process.cwd(), 'src/index.css'), 'utf8')
 
 function renderRoute(initialEntries = ['/exams/12'], state) {
+  const entries = initialEntries.map((entry) => {
+    if (typeof entry === 'string') {
+      const url = new URL(entry, 'http://localhost')
+      return {
+        pathname: url.pathname,
+        search: url.search,
+        hash: url.hash,
+        state,
+      }
+    }
+    return entry
+  })
   return render(
-    <MemoryRouter initialEntries={state ? [{ pathname: initialEntries[0], state }] : initialEntries}>
+    <MemoryRouter initialEntries={entries}>
       <Routes>
         <Route path="/exams/:id" element={<ExamPreview />} />
       </Routes>
@@ -449,6 +461,68 @@ describe('ExamPreview', () => {
       expect(await screen.findByText('当前没有可预览的组卷草稿')).toBeInTheDocument()
       expect(sessionStorage.getItem('mathtutor_compose_draft:v1:101')).toBeNull()
       expect(sessionStorage.getItem('mathtutor_compose_draft:v1:102')).not.toBeNull()
+    })
+
+    it('23. KnowledgeCard P1 regression: renders KnowledgeCard for saved lesson-plan exam without ReferenceError', async () => {
+      api.getExam.mockResolvedValueOnce({
+        data: {
+          id: 50,
+          title: '函数备课教案',
+          questions: {
+            knowledge_card: {
+              title: '二次函数顶点式',
+              summary: 'y = a(x-h)^2 + k',
+              key_points: ['忽略 a ≠ 0 条件'],
+            },
+            questions: [{ content: '求二次函数顶点' }],
+          },
+        },
+      })
+
+      renderRoute(['/exams/50'])
+
+      expect(await screen.findByTestId('knowledge-card')).toBeInTheDocument()
+      expect(screen.queryByText('KnowledgeCard is not defined')).not.toBeInTheDocument()
+    })
+
+    it('24. Navigation State P2 regression: location.state is consumed once and cleared via replace navigation', async () => {
+      renderRoute(['/exams/compose'], {
+        composeTitle: 'Consume Once Title',
+        composeQuestions: [{ content: 'Consume Q' }],
+      })
+
+      expect(await screen.findByText('Consume Q')).toBeInTheDocument()
+      expect(navigate).toHaveBeenCalledWith(
+        {
+          pathname: '/exams/compose',
+          search: '',
+          hash: '',
+        },
+        {
+          replace: true,
+          state: null,
+        }
+      )
+    })
+
+    it('25. Navigation State P2 regression: URL search params and hash are preserved during replace navigation', async () => {
+      renderRoute(['/exams/compose?tab=overview#section2'], {
+        composeTitle: 'URL State Title',
+        composeQuestions: [{ content: 'URL State Q' }],
+      })
+
+      expect(await screen.findByText('URL State Q')).toBeInTheDocument()
+      expect(navigate).toHaveBeenCalledWith(
+        {
+          pathname: '/exams/compose',
+          search: '?tab=overview',
+          hash: '#section2',
+        },
+        {
+          replace: true,
+          state: null,
+        }
+      )
     })
   })
 })

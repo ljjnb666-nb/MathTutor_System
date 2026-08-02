@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getExam, gradeExam, saveExam } from '../services/api'
+import KnowledgeCard from '../components/KnowledgeCard'
 import StudentSelectorModal from '../components/StudentSelectorModal'
 import { useAuth } from '../contexts/AuthContext'
 import { useStudent } from '../contexts/StudentContext'
@@ -259,6 +260,17 @@ export default function ExamPreview() {
         setComposeTitle(title)
         setLoading(false)
         setError('')
+        navigate(
+          {
+            pathname: location.pathname,
+            search: location.search,
+            hash: location.hash,
+          },
+          {
+            replace: true,
+            state: null,
+          }
+        )
         return
       }
 
@@ -291,7 +303,7 @@ export default function ExamPreview() {
       .then((response) => setExam(response.data))
       .catch((err) => setError(normalizeApiError(err, '加载试卷失败')))
       .finally(() => setLoading(false))
-  }, [id, isComposeMode, location.state, user])
+  }, [id, isComposeMode, location.hash, location.pathname, location.search, location.state, navigate, user])
 
   const questions = useMemo(() => getQuestions(exam), [exam])
   const lessonPlan = isLessonPlan(exam)
