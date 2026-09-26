@@ -15,6 +15,7 @@ class Exam(Base):
     __tablename__ = "exams"
 
     id = pk_column()
+    owner_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     title = Column(String(256), nullable=False)
     student_id = Column(Integer, ForeignKey("students.id"), nullable=True, index=True)
     questions = json_list_column()

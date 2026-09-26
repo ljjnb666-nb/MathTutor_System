@@ -10,6 +10,7 @@ class Question(Base):
     __tablename__ = "questions"
 
     id = pk_column()
+    owner_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     student_id = Column(Integer, ForeignKey("students.id"), nullable=True, index=True)
     content = Column(Text, nullable=False)
     options = json_list_column()
