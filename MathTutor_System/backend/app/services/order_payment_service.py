@@ -203,8 +203,8 @@ def apply_paid_order(db: Session, *, out_trade_no: str, third_trade_no: str | No
     return "处理成功"
 
 
-def _normalize_cny_amount(raw: object) -> Decimal | None:
-    """把金额解析为两位小数的 Decimal；缺失、非法或非有限值返回 None。"""
+def _normalize_stored_cny_amount(raw: object) -> Decimal | None:
+    """把本地存储金额归一化为两位小数 Decimal；非法或非有限值返回 None。"""
     try:
         amount = Decimal(str(raw))
         if not amount.is_finite():
@@ -212,6 +212,20 @@ def _normalize_cny_amount(raw: object) -> Decimal | None:
         return amount.quantize(Decimal("0.01"))
     except (InvalidOperation, ValueError):
         return None
+
+
+def _parse_callback_cny_amount(raw: object) -> Decimal | None:
+    """解析不可信的回调金额：必须精确到分，任何亚分非零值一律拒绝，不得静默舍入。"""
+    try:
+        parsed = Decimal(str(raw))
+        if not parsed.is_finite():
+            return None
+        cent_value = parsed.quantize(Decimal("0.01"))
+    except (InvalidOperation, ValueError):
+        return None
+    if parsed != cent_value:
+        return None
+    return cent_value
 
 
 def handle_alipay_notify(db: Session, data: dict) -> dict:
@@ -245,8 +259,8 @@ def handle_alipay_notify(db: Session, data: dict) -> dict:
     if order.currency != "CNY":
         return {"code": "failure", "msg": "支付币种不匹配"}
 
-    callback_amount = _normalize_cny_amount(total_amount)
-    stored_amount = _normalize_cny_amount(order.amount)
+    callback_amount = _parse_callback_cny_amount(total_amount)
+    stored_amount = _normalize_stored_cny_amount(order.amount)
     if callback_amount is None or stored_amount is None:
         return {"code": "failure", "msg": "回调金额格式错误"}
     if callback_amount != stored_amount:

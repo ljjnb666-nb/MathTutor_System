@@ -264,7 +264,20 @@ def test_handle_alipay_notify_amount_mismatch_rejected(signed_alipay, raw):
     assert signed_alipay == []
 
 
-@pytest.mark.parametrize("raw", ["10", "10.0", "10.00"])
+@pytest.mark.parametrize("raw", ["10.001", "10.004", "9.999", "10.009", "10.999"])
+def test_handle_alipay_notify_sub_cent_amount_rejected(signed_alipay, raw):
+    db = make_db()
+    add_user_plan_order(db)
+
+    result = service.handle_alipay_notify(db, alipay_callback(total_amount=raw))
+    order = get_order(db)
+
+    assert result["code"] == "failure"
+    assert order.status == "pending"
+    assert signed_alipay == []
+
+
+@pytest.mark.parametrize("raw", ["10", "10.0", "10.00", "10.000"])
 def test_handle_alipay_notify_equivalent_amount_formats_accepted(signed_alipay, raw):
     db = make_db()
     add_user_plan_order(db)
