@@ -49,8 +49,21 @@ def add_student(db, user_id: int, student_id: int, name: str) -> Student:
     return row
 
 
-def add_exam(db, *, student_id: int | None, title: str, assignment_date: date | None = None) -> Exam:
-    row = Exam(title=title, student_id=student_id, questions=[], assignment_date=assignment_date)
+def add_exam(
+    db,
+    *,
+    student_id: int | None,
+    title: str,
+    assignment_date: date | None = None,
+    owner_user_id: int | None = None,
+) -> Exam:
+    row = Exam(
+        owner_user_id=owner_user_id,
+        title=title,
+        student_id=student_id,
+        questions=[],
+        assignment_date=assignment_date,
+    )
     db.add(row)
     db.commit()
     db.refresh(row)
@@ -83,6 +96,7 @@ def test_create_exam_for_user_defaults_title_and_normalizes_questions():
     )
 
     assert row.student_id == student.id
+    assert row.owner_user_id == user.id
     assert row.title.startswith("未命名试卷")
 
 
@@ -92,9 +106,9 @@ def test_list_exams_for_user_hides_other_teachers_exam_and_keeps_unassigned():
     other = add_user(db, 2, "teacher2")
     student = add_student(db, user.id, 10, "Alice")
     other_student = add_student(db, other.id, 11, "Mallory")
-    own_exam = add_exam(db, student_id=student.id, title="Own")
-    unassigned_exam = add_exam(db, student_id=None, title="Draft")
-    add_exam(db, student_id=other_student.id, title="Other")
+    own_exam = add_exam(db, student_id=student.id, title="Own", owner_user_id=user.id)
+    unassigned_exam = add_exam(db, student_id=None, title="Draft", owner_user_id=user.id)
+    add_exam(db, student_id=other_student.id, title="Other", owner_user_id=other.id)
 
     rows = list_exams_for_user(db, user)
 
@@ -109,7 +123,7 @@ def test_get_exam_or_404_rejects_other_teachers_exam():
     user = add_user(db, 1, "teacher1")
     other = add_user(db, 2, "teacher2")
     other_student = add_student(db, other.id, 11, "Mallory")
-    exam = add_exam(db, student_id=other_student.id, title="Other")
+    exam = add_exam(db, student_id=other_student.id, title="Other", owner_user_id=other.id)
 
     with pytest.raises(HTTPException) as exc_info:
         get_exam_or_404(db, exam.id, user)
@@ -121,7 +135,7 @@ def test_update_exam_for_user_updates_title_and_questions():
     db = make_db()
     user = add_user(db, 1, "teacher1")
     student = add_student(db, user.id, 10, "Alice")
-    exam = add_exam(db, student_id=student.id, title="Old", assignment_date=None)
+    exam = add_exam(db, student_id=student.id, title="Old", assignment_date=None, owner_user_id=user.id)
 
     updated = update_exam_for_user(
         db,

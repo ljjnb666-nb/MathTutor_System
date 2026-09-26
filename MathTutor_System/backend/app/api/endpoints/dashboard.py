@@ -1,5 +1,6 @@
 """
-仪表盘统计接口：首页数据汇总。按当前登录用户隔离（仅统计该用户名下学生相关数据 + 公共数据）。
+仪表盘统计接口：首页数据汇总。owner_user_id 是租户归属事实来源：
+仅统计本人创建的题目/试卷；student_id 仅表示布置/业务上下文。
 """
 from datetime import date, datetime
 
@@ -17,12 +18,6 @@ from app.models.student import Student
 from app.models.user import User
 
 router = APIRouter()
-
-
-def _my_student_ids(db: Session, user: User) -> list[int]:
-    """当前用户名下的学生 ID 列表，用于数据隔离。"""
-    rows = db.query(Student.id).filter(Student.user_id == user.id).all()
-    return [r[0] for r in rows]
 
 
 class RecentExamItem(BaseModel):
@@ -56,18 +51,14 @@ class DashboardStatsResponse(BaseModel):
     )
 
 
-def _question_visible_filter(Question_model, my_student_ids: list[int]):
-    """题目可见条件：归属当前用户的学生或公共题（student_id 为空）。"""
-    if not my_student_ids:
-        return Question_model.student_id.is_(None)
-    return or_(Question_model.student_id.in_(my_student_ids), Question_model.student_id.is_(None))
+def _question_visible_filter(Question_model, current_user: User):
+    """题目统计条件：仅本人创建；未认领（owner 为空）与他人题目一律不计入。"""
+    return Question_model.owner_user_id == current_user.id
 
 
-def _exam_visible_filter(Exam_model, my_student_ids: list[int]):
-    """试卷可见条件：归属当前用户的学生或未关联学生。"""
-    if not my_student_ids:
-        return Exam_model.student_id.is_(None)
-    return or_(Exam_model.student_id.in_(my_student_ids), Exam_model.student_id.is_(None))
+def _exam_visible_filter(Exam_model, current_user: User):
+    """试卷统计条件：仅本人创建；未认领（owner 为空）与他人试卷一律不计入。"""
+    return Exam_model.owner_user_id == current_user.id
 
 
 @router.get("/stats", response_model=DashboardStatsResponse)
@@ -77,15 +68,13 @@ def get_dashboard_stats(
 ) -> DashboardStatsResponse:
     """
     获取仪表盘统计数据：总题数、试卷数、学生数、最近试卷、知识点分布 Top 5。
-    仅统计当前用户名下学生相关数据及公共数据，空表时返回 0 与空列表。
+    仅统计本人创建的数据，空表时返回 0 与空列表。
     """
     try:
-        my_ids = _my_student_ids(db, current_user)
-
-        q_filter = _question_visible_filter(Question, my_ids)
+        q_filter = _question_visible_filter(Question, current_user)
         total_questions = db.query(func.count(Question.id)).filter(q_filter).scalar() or 0
 
-        e_filter = _exam_visible_filter(Exam, my_ids)
+        e_filter = _exam_visible_filter(Exam, current_user)
         total_exams = db.query(func.count(Exam.id)).filter(e_filter).scalar() or 0
 
         total_students = db.query(func.count(Student.id)).filter(Student.user_id == current_user.id).scalar() or 0

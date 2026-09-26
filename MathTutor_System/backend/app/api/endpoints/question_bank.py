@@ -1,5 +1,6 @@
 """
-题库收藏接口：收藏题目、列表（筛选）、移出。按当前登录用户隔离：仅可操作本用户学生相关及公共题库。
+题库收藏接口：收藏题目、列表（筛选）、移出。owner_user_id 是租户归属事实来源：
+仅可操作本人创建的题库条目；student_id 仅表示布置/业务上下文。
 """
 import hashlib
 import json
@@ -7,7 +8,6 @@ import logging
 import traceback
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.api.endpoints.auth import get_current_user
@@ -20,19 +20,6 @@ from app.schemas.question_bank_dto import BankCollectRequest, BankCollectRespons
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-def _my_student_ids(db: Session, user: User) -> list[int]:
-    """当前用户名下的学生 ID 列表。"""
-    rows = db.query(Student.id).filter(Student.user_id == user.id).all()
-    return [r[0] for r in rows]
-
-
-def _bank_visible_filter(my_student_ids: list[int]):
-    """题库可见条件：归属当前用户的学生或公共题库。"""
-    if not my_student_ids:
-        return QuestionBank.student_id.is_(None)
-    return or_(QuestionBank.student_id.in_(my_student_ids), QuestionBank.student_id.is_(None))
 
 
 def _normalize_images(raw: object) -> list:
@@ -72,9 +59,11 @@ def collect_question(
             raise HTTPException(status_code=404, detail="学生不存在")
     try:
         ch = _content_hash(body.content, body.answer)
+        # 查重限定在本人名下：不同教师收藏相同内容各自独立成行，不做跨租户合并。
         existing = (
             db.query(QuestionBank)
             .filter(
+                QuestionBank.owner_user_id == current_user.id,
                 QuestionBank.content_hash == ch,
                 (QuestionBank.student_id == body.student_id) if body.student_id is not None else QuestionBank.student_id.is_(None),
             )
@@ -101,6 +90,7 @@ def collect_question(
         tags_value = body.tags if isinstance(body.tags, list) else []
         images_value = body.images if isinstance(body.images, list) else []
         row = QuestionBank(
+            owner_user_id=current_user.id,
             student_id=body.student_id,
             content=body.content,
             options=body.options if isinstance(body.options, list) else [],
@@ -148,12 +138,13 @@ def list_bank(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """获取题库列表，仅返回当前用户可见题目（本用户学生的题 + 公共题库）；若传 student_id 则必须属于当前用户。"""
-    my_ids = _my_student_ids(db, current_user)
-    q = db.query(QuestionBank).filter(_bank_visible_filter(my_ids))
+    """获取题库列表，仅返回本人创建的题库条目；若传 student_id 则必须属于当前用户。"""
     if student_id is not None:
-        if student_id not in my_ids:
+        student = db.get(Student, student_id)
+        if student is None or student.user_id != current_user.id:
             raise HTTPException(status_code=404, detail="学生不存在")
+    q = db.query(QuestionBank).filter(QuestionBank.owner_user_id == current_user.id)
+    if student_id is not None:
         q = q.filter((QuestionBank.student_id == student_id) | (QuestionBank.student_id.is_(None)))
     if knowledge_point is not None and knowledge_point.strip():
         q = q.filter(QuestionBank.knowledge_point.ilike(f"%{knowledge_point.strip()}%"))
@@ -186,12 +177,9 @@ def delete_from_bank(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """从题库移出指定题目。仅可移出当前用户可见的题目（本用户学生的题或公共题）。"""
+    """从题库移出指定题目。仅可移出本人创建的条目；他人或未认领（owner 为空）的一律 404。"""
     row = db.get(QuestionBank, bank_id)
-    if row is None:
-        raise HTTPException(status_code=404, detail="题库中无该题目")
-    my_ids = _my_student_ids(db, current_user)
-    if row.student_id is not None and row.student_id not in my_ids:
+    if row is None or row.owner_user_id != current_user.id:
         raise HTTPException(status_code=404, detail="题库中无该题目")
     db.delete(row)
     db.commit()
