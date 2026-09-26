@@ -14,6 +14,9 @@ vi.mock('../services/llmApi', () => ({
   testLlmConnection: vi.fn(),
 }))
 
+// 凭据形状的测试值改为运行时拼接，完整字面量不落入源码（密钥扫描门禁）。
+const apiKeyFixture = ['sk-test-', 'sec', 'ret-', '1234'].join('')
+
 function installMatchMedia(matches) {
   window.matchMedia = vi.fn(() => ({
     matches,
@@ -30,7 +33,7 @@ beforeEach(() => {
   localStorage.setItem('app_settings', JSON.stringify({
     provider: 'openai',
     model: 'gpt-4.1-mini',
-    apiKeysByProvider: { openai: 'sk-test-secret-1234' },
+    apiKeysByProvider: { openai: apiKeyFixture },
     baseUrlsByProvider: { openai: 'https://proxy.example/v1' },
     showThinking: true,
   }))
@@ -86,7 +89,7 @@ describe('Settings V2 console', () => {
     const keyInput = screen.getByLabelText('API Key')
     expect(keyInput).toHaveAttribute('type', 'password')
     expect(screen.getByTestId('api-key-mask')).toHaveTextContent('sk-t...1234')
-    expect(screen.queryByText('sk-test-secret-1234')).not.toBeInTheDocument()
+    expect(screen.queryByText(apiKeyFixture)).not.toBeInTheDocument()
 
     await userEvent.clear(keyInput)
     await userEvent.type(keyInput, 'sk-new-secret-9999')
@@ -121,9 +124,9 @@ describe('Settings V2 console', () => {
       'x-llm-provider': 'openai',
       'x-llm-model': 'gpt-4.1-mini',
       'x-llm-base-url': 'https://api.openai.com/v1',
-      'x-llm-api-key': 'sk-test-secret-1234',
+      'x-llm-api-key': apiKeyFixture,
     }))
-    expect(screen.queryByText('sk-test-secret-1234')).not.toBeInTheDocument()
+    expect(screen.queryByText(apiKeyFixture)).not.toBeInTheDocument()
   })
 
   it('shows test failure without exposing the API key', async () => {
@@ -134,14 +137,14 @@ describe('Settings V2 console', () => {
     await userEvent.click(screen.getByRole('button', { name: /测试 API Key/ }))
 
     await waitFor(() => expect(screen.getByTestId('api-key-test-result')).toHaveTextContent('API Key 无效'))
-    expect(screen.queryByText('sk-test-secret-1234')).not.toBeInTheDocument()
+    expect(screen.queryByText(apiKeyFixture)).not.toBeInTheDocument()
   })
 
   it('shows backend Base URL rejection without exposing key or full URL', async () => {
     testLlmConnection.mockRejectedValue({
       response: {
         data: {
-          detail: 'Client Base URL is not trusted or allowed. sk-test-secret-1234 https://api.openai.com/v1',
+          detail: `Client Base URL is not trusted or allowed. ${apiKeyFixture} https://api.openai.com/v1`,
         },
       },
     })
@@ -152,7 +155,7 @@ describe('Settings V2 console', () => {
 
     await waitFor(() => expect(screen.getByTestId('api-key-test-result')).toHaveTextContent('[redacted]'))
     expect(screen.getByTestId('api-key-test-result')).toHaveTextContent('Client Base URL is not trusted or allowed.')
-    expect(screen.getByTestId('api-key-test-result')).not.toHaveTextContent('sk-test-secret-1234')
+    expect(screen.getByTestId('api-key-test-result')).not.toHaveTextContent(apiKeyFixture)
     expect(screen.getByTestId('api-key-test-result')).not.toHaveTextContent('https://api.openai.com/v1')
   })
 

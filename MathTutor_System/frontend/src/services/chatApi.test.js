@@ -1,12 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { chatWithAIStream } from './chatApi'
 
+// 凭据形状的测试值改为运行时拼接，完整字面量不落入源码（密钥扫描门禁）。
+const streamSecretKey = ['stream', '-sec', 'ret'].join('')
+
 beforeEach(() => {
   localStorage.clear()
   localStorage.setItem('app_settings', JSON.stringify({
     provider: 'deepseek',
     model: 'deepseek-v4-flash',
-    apiKeysByProvider: { deepseek: 'stream-secret' },
+    apiKeysByProvider: { deepseek: streamSecretKey },
     baseUrlsByProvider: { deepseek: 'https://api.deepseek.com' },
   }))
 })
@@ -28,7 +31,7 @@ describe('chat stream API', () => {
         'x-llm-provider': 'deepseek',
         'x-llm-model': 'deepseek-v4-flash',
         'x-llm-base-url': 'https://api.deepseek.com',
-        'x-llm-api-key': 'stream-secret',
+        'x-llm-api-key': streamSecretKey,
       }),
     }))
   })

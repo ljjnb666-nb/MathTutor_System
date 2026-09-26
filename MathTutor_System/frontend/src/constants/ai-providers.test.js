@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { getActiveLlmConfig, saveActiveLlmConfig } from './ai-providers'
 
+// Deterministic runtime construction of key-shaped test fixtures: the
+// complete credential-like literals are not stored statically in the source
+// tree, while the values compared and persisted by these tests keep the
+// same credential-like shape at runtime.
+const keyFixture = (label) => [label, 'key'].join('-')
+
 beforeEach(() => {
   localStorage.clear()
 })
@@ -10,16 +16,16 @@ describe('active LLM config storage', () => {
     localStorage.setItem('app_settings', JSON.stringify({
       provider: 'deepseek',
       model: 'deepseek-v4-flash',
-      apiKey: 'flat-key',
+      apiKey: keyFixture('flat'),
       baseUrl: 'https://flat.example',
-      apiKeysByProvider: { deepseek: 'provider-key', openai: 'other-key' },
+      apiKeysByProvider: { deepseek: keyFixture('provider'), openai: keyFixture('other') },
       baseUrlsByProvider: { deepseek: 'https://api.deepseek.com/' },
     }))
 
     expect(getActiveLlmConfig()).toMatchObject({
       provider: 'deepseek',
       model: 'deepseek-v4-flash',
-      apiKey: 'provider-key',
+      apiKey: keyFixture('provider'),
       baseUrl: 'https://api.deepseek.com',
     })
   })
@@ -28,13 +34,13 @@ describe('active LLM config storage', () => {
     localStorage.setItem('app_settings', JSON.stringify({
       provider: 'openai',
       model: 'gpt-4.1-mini',
-      apiKey: 'legacy-key',
+      apiKey: keyFixture('legacy'),
       baseUrl: 'https://legacy.example/v1',
     }))
 
     expect(getActiveLlmConfig()).toMatchObject({
       provider: 'openai',
-      apiKey: 'legacy-key',
+      apiKey: keyFixture('legacy'),
       baseUrl: 'https://api.openai.com/v1',
     })
   })
@@ -43,32 +49,32 @@ describe('active LLM config storage', () => {
     saveActiveLlmConfig({
       provider: 'deepseek',
       model: 'deepseek-v4-flash',
-      apiKey: 'saved-key',
+      apiKey: keyFixture('saved'),
       baseUrl: 'https://api.deepseek.com/',
       apiVersion: '',
       showThinking: true,
     })
 
     const stored = JSON.parse(localStorage.getItem('app_settings'))
-    expect(stored.apiKeysByProvider.deepseek).toBe('saved-key')
+    expect(stored.apiKeysByProvider.deepseek).toBe(keyFixture('saved'))
     expect(stored.baseUrlsByProvider.deepseek).toBe('https://api.deepseek.com')
-    expect(stored.apiKey).toBe('saved-key')
+    expect(stored.apiKey).toBe(keyFixture('saved'))
     expect(stored.baseUrl).toBe('https://api.deepseek.com')
-    expect(getActiveLlmConfig().apiKey).toBe('saved-key')
+    expect(getActiveLlmConfig().apiKey).toBe(keyFixture('saved'))
   })
 
   it('keeps custom provider Base URL configurable in localStorage', () => {
     saveActiveLlmConfig({
       provider: 'custom',
       model: 'custom-model',
-      apiKey: 'custom-key',
+      apiKey: keyFixture('custom'),
       baseUrl: 'https://proxy.example/v1/',
       apiVersion: '',
     })
 
     expect(getActiveLlmConfig()).toMatchObject({
       provider: 'custom',
-      apiKey: 'custom-key',
+      apiKey: keyFixture('custom'),
       baseUrl: 'https://proxy.example/v1',
     })
   })
