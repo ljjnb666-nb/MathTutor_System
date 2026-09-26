@@ -2,10 +2,16 @@
 import json
 import uuid
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal, InvalidOperation
 
 from sqlalchemy.orm import Session
 
-from app.core.config import ALIPAY_ENABLED, ALIPAY_RETURN_URL, WECHAT_PAY_ENABLED
+from app.core.config import (
+    ALIPAY_APP_ID,
+    ALIPAY_ENABLED,
+    ALIPAY_RETURN_URL,
+    WECHAT_PAY_ENABLED,
+)
 from app.models.order import Order
 from app.models.plan import Plan
 from app.models.subscription import Subscription
@@ -197,6 +203,31 @@ def apply_paid_order(db: Session, *, out_trade_no: str, third_trade_no: str | No
     return "处理成功"
 
 
+def _normalize_stored_cny_amount(raw: object) -> Decimal | None:
+    """把本地存储金额归一化为两位小数 Decimal；非法或非有限值返回 None。"""
+    try:
+        amount = Decimal(str(raw))
+        if not amount.is_finite():
+            return None
+        return amount.quantize(Decimal("0.01"))
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def _parse_callback_cny_amount(raw: object) -> Decimal | None:
+    """解析不可信的回调金额：必须精确到分，任何亚分非零值一律拒绝，不得静默舍入。"""
+    try:
+        parsed = Decimal(str(raw))
+        if not parsed.is_finite():
+            return None
+        cent_value = parsed.quantize(Decimal("0.01"))
+    except (InvalidOperation, ValueError):
+        return None
+    if parsed != cent_value:
+        return None
+    return cent_value
+
+
 def handle_alipay_notify(db: Session, data: dict) -> dict:
     if not verify_alipay_notify(data):
         return {"code": "failure", "msg": "验签失败"}
@@ -208,6 +239,32 @@ def handle_alipay_notify(db: Session, data: dict) -> dict:
     out_trade_no = data.get("out_trade_no")
     if not out_trade_no:
         return {"code": "failure", "msg": "缺少 out_trade_no"}
+
+    app_id = data.get("app_id")
+    if not app_id:
+        return {"code": "failure", "msg": "缺少 app_id"}
+
+    total_amount = data.get("total_amount")
+    if total_amount is None:
+        return {"code": "failure", "msg": "缺少 total_amount"}
+
+    order = db.query(Order).filter(Order.out_trade_no == out_trade_no).first()
+    if not order:
+        return {"code": "failure", "msg": "订单不存在"}
+
+    if app_id != ALIPAY_APP_ID:
+        return {"code": "failure", "msg": "应用标识不匹配"}
+    if order.payment_method != "alipay":
+        return {"code": "failure", "msg": "支付方式不匹配"}
+    if order.currency != "CNY":
+        return {"code": "failure", "msg": "支付币种不匹配"}
+
+    callback_amount = _parse_callback_cny_amount(total_amount)
+    stored_amount = _normalize_stored_cny_amount(order.amount)
+    if callback_amount is None or stored_amount is None:
+        return {"code": "failure", "msg": "回调金额格式错误"}
+    if callback_amount != stored_amount:
+        return {"code": "failure", "msg": "支付金额不匹配"}
 
     msg = apply_paid_order(db, out_trade_no=out_trade_no, third_trade_no=data.get("trade_no"))
     if msg == "订单不存在":
