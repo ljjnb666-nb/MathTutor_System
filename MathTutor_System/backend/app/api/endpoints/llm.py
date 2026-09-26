@@ -4,7 +4,9 @@ import time
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from app.api.endpoints.auth import get_current_user
 from app.core.deps import LLMConfig, get_llm_config
+from app.models.user import User
 from app.services.llm_client_service import call_llm_async
 
 router = APIRouter()
@@ -21,7 +23,10 @@ class LLMTestResponse(BaseModel):
 
 
 @router.post("/test", response_model=LLMTestResponse)
-async def test_llm_connection(llm_config: LLMConfig = Depends(get_llm_config)) -> LLMTestResponse:
+async def test_llm_connection(
+    current_user: User = Depends(get_current_user),
+    llm_config: LLMConfig = Depends(get_llm_config),
+) -> LLMTestResponse:
     if not (llm_config.api_key or "").strip():
         return LLMTestResponse(
             ok=False,
