@@ -3,7 +3,7 @@
 
 ## 功能概览
 
-- **登录系统**：JWT 认证，支持密码显隐切换；首次使用需运行脚本创建超级用户（admin / 123456）。
+- **登录系统**：JWT 认证，支持密码显隐切换；首次使用需通过 `BOOTSTRAP_ADMIN_PASSWORD` 环境变量创建管理员（无固定默认密码）。
 - **智能出题**：设置知识点、难度（L1～L5）、题型（选择/填空/解答/综合）与题量，调用大模型生成数学题；支持单题「重新生成」；生成结果与筛选参数会持久化到浏览器本地。
 - **题库管理**：查看、搜索已保存题目。
 - **导入试卷**：上传 .docx 或 .pdf 试卷，AI 解析为结构化题目；含图试卷会先转 PDF 再按页识图（需安装 LibreOffice），否则使用纯文本解析；综合与探究、综合与实践等多小节大题会自动合并为一道，其它带【小节】的大题也会尽量合并；支持题型映射、批量编辑（知识点/难度）、查重反馈后录入题库。
@@ -55,13 +55,15 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-**首次使用需创建超级用户**（否则无法登录）：
+**首次使用需创建管理员**（否则无法登录）：
 
 ```bash
+# Git Bash / Linux：export BOOTSTRAP_ADMIN_PASSWORD="你的强密码（12-128 位）"
+# PowerShell：$env:BOOTSTRAP_ADMIN_PASSWORD="你的强密码（12-128 位）"
 .venv\Scripts\python.exe scripts/create_superuser.py
 ```
 
-默认账号：**用户名 `admin`，密码 `123456`**。若已存在 admin 会提示跳过。
+用户名默认 `admin`（可用 `BOOTSTRAP_ADMIN_USERNAME` 覆盖）；密码必须通过 `BOOTSTRAP_ADMIN_PASSWORD` 环境变量提供，长度 12-128，源码不含任何固定默认密码。若同名用户已存在会提示跳过，且不会修改已有账号的密码。
 
 启动 API 服务：
 
@@ -106,7 +108,7 @@ npm run security-install
 
 或手动删除 `package-lock.json` 与 `node_modules` 后重新 `npm install`。项目已通过 overrides 强制使用 KaTeX 0.16.21 以修复安全问题。
 
-浏览器访问开发地址（如 http://localhost:5173）。未登录会跳转到登录页，使用 admin / 123456 登录后可进入首页；侧栏按「出题与内容」「学情与练习」「系统管理」分组，可切换智能出题、题库管理、导入试卷、Magic PPT、错题本、学情图谱、我的试卷、学生管理、套餐与定价、用户管理（仅管理员）等；底部会显示当前套餐与已用学生数。
+浏览器访问开发地址（如 http://localhost:5173）。未登录会跳转到登录页，使用 bootstrap 创建的管理员账号登录后可进入首页；侧栏按「出题与内容」「学情与练习」「系统管理」分组，可切换智能出题、题库管理、导入试卷、Magic PPT、错题本、学情图谱、我的试卷、学生管理、套餐与定价、用户管理（仅管理员）等；底部会显示当前套餐与已用学生数。
 
 **注意**：前端通过 Vite 代理将 `/api` 转发到 `http://localhost:8000`，**请先启动后端**，否则请求会报连接失败或超时。
 
@@ -143,15 +145,20 @@ docker compose up -d
 - **学生端**：http://localhost/student/
 - **后端 API**：由 Nginx 代理到容器内后端，前端请求 `/api` 即可。
 
-首次启动时会自动创建 SQLite 数据库并初始化超级用户：**用户名 `admin`，密码 `123456`**。数据（数据库、RAG 向量库）保存在 Docker volume `backend_data` 中，重启或重建容器不会丢失。
+首次启动（`backend_data` 卷中尚无数据库）时会自动创建 SQLite 数据库并初始化管理员：**必须**先在 `MathTutor_System/.env`（或 shell 环境）中设置 `BOOTSTRAP_ADMIN_PASSWORD`（12-128 位），否则容器启动失败（fail closed，uvicorn 不会启动）；用户名可用 `BOOTSTRAP_ADMIN_USERNAME` 覆盖（默认 `admin`）。已存在数据库时不会自动创建或修改任何账号。数据（数据库、RAG 向量库）保存在 Docker volume `backend_data` 中，重启或重建容器不会丢失。
 
-### 环境变量（可选）
+### 环境变量
 
-在 `MathTutor_System/` 下创建 `.env` 文件（与 `docker-compose.yml` 同目录），可覆盖默认配置，例如：
+在 `MathTutor_System/` 下创建 `.env` 文件（与 `docker-compose.yml` 同目录）。其中 `SECRET_KEY` 必填（未设置时 `docker compose up` 直接报错）；`BOOTSTRAP_ADMIN_PASSWORD` 仅在首次部署（数据库尚不存在）时必填，由容器内 bootstrap 脚本校验，缺失时后端容器启动失败（fail closed）；已存在数据库时无需设置，重启或重建容器不会修改任何账号。例如：
 
 ```env
 # 生产环境务必修改
 SECRET_KEY=你的随机长密钥
+
+# 仅首次部署（数据库尚不存在）必填：初始管理员 bootstrap 密码（12-128 位），
+# 源码无默认值，需显式通过环境变量提供；已存在数据库时留空即可，不会修改任何账号
+BOOTSTRAP_ADMIN_PASSWORD=
+
 # 若通过域名或非 localhost 访问，需填写 CORS
 CORS_ORIGINS=https://你的域名,http://你的IP
 
@@ -227,6 +234,7 @@ server {
 **生产环境必填**：
 
 - **SECRET_KEY**：JWT 签名密钥，勿使用默认值（见下方「其他说明」）。
+- **BOOTSTRAP_ADMIN_PASSWORD**：首次部署（数据库不存在时）创建初始管理员的 bootstrap 密码，长度 12-128；用户名可用 `BOOTSTRAP_ADMIN_USERNAME` 覆盖（默认 `admin`）。已存在数据库时忽略该值，不会修改任何账号。
 - **CORS_ORIGINS**：浏览器访问前端的地址，逗号分隔，避免 CORS 预检失败。例如通过 `http://公网IP` 或 `https://你的域名` 访问时，填写对应 Origin。
 
 **可选**：
