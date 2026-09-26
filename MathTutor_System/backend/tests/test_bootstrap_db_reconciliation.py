@@ -1,9 +1,11 @@
 """
-PHASE 2B-2B：bootstrap_database 启动迁移状态调和测试（BOOT-DB-01..05）。
+PHASE 2B-2B：bootstrap_database 启动迁移状态调和测试（BOOT-DB-01..07）。
 
-覆盖五类数据库状态（A 全新 / B 正常 Alembic / C 无版本表但 schema 等价上一代 head /
-D 新 metadata 建库 / E 更早历史库）以及混合 owner schema 的 fail-closed 行为。
-全部使用隔离临时 SQLite 文件库。
+覆盖七类数据库状态（A 全新 / B 正常 Alembic / C 无版本表但 schema 等价上一代 head /
+D 新 metadata 建库 / E 更早历史库）以及三类 fail-closed 行为（混合 owner schema /
+残缺 agent_runs / 缺失 owner 元数据）。
+补标记的前提是正向验证 schema 签名（列 + 索引 + FK 元数据）；表存在绝不作为迁移
+已应用的证据。全部使用隔离临时 SQLite 文件库。
 """
 import os
 import shutil
@@ -110,8 +112,19 @@ PRE_OWNER_TABLE_DDL = {
             user_id INTEGER NOT NULL,
             goal TEXT NOT NULL,
             status VARCHAR(32) NOT NULL,
+            intent_json JSON,
+            context_snapshot_json JSON,
+            selected_tools_json JSON,
+            tool_calls_json JSON,
+            plan_json JSON,
+            missing_fields_json JSON,
+            warnings_json JSON,
+            error_code VARCHAR(64),
+            error_message VARCHAR(512),
             created_at DATETIME NOT NULL,
-            updated_at DATETIME NOT NULL
+            updated_at DATETIME NOT NULL,
+            completed_at DATETIME,
+            FOREIGN KEY(user_id) REFERENCES users (id)
         )
     """,
     "plans": """
@@ -139,6 +152,25 @@ PRE_OWNER_TABLE_DDL = {
         )
     """,
 }
+
+
+# 7f1f4d9a2c10 一并创建的 agent_runs 索引；PRE_OWNER_TABLE_DDL 之外单独建。
+AGENT_RUNS_INDEX_DDL = (
+    "CREATE INDEX ix_agent_runs_user_id ON agent_runs (user_id)",
+    "CREATE INDEX ix_agent_runs_status ON agent_runs (status)",
+)
+
+# 残缺 agent_runs：仅 6 列、无 JSON/结果列、无索引、无 FK —— 不得被视为 7f1f4d9a2c10。
+TRUNCATED_AGENT_RUNS_DDL = """
+    CREATE TABLE agent_runs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        goal TEXT NOT NULL,
+        status VARCHAR(32) NOT NULL,
+        created_at DATETIME NOT NULL,
+        updated_at DATETIME NOT NULL
+    )
+"""
 
 
 def _run_bootstrap(db_path: Path) -> subprocess.CompletedProcess:
@@ -192,12 +224,14 @@ def test_boot_db_01_fresh_new_metadata_db_stamps_head_without_replaying(case_dir
 
 
 def test_boot_db_02_legacy_previous_head_schema_upgrades_owner_migration(case_dir):
-    """STATE C：等价上一代 head 的遗留库（有 agent_runs、无版本表）-> 补 7f1f4d9a2c10 后升级 owner 迁移。"""
+    """STATE C：等价上一代 head 的遗留库（有完整 agent_runs、无版本表）-> 补 7f1f4d9a2c10 后升级 owner 迁移。"""
     db_path = case_dir / "state_c.sqlite"
     engine = create_engine(f"sqlite:///{db_path.as_posix()}")
     with engine.begin() as conn:
         for table in ("users", "students", "questions", "question_bank", "exams", "agent_runs", "plans", "subscriptions"):
             conn.execute(text(PRE_OWNER_TABLE_DDL[table]))
+        for statement in AGENT_RUNS_INDEX_DDL:
+            conn.execute(text(statement))
     engine.dispose()
 
     proc = _run_bootstrap(db_path)
@@ -259,6 +293,8 @@ def test_boot_db_05_existing_alembic_db_standard_upgrade(case_dir):
     with engine.begin() as conn:
         for table in ("users", "students", "questions", "question_bank", "exams", "agent_runs", "plans", "subscriptions"):
             conn.execute(text(PRE_OWNER_TABLE_DDL[table]))
+        for statement in AGENT_RUNS_INDEX_DDL:
+            conn.execute(text(statement))
         conn.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))
         conn.execute(text("INSERT INTO alembic_version (version_num) VALUES ('7f1f4d9a2c10')"))
     engine.dispose()
@@ -268,3 +304,63 @@ def test_boot_db_05_existing_alembic_db_standard_upgrade(case_dir):
     assert proc.returncode == 0, proc.stderr
     assert _read_version(db_path) == OWNER_REVISION
     assert all(_owner_columns_present(db_path).values())
+
+
+def test_boot_db_06_truncated_agent_runs_fails_closed_before_stamping(case_dir):
+    """BOOT-DB-06：STATE C 变体 —— agent_runs 存在但 schema 残缺 -> fail closed，绝不补 7f1f4d9a2c10。"""
+    db_path = case_dir / "state_c_truncated.sqlite"
+    engine = create_engine(f"sqlite:///{db_path.as_posix()}")
+    with engine.begin() as conn:
+        for table in ("users", "students", "questions", "question_bank", "exams", "plans", "subscriptions"):
+            conn.execute(text(PRE_OWNER_TABLE_DDL[table]))
+        conn.execute(text(TRUNCATED_AGENT_RUNS_DDL))
+    engine.dispose()
+
+    proc = _run_bootstrap(db_path)
+
+    assert proc.returncode != 0
+    assert "agent_runs schema does not match" in proc.stderr
+    assert "7f1f4d9a2c10" in proc.stderr
+    assert not _alembic_version_exists(db_path), "签名不匹配时不得创建/写入 alembic_version"
+    assert not any(_owner_columns_present(db_path).values()), "不得静默执行 owner 迁移"
+
+
+@pytest.mark.parametrize(
+    "corruption",
+    ["agent_runs_missing", "agent_runs_truncated", "owner_index_missing", "owner_fk_missing"],
+)
+def test_boot_db_07_head_stamp_requires_full_schema_signature(case_dir, corruption):
+    """BOOT-DB-07：STATE D 变体 —— owner 列齐全但 agent_runs 或 owner 元数据残缺 -> fail closed。
+
+    列存在不是 head schema 的证明：直接补 head 前必须正向验证 agent_runs 签名与
+    owner 索引/FK 元数据，任一缺失都不得标记 alembic_version。
+    """
+    db_path = case_dir / f"state_d_corrupt_{corruption}.sqlite"
+    engine = create_engine(f"sqlite:///{db_path.as_posix()}")
+    if corruption == "owner_fk_missing":
+        with engine.begin() as conn:
+            # agent_runs 完整；owner 列与索引在，但 ALTER TABLE 无法附加 FK 元数据
+            for table in ("users", "students", "questions", "question_bank", "exams", "agent_runs", "plans", "subscriptions"):
+                conn.execute(text(PRE_OWNER_TABLE_DDL[table]))
+            for statement in AGENT_RUNS_INDEX_DDL:
+                conn.execute(text(statement))
+            for table in OWNER_TABLES:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN owner_user_id INTEGER"))
+                conn.execute(text(f"CREATE INDEX ix_{table}_owner_user_id ON {table} (owner_user_id)"))
+    else:
+        Base.metadata.create_all(engine)
+        with engine.begin() as conn:
+            if corruption == "agent_runs_missing":
+                conn.execute(text("DROP TABLE agent_runs"))
+            elif corruption == "agent_runs_truncated":
+                conn.execute(text("DROP TABLE agent_runs"))
+                conn.execute(text(TRUNCATED_AGENT_RUNS_DDL))
+            elif corruption == "owner_index_missing":
+                conn.execute(text("DROP INDEX ix_questions_owner_user_id"))
+    engine.dispose()
+
+    proc = _run_bootstrap(db_path)
+
+    assert proc.returncode != 0
+    assert "Cannot stamp head" in proc.stderr
+    assert not _alembic_version_exists(db_path), "head 签名校验失败时不得写入 alembic_version"
