@@ -1,9 +1,12 @@
 """Order creation and payment callback business logic."""
 import json
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 
+from sqlalchemy import update
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.core.config import (
@@ -31,6 +34,12 @@ class OrderPaymentServiceError(Exception):
         super().__init__(detail)
         self.status_code = status_code
         self.detail = detail
+
+
+# SQLite deferred 事务在并发写升级时立即返回 SQLITE_BUSY（不走 busy handler），
+# 只能回滚重试；幂等性由数据库条件抢占保证，重试只解决锁竞争。
+_BUSY_RETRY_ATTEMPTS = 6
+_BUSY_RETRY_BASE_DELAY = 0.05
 
 
 def utc_now() -> datetime:
@@ -153,22 +162,72 @@ def get_order_status_for_user(db: Session, *, out_trade_no: str, user_id: int) -
     return {"out_trade_no": order.out_trade_no, "status": order.status}
 
 
+def _is_sqlite_busy(exc: OperationalError) -> bool:
+    """只重试 SQLite 写锁竞争（database is locked），其他错误不重试。"""
+    text = str(getattr(exc, "orig", None) or exc).lower()
+    return "database is locked" in text or "database table is locked" in text
+
+
 def apply_paid_order(db: Session, *, out_trade_no: str, third_trade_no: str | None) -> str:
-    order = db.query(Order).filter(Order.out_trade_no == out_trade_no).first()
-    if not order:
-        return "订单不存在"
-    if order.status == "paid":
-        return "已处理"
+    """
+    把订单推进为 paid，并在同一个数据库事务内完成订阅与订阅历史写入。
 
+    并发契约：先以条件 UPDATE（status != 'paid'）抢占订单，rowcount 即为
+    数据库层的幂等凭据；未抢到的执行方只能看到已处理结果。抢占与订阅
+    效果同事务提交，任何一步失败整体回滚，不留"已支付未生效"的中间态。
+    """
+    if db.in_transaction():
+        # 结束回调校验阶段遗留的只读事务，保证下面的条件抢占是
+        # 新事务的第一条语句（SQLite 的写侧串行化点）。
+        db.rollback()
+
+    last_exc: OperationalError | None = None
+    for attempt in range(_BUSY_RETRY_ATTEMPTS):
+        try:
+            return _apply_paid_order_once(
+                db, out_trade_no=out_trade_no, third_trade_no=third_trade_no
+            )
+        except OperationalError as exc:
+            db.rollback()
+            if not _is_sqlite_busy(exc) or attempt + 1 >= _BUSY_RETRY_ATTEMPTS:
+                raise
+            last_exc = exc
+            # SQLite 的 deferred 事务升级冲突不会进入 busy handler，
+            # 只能回滚后整体重试；每次重试都是全新事务，无残留状态。
+            time.sleep(_BUSY_RETRY_BASE_DELAY * (attempt + 1))
+        except Exception:
+            # PAY-ATOMIC-05：业务/运行时/完整性错误等非预期异常在事务中途出现时，
+            # 必须先回滚再原样传播；失败的调用自身保证会话离开失败事务，
+            # 不得依赖下一次调用的入口清理。
+            db.rollback()
+            raise
+    raise last_exc  # pragma: no cover - 循环必然 return 或 raise
+
+
+def _apply_paid_order_once(db: Session, *, out_trade_no: str, third_trade_no: str | None) -> str:
     now = utc_now()
-    order.status = "paid"
-    order.third_party_trade_no = third_trade_no
-    order.paid_at = now
-    db.commit()
+    claim = db.execute(
+        update(Order)
+        .where(
+            Order.out_trade_no == out_trade_no,
+            Order.status != "paid",
+        )
+        .values(status="paid", third_party_trade_no=third_trade_no, paid_at=now)
+        .execution_options(synchronize_session=False)
+    )
+    if claim.rowcount == 0:
+        # 条件抢占失败：订单不存在，或已被并发/前次回调处理为 paid。
+        # 直接返回，绝不改写已支付订单的任何字段。
+        db.rollback()
+        exists = db.query(Order.id).filter(Order.out_trade_no == out_trade_no).first()
+        return "已处理" if exists else "订单不存在"
 
+    order = db.query(Order).filter(Order.out_trade_no == out_trade_no).first()
     plan = db.get(Plan, order.plan_id)
     if not plan:
-        return "套餐不存在，订单已标记 paid"
+        # 套餐缺失属于业务失败：整体回滚，订单不得停留在 paid。
+        db.rollback()
+        return "套餐不存在"
 
     period_days = (order.period_months or 1) * 30
     sub = db.query(Subscription).filter(Subscription.user_id == order.user_id).first()
@@ -267,7 +326,7 @@ def handle_alipay_notify(db: Session, data: dict) -> dict:
         return {"code": "failure", "msg": "支付金额不匹配"}
 
     msg = apply_paid_order(db, out_trade_no=out_trade_no, third_trade_no=data.get("trade_no"))
-    if msg == "订单不存在":
+    if msg in ("订单不存在", "套餐不存在"):
         return {"code": "failure", "msg": msg}
     return {"code": "success", "msg": msg}
 
@@ -299,7 +358,7 @@ def handle_wechat_notify(db: Session, headers: dict, body: str | bytes) -> dict:
         return {"code": "SUCCESS", "message": "忽略非成功状态"}
 
     msg = apply_paid_order(db, out_trade_no=out_trade_no, third_trade_no=transaction_id)
-    if msg == "订单不存在":
+    if msg in ("订单不存在", "套餐不存在"):
         return {"code": "FAIL", "message": msg}
     if msg == "已处理":
         return {"code": "SUCCESS", "message": msg}
