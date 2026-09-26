@@ -18,6 +18,7 @@ from app.schemas.generation import (
     WeakPointGenerateRequest,
 )
 from app.services.llm_service import generate_full_exam_paper, generate_questions_async, verify_question_async
+from app.services.student_service import get_student_or_404
 from app.services.weak_point_service import get_weak_points_for_student
 
 logger = logging.getLogger(__name__)
@@ -92,6 +93,8 @@ async def api_generate(
 ):
     """
     鏅鸿兘鍑洪锛氭牴鎹煡璇嗙偣銆侀毦搴︺€侀鍨嬪拰鏁伴噺鐢熸垚鏁板棰樸€?    鍚屾杈呭 (scenario=sync) 鏃惰繑鍥?{ knowledge_card, examples, questions }锛?    鍏朵粬鍦烘櫙杩斿洖棰樼洰鍒楄〃銆傚惎鐢ㄧ煡璇嗗簱鏃堕€氳繃鍝嶅簲澶?X-RAG-Used 鍛婄煡鏄惁鍛戒腑銆?    """
+    if request.student_id is not None:
+        get_student_or_404(db, request.student_id, current_user)
     if request.use_knowledge_base:
         sub = get_current_subscription(current_user, db)
         require_feature(sub, "rag", current_user)
@@ -132,6 +135,8 @@ async def api_generate_exam(
 ) -> list[QuestionItem]:
     """
     鐢熸垚瀹屾暣璇曞嵎锛? 閬撻€夋嫨棰?+ 8 閬撳～绌洪 + 12 閬撹В绛旈锛堝叡 28 棰橈級锛?    绗﹀悎鐭ヨ瘑鐐逛笌闅惧害锛? 涓垎鍧楀苟鍙戞墽琛岋紝鍗曞潡澶辫触鏃惰繑鍥炲凡鐢熸垚閮ㄥ垎銆傚惎鐢ㄧ煡璇嗗簱鏃堕€氳繃 X-RAG-Used 鍛婄煡鏄惁鍛戒腑銆?    """
+    if request.student_id is not None:
+        get_student_or_404(db, request.student_id, current_user)
     if request.use_knowledge_base:
         sub = get_current_subscription(current_user, db)
         require_feature(sub, "rag", current_user)
