@@ -195,6 +195,12 @@ def apply_paid_order(db: Session, *, out_trade_no: str, third_trade_no: str | No
             # SQLite 的 deferred 事务升级冲突不会进入 busy handler，
             # 只能回滚后整体重试；每次重试都是全新事务，无残留状态。
             time.sleep(_BUSY_RETRY_BASE_DELAY * (attempt + 1))
+        except Exception:
+            # PAY-ATOMIC-05：业务/运行时/完整性错误等非预期异常在事务中途出现时，
+            # 必须先回滚再原样传播；失败的调用自身保证会话离开失败事务，
+            # 不得依赖下一次调用的入口清理。
+            db.rollback()
+            raise
     raise last_exc  # pragma: no cover - 循环必然 return 或 raise
 
 

@@ -466,7 +466,10 @@ def test_failure_after_staged_paid_transition_rolls_back_everything(atomicity_tm
     with pytest.raises(RuntimeError, match="injected failure"):
         service.apply_paid_order(db, out_trade_no="order-f1", third_trade_no="trade-f1")
 
-    # 回滚后的同一会话仍可正常执行查询（PAY-ATOMIC-05）
+    # 失败的调用自身必须已回滚：会话立即离开失败事务（PAY-ATOMIC-05），
+    # 不依赖下一次 apply_paid_order 的入口清理。
+    assert not db.in_transaction()
+    # 回滚后的同一会话可正常执行查询
     assert db.query(Order).filter(Order.out_trade_no == "order-f1").one() is not None
 
     fresh = SessionLocal()
@@ -494,6 +497,85 @@ def test_failure_after_staged_paid_transition_rolls_back_everything(atomicity_tm
     assert sub.period_end > sub_period_end
     assert verify.query(SubscriptionHistory).count() == 1
     verify.close()
+
+
+def test_unexpected_exception_rolls_back_before_propagation(atomicity_tmp, monkeypatch):
+    """PAY-ATOMIC-05：非 OperationalError 异常必须先回滚再传播，且只回滚本次调用。"""
+    _, SessionLocal = make_file_db(atomicity_tmp)
+    seed = SessionLocal()
+    add_user_plan_order(seed, out_trade_no="order-x1")
+    seed.close()
+
+    class ExplodingHistory:
+        def __init__(self, *args, **kwargs):
+            raise RuntimeError("injected unexpected failure")
+
+    monkeypatch.setattr(service, "SubscriptionHistory", ExplodingHistory)
+
+    db = SessionLocal()
+    real_rollback = db.rollback
+    rollbacks = []
+
+    def counting_rollback():
+        rollbacks.append(1)
+        return real_rollback()
+
+    db.rollback = counting_rollback
+
+    with pytest.raises(RuntimeError, match="injected unexpected failure"):
+        service.apply_paid_order(db, out_trade_no="order-x1", third_trade_no="trade-x1")
+
+    assert len(rollbacks) >= 1
+    assert not db.in_transaction()
+    # 失败调用自身已清理会话：无需再次进入 apply_paid_order 即可直接查询
+    assert db.query(Order).filter(Order.out_trade_no == "order-x1").one() is not None
+    db.close()
+
+    fresh = SessionLocal()
+    order = fresh.query(Order).filter(Order.out_trade_no == "order-x1").one()
+    assert order.status == "pending"
+    assert order.third_party_trade_no is None
+    assert order.paid_at is None
+    assert fresh.query(Subscription).count() == 0
+    assert fresh.query(SubscriptionHistory).count() == 0
+    fresh.close()
+
+
+def test_non_busy_operational_error_rolls_back_and_raises(atomicity_tmp):
+    """非锁竞争的 OperationalError：回滚后原样抛出，不重试。"""
+    _, SessionLocal = make_file_db(atomicity_tmp)
+    seed = SessionLocal()
+    add_user_plan_order(seed, out_trade_no="order-n1")
+    seed.close()
+
+    from sqlalchemy.exc import OperationalError
+
+    db = SessionLocal()
+    real_execute = db.execute
+    real_rollback = db.rollback
+    rollbacks = []
+
+    def failing_execute(*args, **kwargs):
+        raise OperationalError("UPDATE orders", {}, Exception("no such table: orders"))
+
+    def counting_rollback():
+        rollbacks.append(1)
+        return real_rollback()
+
+    db.execute = failing_execute
+    db.rollback = counting_rollback
+
+    with pytest.raises(OperationalError):
+        service.apply_paid_order(db, out_trade_no="order-n1", third_trade_no="trade-n1")
+
+    assert len(rollbacks) >= 1
+    assert not db.in_transaction()
+
+    db.execute = real_execute
+    db.rollback = real_rollback
+    # 会话仍可用
+    assert db.query(Order).filter(Order.out_trade_no == "order-n1").one() is not None
+    db.close()
 
 
 def test_missing_plan_leaves_order_not_paid(atomicity_tmp):
