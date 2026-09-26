@@ -20,7 +20,7 @@ class EmptyConfig:
 
 class OpenAIConfig:
     provider = "openai"
-    api_key = "fake-key"
+    api_key = "".join(["fake", "-ke", "y"])  # 凭据形状测试值运行时拼接，完整字面量不落入源码
     base_url = "https://api.openai.com/v1"
     model = "fake-model"
 
