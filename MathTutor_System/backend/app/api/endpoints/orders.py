@@ -2,6 +2,7 @@
 订单与支付：创建订单、支付宝/微信异步回调、支付配置查询
 """
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -86,10 +87,11 @@ def get_order_status(
 
 
 @router.post("/payment/notify/alipay")
-async def alipay_notify(request: Request, db: Session = Depends(get_db)):
+async def alipay_notify(request: Request, db: Session = Depends(get_db)) -> PlainTextResponse:
     """
     支付宝异步回调。验签 -> 幂等更新订单 -> 更新用户订阅。
     支付宝以 application/x-www-form-urlencoded 发送 POST。
+    支付宝要求应答为纯文本 "success"/"failure"，不得返回 JSON 或业务 msg。
     """
     try:
         body = await request.form()
@@ -97,7 +99,10 @@ async def alipay_notify(request: Request, db: Session = Depends(get_db)):
         body = {}
     data = dict(body)
 
-    return handle_alipay_notify(db, data)
+    result = handle_alipay_notify(db, data)
+    if result.get("code") == "success":
+        return PlainTextResponse("success")
+    return PlainTextResponse("failure")
 
 
 @router.post("/payment/notify/wechat")
