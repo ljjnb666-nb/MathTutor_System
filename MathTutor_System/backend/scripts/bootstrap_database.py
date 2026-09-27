@@ -4,8 +4,9 @@ Deterministic reconciliation of historical databases that were created by
 Base.metadata without an alembic_version table (create_superuser.py legacy
 behavior). Unknown / mixed migration states fail closed instead of guessing.
 Revision stamping for unversioned databases requires positive schema
-signature verification (columns + indexes + FK metadata); table presence
-alone is never treated as proof of an applied migration.
+signature verification (application tables + columns + indexes + FK
+metadata); table presence alone is never treated as proof of an applied
+migration.
 """
 
 from pathlib import Path
@@ -78,6 +79,33 @@ def _agent_runs_matches_previous_head(inspector: Inspector) -> bool:
     return not _agent_runs_signature_problems(inspector)
 
 
+def _base_schema_signature_problems(inspector: Inspector, *, previous_head: bool) -> list[str]:
+    """应用基础 schema（agent_runs 除外）缺失的表/列清单；空列表表示签名匹配。
+
+    期望签名从 Base.metadata 派生，避免校验器与 ORM 漂移：
+      previous_head=True  -> 7f1f4d9a2c10 时代签名：owner 三表排除 owner_user_id
+                             （owner 列由 owner 状态逻辑单独处理）
+      previous_head=False -> 当前 head 签名（含 owner 列；owner 索引/FK 另行校验）
+    仅要求"期望的必须存在"；遗留多余列不阻断（不做严格相等比较）。
+    """
+    tables = set(inspector.get_table_names())
+    problems: list[str] = []
+    for name, table in sorted(Base.metadata.tables.items()):
+        if name == "agent_runs":
+            continue
+        expected_columns = {column.name for column in table.columns}
+        if previous_head and name in OWNER_TABLES:
+            expected_columns.discard("owner_user_id")
+        if name not in tables:
+            problems.append(f"missing table: {name}")
+            continue
+        columns = {column["name"] for column in inspector.get_columns(name)}
+        missing_columns = sorted(expected_columns - columns)
+        if missing_columns:
+            problems.append(f"{name}: missing columns: {', '.join(missing_columns)}")
+    return problems
+
+
 def _owner_head_signature_problems(inspector: Inspector) -> list[str]:
     """owner 列/索引/FK 元数据与 head（b7e2c94f6a15）产物签名的差异。"""
     problems: list[str] = []
@@ -124,8 +152,13 @@ def _reconcile() -> None:
 
     if all(owner_column_states.values()):
         # STATE D：由新 Base.metadata 建库，schema 已等同于 head -> 仅补标记，不重放迁移。
-        # 列存在不等于 head schema：agent_runs 签名与 owner 索引/FK 元数据也必须齐全。
-        problems = _agent_runs_signature_problems(inspector) + _owner_head_signature_problems(inspector)
+        # owner 列 + agent_runs 签名正确不代表完整：全部应用表/列与 owner 索引/FK 元数据
+        # 也必须齐全，否则不得补 head 标记。
+        problems = (
+            _agent_runs_signature_problems(inspector)
+            + _owner_head_signature_problems(inspector)
+            + _base_schema_signature_problems(inspector, previous_head=False)
+        )
         if problems:
             raise BootstrapDatabaseError(
                 "Cannot stamp head: schema does not match head signature ("
@@ -144,6 +177,9 @@ def _reconcile() -> None:
             "Manual migration required."
         )
 
+    # 无 owner 列的无版本库：只能证明"早于 owner 迁移"，具体补哪个历史版本
+    # 仍需正向验证完整应用基础 schema（agent_runs 除外）后才允许标记。
+    previous_head_problems = _base_schema_signature_problems(inspector, previous_head=True)
     if "agent_runs" in tables:
         # STATE C：表存在不足以证明 7f1f4d9a2c10 已应用；签名完全一致才补标记后升级。
         if not _agent_runs_matches_previous_head(inspector):
@@ -153,10 +189,25 @@ def _reconcile() -> None:
                 f"match revision {AGENT_RUNS_REVISION} signature ({details}). "
                 "Manual migration required."
             )
+        if previous_head_problems:
+            raise BootstrapDatabaseError(
+                f"Cannot stamp revision {AGENT_RUNS_REVISION}: application schema does not "
+                "match previous-head signature ("
+                + "; ".join(previous_head_problems)
+                + "). Manual migration required."
+            )
         # schema 等价于 7f1f4d9a2c10 -> 补标记后升级，owner 迁移正常执行。
         command.stamp(config, AGENT_RUNS_REVISION)
     else:
-        # STATE E：更早的历史库 -> 从 baseline 标记，补 agent_runs 与 owner 迁移。
+        # STATE E：基础 schema 完整但早于 agent_runs -> 从 baseline 标记，
+        # 由迁移补建 agent_runs 与 owner 列。schema 漂移的历史库一律 fail closed。
+        if previous_head_problems:
+            raise BootstrapDatabaseError(
+                f"Cannot stamp revision {BASELINE_REVISION}: application schema does not "
+                "match previous-head signature ("
+                + "; ".join(previous_head_problems)
+                + "). Manual migration required."
+            )
         command.stamp(config, BASELINE_REVISION)
     command.upgrade(config, "head")
 

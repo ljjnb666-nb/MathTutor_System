@@ -1,10 +1,12 @@
 """
 PHASE 2B-2B：Docker entrypoint 启动迁移回归测试。
 
-覆盖三种部署路径：
-  fresh DB + 无 bootstrap 密码 -> bootstrap 失败、不建库、不启动 uvicorn（fail closed）
-  fresh DB + 合法密码          -> 管理员创建 -> 数据库 bootstrap（建库/标记 head/种子） -> 启动 uvicorn
-  已有 DB + 无密码             -> 数据库 bootstrap 正常执行迁移/标记 -> 启动 uvicorn
+覆盖部署路径：
+  fresh DB（无文件/空文件/仅无关表）+ 无 bootstrap 密码 -> bootstrap 失败、不建应用 schema、不启动 uvicorn（fail closed）
+  fresh DB（无文件/空文件）+ 合法密码                  -> 管理员创建 -> 数据库 bootstrap（建库/标记 head/种子） -> 启动 uvicorn
+  已有 DB + 无密码                                     -> 数据库 bootstrap 正常执行迁移/标记 -> 启动 uvicorn
+
+“未初始化”以 schema 状态为准（是否存在应用表），而非数据库文件是否存在。
 沿用 SEC-BOOT 的 entrypoint 沙箱模式（stub python/uvicorn）。
 """
 import os
@@ -18,6 +20,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy import create_engine, inspect, text
 
+from app.models.base import Base
 from tests.test_bootstrap_admin_security import _prepare_entrypoint_sandbox, _resolve_bash, _fixture_password  # noqa: F401
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -65,6 +68,26 @@ def _alembic_version(db_path: Path) -> str | None:
             return conn.execute(text("select version_num from alembic_version")).scalar_one()
     finally:
         engine.dispose()
+
+
+def _application_table_names(db_path: Path) -> set[str]:
+    """库中属于 TutorPro 应用 schema 的表名集合（与 Base.metadata 求交集）。"""
+    engine = create_engine(f"sqlite:///{db_path.as_posix()}")
+    try:
+        return set(inspect(engine).get_table_names()) & set(Base.metadata.tables)
+    finally:
+        engine.dispose()
+
+
+def _sandbox_case(request) -> tuple[Path, Path, Path, Path]:
+    if TEST_TMP_DIR.exists():
+        shutil.rmtree(TEST_TMP_DIR, ignore_errors=True)
+    TEST_TMP_DIR.mkdir(parents=True, exist_ok=True)
+    request.addfinalizer(lambda: shutil.rmtree(TEST_TMP_DIR, ignore_errors=True))
+    case_dir = Path(tempfile.mkdtemp(dir=TEST_TMP_DIR))
+    entrypoint_copy, stub_dir, marker = _prepare_entrypoint_sandbox(case_dir)
+    db_path = entrypoint_copy.parent / "math_tutor.db"
+    return entrypoint_copy, stub_dir, marker, db_path
 
 
 @pytest.mark.skipif(BASH_EXE is None, reason="需要 POSIX shell 执行 entrypoint smoke test")
@@ -144,3 +167,69 @@ def test_existing_db_without_password_runs_bootstrap_migration_and_starts(reques
         assert users == [("admin", "admin")], "重启迁移不得重复/改动管理员"
     finally:
         engine.dispose()
+
+
+# --------------------------------------------- ENTRYPOINT-FRESH-EMPTY / UNRELATED
+
+
+@pytest.mark.skipif(BASH_EXE is None, reason="需要 POSIX shell 执行 entrypoint smoke test")
+def test_entrypoint_fresh_empty_01_empty_db_file_requires_bootstrap_password(request):
+    """ENTRYPOINT-FRESH-EMPTY-01：已存在但为空的 SQLite 文件仍是未初始化数据库。
+
+    文件存在不等于已初始化：必须要求 bootstrap 密码，凭证缺失时
+    不建应用 schema、不启动 uvicorn（空文件本身允许保留）。
+    """
+    entrypoint_copy, stub_dir, marker, db_path = _sandbox_case(request)
+    db_path.touch()  # 0 字节文件：对 SQLite 而言是合法的空库
+
+    proc = _run_entrypoint(entrypoint_copy, stub_dir, marker, db_path, password="")
+
+    assert proc.returncode != 0
+    assert "Bootstrap admin password is required" in proc.stderr
+    assert not marker.exists(), "fresh bootstrap 失败后 uvicorn 不得被启动"
+    assert _application_table_names(db_path) == set(), "凭证缺失时不得创建应用 schema"
+
+
+@pytest.mark.skipif(BASH_EXE is None, reason="需要 POSIX shell 执行 entrypoint smoke test")
+def test_entrypoint_fresh_empty_02_empty_db_file_with_valid_password_bootstraps(request):
+    """ENTRYPOINT-FRESH-EMPTY-02：空文件 + 合法 bootstrap 密码 -> 正常初始化并启动。"""
+    entrypoint_copy, stub_dir, marker, db_path = _sandbox_case(request)
+    db_path.touch()
+
+    proc = _run_entrypoint(entrypoint_copy, stub_dir, marker, db_path, password=_fixture_password())
+
+    assert proc.returncode == 0, proc.stderr
+    assert marker.exists(), "bootstrap 成功后 uvicorn 应被启动"
+    assert "Database bootstrap complete" in proc.stdout
+    assert _alembic_version(db_path) == "b7e2c94f6a15"
+    engine = create_engine(f"sqlite:///{db_path.as_posix()}")
+    try:
+        with engine.connect() as conn:
+            roles = [row[0] for row in conn.execute(text("select role from users")).fetchall()]
+        assert roles == ["admin"]
+    finally:
+        engine.dispose()
+    assert _application_table_names(db_path), "初始化后应存在完整应用 schema"
+
+
+@pytest.mark.skipif(BASH_EXE is None, reason="需要 POSIX shell 执行 entrypoint smoke test")
+def test_entrypoint_fresh_unrelated_03_unrelated_only_db_requires_bootstrap_password(request):
+    """ENTRYPOINT-FRESH-UNRELATED-03：仅含无关表的 SQLite 库仍是未初始化数据库。
+
+    非空文件也可能没有 TutorPro schema：必须要求 bootstrap 密码，
+    且不得动原有无关表、不得启动 uvicorn。
+    """
+    entrypoint_copy, stub_dir, marker, db_path = _sandbox_case(request)
+    engine = create_engine(f"sqlite:///{db_path.as_posix()}")
+    with engine.begin() as conn:
+        conn.execute(text("CREATE TABLE unrelated (id INTEGER PRIMARY KEY, note TEXT)"))
+    engine.dispose()
+
+    proc = _run_entrypoint(entrypoint_copy, stub_dir, marker, db_path, password="")
+
+    assert proc.returncode != 0
+    assert "Bootstrap admin password is required" in proc.stderr
+    assert not marker.exists(), "fresh bootstrap 失败后 uvicorn 不得被启动"
+    tables = inspect(create_engine(f"sqlite:///{db_path.as_posix()}")).get_table_names()
+    assert "unrelated" in tables, "无关表必须原样保留"
+    assert not (set(tables) & set(Base.metadata.tables)), "凭证缺失时不得创建应用 schema"
