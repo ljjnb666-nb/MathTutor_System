@@ -10,7 +10,13 @@ class QuestionBank(Base):
     __tablename__ = "question_bank"
 
     id = pk_column()
-    owner_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    # 约束名与 b7e2c94f6a15 迁移一致：fresh 建库 stamp head 后 downgrade 才能按名删该 FK。
+    owner_user_id = Column(
+        Integer,
+        ForeignKey("users.id", name="fk_question_bank_owner_user_id_users"),
+        nullable=True,
+        index=True,
+    )
     student_id = Column(Integer, ForeignKey("students.id"), nullable=True, index=True)
     content = Column(Text, nullable=False)
     options = json_list_column()

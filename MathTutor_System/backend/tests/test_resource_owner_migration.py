@@ -253,3 +253,118 @@ def test_fresh_metadata_schema_contains_owner_columns():
             for fk in foreign_keys
         )
     engine.dispose()
+
+
+# b7e2c94f6a15 迁移创建/删除的 owner FK 约束名；fresh create_all schema 必须使用同名约束，
+# 否则 stamp head 后 downgrade 会因 batch drop_constraint 找不到具名 FK 而失败。
+FRESH_OWNER_FK_NAMES = {
+    "questions": "fk_questions_owner_user_id_users",
+    "question_bank": "fk_question_bank_owner_user_id_users",
+    "exams": "fk_exams_owner_user_id_users",
+}
+
+
+def _named_owner_fk(inspector, table: str) -> bool:
+    return any(
+        fk.get("name") == FRESH_OWNER_FK_NAMES[table]
+        and fk.get("referred_table") == "users"
+        and fk.get("referred_columns") == ["id"]
+        and fk.get("constrained_columns") == ["owner_user_id"]
+        for fk in inspector.get_foreign_keys(table)
+    )
+
+
+def test_fresh_create_all_schema_is_migration_compatible(request):
+    """Fresh 建库（create_all -> stamp head）必须与迁移历史双向兼容。
+
+    遗留路径（7f -> upgrade b7 -> downgrade）之外，本测试覆盖另一条到达 head 的路径：
+    Base.metadata.create_all -> stamp b7e2c94f6a15 -> downgrade 7f1f4d9a2c10 -> upgrade head。
+
+    说明：downgrade 会删除 owner_user_id 列，owner 归属值不承诺保留（也不应断言保留）；
+    兼容性断言是 schema 可降可升，且核心资源数据在两次迁移间保持不变。
+    re-upgrade 的 owner 值由确定性回填恢复（student 存在且有归属教师 -> owner=Student.user_id）。
+    """
+    if TEST_TMP_DIR.exists():
+        shutil.rmtree(TEST_TMP_DIR, ignore_errors=True)
+    TEST_TMP_DIR.mkdir(parents=True)
+    request.addfinalizer(lambda: shutil.rmtree(TEST_TMP_DIR, ignore_errors=True))
+    db_path = TEST_TMP_DIR / "fresh_compat.sqlite"
+    db_url = f"sqlite:///{db_path.as_posix()}"
+
+    engine = create_engine(db_url)
+    Base.metadata.create_all(engine)
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "insert into users (id, username, hashed_password, is_active, role, created_at) values "
+                "(1, 'fresh-admin', 'x', 1, 'admin', CURRENT_TIMESTAMP)"
+            )
+        )
+        conn.execute(
+            text(
+                "insert into students (id, user_id, name, grade, class_name, tags, performance_score, created_at) "
+                "values (10, 1, '学生A', '高一', '1班', '[]', 60, CURRENT_TIMESTAMP)"
+            )
+        )
+        conn.execute(
+            text(
+                "insert into questions (student_id, content, options, answer, analysis, "
+                "knowledge_point, difficulty, question_type, source, created_at) values "
+                "(10, 'fresh-q1', '[]', '答案', '', 'kp', 'L3', '解答', 'test', CURRENT_TIMESTAMP)"
+            )
+        )
+        conn.execute(
+            text(
+                "insert into question_bank (student_id, content, options, answer, analysis, "
+                "question_type, difficulty, knowledge_point, source, tags, images, content_hash, created_at) "
+                "values (10, 'fresh-b1', '[]', '答案', '', '解答', 'L3', 'kp', 'test', '[]', '[]', 'fresh-b1', CURRENT_TIMESTAMP)"
+            )
+        )
+        conn.execute(
+            text(
+                "insert into exams (title, student_id, questions, created_at) values "
+                "('fresh-e1', 10, '[]', CURRENT_TIMESTAMP)"
+            )
+        )
+    engine.dispose()
+
+    # stamp 为 head：owner FK 必须带迁移同名约束（batch drop_constraint 按名定位）
+    _run_alembic("stamp", OWNER_REVISION, db_url=db_url)
+    engine = create_engine(db_url)
+    inspector = inspect(engine)
+    for table in OWNER_TABLES:
+        assert _named_owner_fk(inspector, table), (
+            f"{table} 的 owner FK 未按迁移命名（{FRESH_OWNER_FK_NAMES[table]}）"
+        )
+    engine.dispose()
+
+    # downgrade 到上一代 head：必须 PASS；owner 列移除，核心数据保留
+    _run_alembic("downgrade", AGENT_RUNS_REVISION, db_url=db_url)
+    engine = create_engine(db_url)
+    inspector = inspect(engine)
+    for table in OWNER_TABLES:
+        assert not _owner_columns(inspector, table), f"downgrade 后 {table}.owner_user_id 应被移除"
+    with engine.connect() as conn:
+        assert conn.execute(text("select content from questions where student_id = 10")).scalar_one() == "fresh-q1"
+        assert conn.execute(text("select content from question_bank where student_id = 10")).scalar_one() == "fresh-b1"
+        assert conn.execute(text("select title from exams where student_id = 10")).scalar_one() == "fresh-e1"
+        assert conn.execute(text("select count(*) from questions")).scalar_one() == 1
+    engine.dispose()
+
+    # 再升级回 head：owner 列/索引/FK 元数据恢复，回填按确定性规则生效
+    _run_alembic("upgrade", "head", db_url=db_url)
+    engine = create_engine(db_url)
+    inspector = inspect(engine)
+    for table in OWNER_TABLES:
+        assert _owner_columns(inspector, table), f"re-upgrade 后 {table}.owner_user_id 应恢复"
+        assert f"ix_{table}_owner_user_id" in {idx["name"] for idx in inspector.get_indexes(table)}
+        assert _named_owner_fk(inspector, table), f"re-upgrade 后 {table} 的 owner FK 元数据应恢复"
+    with engine.connect() as conn:
+        assert conn.execute(text("select count(*) from questions")).scalar_one() == 1
+        assert conn.execute(text("select count(*) from question_bank")).scalar_one() == 1
+        assert conn.execute(text("select count(*) from exams")).scalar_one() == 1
+        # 确定性回填：学生 10 归属教师 1
+        for table in OWNER_TABLES:
+            owner = conn.execute(text(f"select owner_user_id from {table} where student_id = 10")).scalar_one()
+            assert owner == 1, f"{table} re-upgrade 回填后 owner 应为 1"
+    engine.dispose()
