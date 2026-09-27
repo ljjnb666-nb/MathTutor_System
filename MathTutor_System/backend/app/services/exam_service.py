@@ -4,7 +4,7 @@ import logging
 from datetime import date, datetime
 
 from fastapi import HTTPException
-from sqlalchemy import desc, or_
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.models.exam import Exam
@@ -16,23 +16,10 @@ from app.services.exam_grading_service import grade_exam_core
 logger = logging.getLogger(__name__)
 
 
-def get_user_student_ids(db: Session, user: User) -> list[int]:
-    rows = db.query(Student.id).filter(Student.user_id == user.id).all()
-    return [row[0] for row in rows]
-
-
-def exam_visible_filter(student_ids: list[int]):
-    if not student_ids:
-        return Exam.student_id.is_(None)
-    return or_(Exam.student_id.in_(student_ids), Exam.student_id.is_(None))
-
-
 def get_exam_or_404(db: Session, exam_id: int, current_user: User) -> Exam:
+    """owner_user_id 是租户归属事实来源：非本人（含未认领 owner=NULL）试卷一律 404。"""
     exam = db.get(Exam, exam_id)
-    if exam is None:
-        raise HTTPException(status_code=404, detail="试卷不存在")
-    student_ids = get_user_student_ids(db, current_user)
-    if exam.student_id is not None and exam.student_id not in student_ids:
+    if exam is None or exam.owner_user_id != current_user.id:
         raise HTTPException(status_code=404, detail="试卷不存在")
     return exam
 
@@ -58,6 +45,7 @@ def create_exam_for_user(db: Session, body: ExamCreate, current_user: User) -> E
     if body.student_id is not None:
         get_owned_student_or_404(db, body.student_id, current_user)
     row = Exam(
+        owner_user_id=current_user.id,
         title=(body.title or "").strip() or default_exam_title(),
         student_id=body.student_id,
         questions=normalize_exam_questions(body.questions),
@@ -75,11 +63,11 @@ def list_exams_for_user(
     *,
     assignment_date: date | None = None,
 ) -> list[ExamResponseWithStudent]:
-    student_ids = get_user_student_ids(db, current_user)
+    # student_id 不再决定可见性；owner_user_id 是唯一事实来源
     q = (
         db.query(Exam, Student.name)
         .outerjoin(Student, Exam.student_id == Student.id)
-        .filter(exam_visible_filter(student_ids))
+        .filter(Exam.owner_user_id == current_user.id)
     )
     if assignment_date is not None:
         q = q.filter(Exam.assignment_date == assignment_date)

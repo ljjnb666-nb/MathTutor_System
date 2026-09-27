@@ -1,8 +1,8 @@
 """
-题库管理接口 - CRUD、批量保存。按当前登录用户隔离：仅可操作本用户学生相关题目及公共题。
+题库管理接口 - CRUD、批量保存。owner_user_id 是租户归属事实来源：
+仅可操作本人创建的题目；student_id 仅表示布置/业务上下文。
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.api.endpoints.auth import get_current_user
@@ -15,36 +15,21 @@ from app.schemas.question_dto import QuestionBatchCreate, QuestionCreate, Questi
 router = APIRouter()
 
 
-def _my_student_ids(db: Session, user: User) -> list[int]:
-    """当前用户名下的学生 ID 列表。"""
-    rows = db.query(Student.id).filter(Student.user_id == user.id).all()
-    return [r[0] for r in rows]
-
-
-def _question_visible_filter(my_student_ids: list[int]):
-    """题目可见条件：归属当前用户的学生或公共题。"""
-    if not my_student_ids:
-        return Question.student_id.is_(None)
-    return or_(Question.student_id.in_(my_student_ids), Question.student_id.is_(None))
-
-
 @router.get("/", response_model=list[QuestionRead])
 def list_questions(
     knowledge_point: str | None = Query(None, description="按知识点筛选"),
-    student_id: int | None = Query(None, description="学生 ID：传入则只返回该学生题目 + 公共题；不传则返回当前用户可见全部"),
+    student_id: int | None = Query(None, description="学生 ID：传入则只返回该学生题目 + 本人的通用题；不传则返回本人全部题目"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """获取题目列表。仅返回当前用户可见题目（本用户学生的题 + 公共题）；若传 student_id 则必须属于当前用户。"""
-    my_ids = _my_student_ids(db, current_user)
+    """获取题目列表。仅返回本人创建的题目；若传 student_id 则必须属于当前用户。"""
     if student_id is not None:
-        if student_id not in my_ids:
+        student = db.get(Student, student_id)
+        if student is None or student.user_id != current_user.id:
             raise HTTPException(status_code=404, detail="学生不存在")
-        q = db.query(Question).filter(
-            (Question.student_id == student_id) | (Question.student_id.is_(None))
-        )
-    else:
-        q = db.query(Question).filter(_question_visible_filter(my_ids))
+    q = db.query(Question).filter(Question.owner_user_id == current_user.id)
+    if student_id is not None:
+        q = q.filter((Question.student_id == student_id) | (Question.student_id.is_(None)))
     if knowledge_point is not None and knowledge_point.strip():
         q = q.filter(Question.knowledge_point.ilike(f"%{knowledge_point.strip()}%"))
     return q.order_by(Question.created_at.desc()).all()
@@ -68,6 +53,7 @@ def create_question(
     """保存单个题目。student_id 若提供则必须属于当前用户。"""
     _require_student_owned_if_set(db, body.student_id, current_user)
     row = Question(
+        owner_user_id=current_user.id,
         content=body.content,
         options=body.options,
         answer=body.answer,
@@ -91,13 +77,15 @@ def batch_create_questions(
     current_user: User = Depends(get_current_user),
 ):
     """批量保存题目（如 AI 生成后一键保存）。每条 student_id 若提供则必须属于当前用户。"""
-    my_ids = _my_student_ids(db, current_user)
     for item in body.questions:
-        if item.student_id is not None and item.student_id not in my_ids:
-            raise HTTPException(status_code=404, detail="学生不存在")
+        if item.student_id is not None:
+            student = db.get(Student, item.student_id)
+            if student is None or student.user_id != current_user.id:
+                raise HTTPException(status_code=404, detail="学生不存在")
     created = []
     for item in body.questions:
         row = Question(
+            owner_user_id=current_user.id,
             content=item.content,
             options=item.options,
             answer=item.answer,
@@ -122,12 +110,9 @@ def delete_question(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """删除题目。仅可删除当前用户可见的题目（本用户学生的题或公共题）。"""
+    """删除题目。仅可删除本人创建的题目；他人或未认领（owner 为空）的题目一律 404。"""
     row = db.get(Question, question_id)
-    if row is None:
-        raise HTTPException(status_code=404, detail="题目不存在")
-    my_ids = _my_student_ids(db, current_user)
-    if row.student_id is not None and row.student_id not in my_ids:
+    if row is None or row.owner_user_id != current_user.id:
         raise HTTPException(status_code=404, detail="题目不存在")
     db.delete(row)
     db.commit()

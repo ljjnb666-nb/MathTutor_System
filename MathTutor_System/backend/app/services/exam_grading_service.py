@@ -1,6 +1,7 @@
 import logging
 from datetime import date, datetime, timedelta
 
+from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -41,16 +42,20 @@ def find_question_by_content(
     content: str,
     knowledge_point: str,
     student_id: int | None,
+    owner_user_id: int,
 ) -> Question | None:
     content = (content or "").strip()
     if not content:
         return None
     knowledge_point = (knowledge_point or "").strip() or "综合"
+    # 题目匹配限定在试卷归属教师名下，防止跨租户命中/复用他人题目
+    owner_filter = Question.owner_user_id == owner_user_id
     student_filter = or_(Question.student_id.is_(None), Question.student_id == student_id)
 
     question = (
         db.query(Question)
         .filter(
+            owner_filter,
             Question.knowledge_point == knowledge_point,
             Question.content == content,
             student_filter,
@@ -66,6 +71,7 @@ def find_question_by_content(
         question = (
             db.query(Question)
             .filter(
+                owner_filter,
                 Question.knowledge_point == knowledge_point,
                 Question.content.startswith(prefix),
                 student_filter,
@@ -83,6 +89,7 @@ def find_question_by_content(
     return (
         db.query(Question)
         .filter(
+            owner_filter,
             Question.knowledge_point == knowledge_point,
             Question.content.like(like_pattern, escape="\\"),
             student_filter,
@@ -96,11 +103,13 @@ def create_question_from_exam_data(
     db: Session,
     question_data: dict,
     student_id: int | None,
+    owner_user_id: int,
 ) -> Question:
     options = question_data.get("options")
     if options is None or not isinstance(options, list):
         options = []
     row = Question(
+        owner_user_id=owner_user_id,
         student_id=student_id,
         content=(question_data.get("content") or "").strip() or "(无题干)",
         options=options,
@@ -194,6 +203,10 @@ def grade_exam_core(
     student_id: int,
     student_answers: list[StudentAnswerItem] | None = None,
 ) -> GradeResponse:
+    # 防御性 fail-closed：未认领（owner 为空）的试卷绝不产生租户数据，也不猜测归属
+    owner_user_id = getattr(exam, "owner_user_id", None)
+    if owner_user_id is None:
+        raise HTTPException(status_code=404, detail="试卷不存在")
     flat_questions = flat_questions_from_exam(exam)
     mistakes_added = 0
 
@@ -212,9 +225,9 @@ def grade_exam_core(
         elif not options:
             options = None
 
-        question = find_question_by_content(db, content, knowledge_point, student_id)
+        question = find_question_by_content(db, content, knowledge_point, student_id, owner_user_id)
         if question is None:
-            question = create_question_from_exam_data(db, question_data, student_id)
+            question = create_question_from_exam_data(db, question_data, student_id, owner_user_id)
             db.flush()
             logger.info("Created Question id=%s for exam item %s", question.id, item.question_index)
 

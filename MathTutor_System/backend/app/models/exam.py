@@ -15,6 +15,13 @@ class Exam(Base):
     __tablename__ = "exams"
 
     id = pk_column()
+    # 约束名与 b7e2c94f6a15 迁移一致：fresh 建库 stamp head 后 downgrade 才能按名删该 FK。
+    owner_user_id = Column(
+        Integer,
+        ForeignKey("users.id", name="fk_exams_owner_user_id_users"),
+        nullable=True,
+        index=True,
+    )
     title = Column(String(256), nullable=False)
     student_id = Column(Integer, ForeignKey("students.id"), nullable=True, index=True)
     questions = json_list_column()

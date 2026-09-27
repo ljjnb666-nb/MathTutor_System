@@ -206,13 +206,37 @@ def get_student_trend(db: Session, student_id: int, weeks: int) -> dict:
     return {"weeks": out}
 
 
+def _student_owner_id(db: Session, student_id: int) -> int | None:
+    """学生的归属教师 ID；学生不存在或未归属教师时为 None（对应不到任何 owner）。"""
+    student = db.get(Student, student_id)
+    return student.user_id if student is not None else None
+
+
 def list_student_exams(db: Session, student_id: int) -> list[Exam]:
-    return db.query(Exam).filter(Exam.student_id == student_id).order_by(Exam.created_at.desc()).all()
+    owner_id = _student_owner_id(db, student_id)
+    if owner_id is None:
+        return []
+    return (
+        db.query(Exam)
+        .filter(
+            Exam.student_id == student_id,
+            Exam.owner_user_id == owner_id,
+        )
+        .order_by(Exam.created_at.desc())
+        .all()
+    )
 
 
 def get_student_exam(db: Session, student_id: int, exam_id: int) -> Exam:
     exam = db.get(Exam, exam_id)
-    if not exam or exam.student_id != student_id:
+    owner_id = _student_owner_id(db, student_id)
+    if (
+        not exam
+        or exam.student_id != student_id
+        or owner_id is None
+        or exam.owner_user_id != owner_id
+    ):
+        # owner 与学生归属教师不一致即视为跨租户脏数据，对学生不可见
         raise StudentPortalServiceError(404, "试卷不存在")
     return exam
 
