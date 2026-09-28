@@ -20,6 +20,30 @@ BASE_REVISION = "b7e2c94f6a15"
 ARTIFACT_REVISION = "e4f7a1b9c2d8"
 
 
+def test_fresh_bootstrap_import_registers_practice_lifecycle_models():
+    """The production bootstrap import graph must populate these tables in a new interpreter."""
+    source = """
+from scripts import bootstrap_database
+
+required = {"agent_artifacts", "agent_actions"}
+registered = set(bootstrap_database.Base.metadata.tables)
+missing = sorted(required - registered)
+if missing:
+    raise SystemExit(f"missing ORM tables after production bootstrap import: {missing}")
+print("\\n".join(sorted(required)))
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", source],
+        cwd=BACKEND_DIR,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "agent_artifacts" in result.stdout
+    assert "agent_actions" in result.stdout
+
+
 def _run_alembic(*args: str, db_url: str) -> None:
     env = os.environ.copy()
     env["DATABASE_URL"] = db_url
