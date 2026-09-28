@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.core.security import get_password_hash
 from app.models.chat_session import ChatMessage, ChatSession
+from app.models.agent_artifact import AgentAction, AgentArtifact
+from app.models.agent_run import AgentRun
 from app.models.order import Order
 from app.models.plan import Plan
 from app.models.schedule import Schedule
@@ -245,6 +247,14 @@ def delete_user_and_related(db: Session, user_id: int, current_user_id: int) -> 
     if current_user_id == user_id:
         raise UserAdminServiceError(400, "不能删除当前登录账号")
     user = _get_user_or_error(db, user_id)
+
+    has_practice_history = any((
+        db.query(AgentRun.id).filter(AgentRun.user_id == user_id).first(),
+        db.query(AgentArtifact.id).filter(AgentArtifact.user_id == user_id).first(),
+        db.query(AgentAction.id).filter(AgentAction.user_id == user_id).first(),
+    ))
+    if has_practice_history:
+        raise UserAdminServiceError(409, "该账号存在教师助手历史记录，暂不能删除，以保留审计数据")
 
     session_ids = [row.id for row in db.query(ChatSession.id).filter(ChatSession.user_id == user_id).all()]
     if session_ids:

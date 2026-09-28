@@ -1,4 +1,9 @@
-"""Versioned Teacher Agent artifacts and confirmed actions."""
+"""Versioned Teacher Agent artifacts and confirmed actions.
+
+These rows are audit history: parent foreign keys deliberately use the
+database's default NO ACTION/RESTRICT behavior so users, runs, and artifacts
+cannot be removed while dependent practice history exists.
+"""
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.sqlite import JSON
 

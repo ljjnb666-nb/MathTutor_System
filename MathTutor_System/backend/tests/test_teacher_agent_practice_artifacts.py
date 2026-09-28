@@ -1,6 +1,7 @@
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 from app.core.deps import LLMConfig
@@ -289,3 +290,66 @@ def test_medium_write_tool_is_not_low_registry():
 
     assert ACTION_SAVE_PRACTICE_SET not in {tool.name for tool in available_read_tools()}
     assert ACTION_SAVE_PRACTICE_SET not in TOOL_REGISTRY
+
+
+def test_audit_foreign_keys_restrict_user_run_and_artifact_deletion():
+    engine = create_engine("sqlite:///:memory:")
+
+    @event.listens_for(engine, "connect")
+    def enable_foreign_keys(dbapi_connection, _):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+    Base.metadata.create_all(
+        engine,
+        tables=[User.__table__, Student.__table__, AgentRun.__table__, AgentArtifact.__table__, AgentAction.__table__],
+    )
+    session = sessionmaker(bind=engine)()
+    user = User(username="audit-owner", hashed_password="x", role="teacher", is_active=True)
+    session.add(user)
+    session.flush()
+    run = AgentRun(user_id=user.id, goal="audit goal", status="completed")
+    session.add(run)
+    session.flush()
+    artifact = AgentArtifact(
+        user_id=user.id,
+        agent_run_id=run.id,
+        artifact_type="practice_set",
+        status="ready_for_confirmation",
+        version=1,
+        title="Audit draft",
+        content_json={},
+        validation_json={},
+    )
+    session.add(artifact)
+    session.flush()
+    action = AgentAction(
+        user_id=user.id,
+        agent_run_id=run.id,
+        artifact_id=artifact.id,
+        action_type=ACTION_SAVE_PRACTICE_SET,
+        status="pending_confirmation",
+        idempotency_key="audit-key",
+        payload_hash="a" * 64,
+        expected_artifact_version=1,
+    )
+    session.add(action)
+    session.commit()
+
+    for statement, row_id in (
+        ("DELETE FROM users WHERE id = :id", user.id),
+        ("DELETE FROM agent_runs WHERE id = :id", run.id),
+        ("DELETE FROM agent_artifacts WHERE id = :id", artifact.id),
+    ):
+        with pytest.raises(IntegrityError):
+            session.execute(text(statement), {"id": row_id})
+            session.commit()
+        session.rollback()
+
+    assert session.get(User, user.id) is not None
+    assert session.get(AgentRun, run.id) is not None
+    assert session.get(AgentArtifact, artifact.id) is not None
+    assert session.get(AgentAction, action.id) is not None
+    session.close()
+    engine.dispose()

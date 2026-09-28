@@ -1,9 +1,12 @@
 from datetime import timedelta
 
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.models.base import Base
+from app.models.agent_artifact import AgentAction, AgentArtifact
+from app.models.agent_run import AgentRun
 from app.models.chat_session import ChatMessage, ChatSession
 from app.models.order import Order
 from app.models.plan import Plan
@@ -17,6 +20,7 @@ from app.services.user_admin_service import (
     delete_user_and_related,
     set_user_subscription,
     utc_now,
+    UserAdminServiceError,
 )
 
 
@@ -26,6 +30,9 @@ def make_db():
         engine,
         tables=[
             User.__table__,
+            AgentRun.__table__,
+            AgentArtifact.__table__,
+            AgentAction.__table__,
             Plan.__table__,
             Subscription.__table__,
             SubscriptionHistory.__table__,
@@ -133,3 +140,19 @@ def test_delete_user_and_related_removes_owned_records_and_unassigns_students():
     assert db.query(Order).count() == 0
     assert db.query(Schedule).count() == 0
     assert db.get(Student, 1).user_id is None
+
+
+def test_delete_user_is_blocked_when_teacher_agent_audit_history_exists():
+    db = make_db()
+    add_user(db, 1, "admin", role="admin")
+    add_user(db, 2, "teacher")
+    run = AgentRun(user_id=2, goal="保留的教学规划历史", status="completed")
+    db.add(run)
+    db.commit()
+
+    with pytest.raises(UserAdminServiceError) as error:
+        delete_user_and_related(db, user_id=2, current_user_id=1)
+
+    assert error.value.status_code == 409
+    assert db.get(User, 2) is not None
+    assert db.query(AgentRun).filter(AgentRun.user_id == 2).count() == 1
