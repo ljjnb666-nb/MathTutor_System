@@ -74,6 +74,45 @@ describe('PracticeDraftPanel', () => {
     expect(screen.getByDisplayValue('What is the slope of y = 2x + 1?')).toBeInTheDocument()
   })
 
+  it('keeps student mistakes off and disabled without a selected student', () => {
+    const { props } = renderPanel()
+    const checkbox = screen.getByRole('checkbox', { name: 'Use student mistakes' })
+    expect(checkbox).not.toBeChecked()
+    expect(checkbox).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate practice draft' }))
+
+    expect(props.onGenerate).toHaveBeenCalledWith(expect.objectContaining({ use_student_context: false }))
+    expect(props.onGenerate.mock.calls[0][0]).not.toHaveProperty('student_id')
+  })
+
+  it('binds enabled student mistakes to the selected run student and supports turning the option off', () => {
+    const { props } = renderPanel({ run: { ...run, student_id: 42 } })
+    const checkbox = screen.getByRole('checkbox', { name: 'Use student mistakes' })
+
+    expect(checkbox).toBeEnabled()
+    expect(checkbox).not.toBeChecked()
+    fireEvent.click(checkbox)
+    fireEvent.click(screen.getByRole('button', { name: 'Generate practice draft' }))
+    expect(props.onGenerate.mock.calls[0][0]).toMatchObject({ use_student_context: true, student_id: 42 })
+
+    fireEvent.click(checkbox)
+    fireEvent.click(screen.getByRole('button', { name: 'Generate practice draft' }))
+    expect(props.onGenerate.mock.calls[1][0]).toMatchObject({ use_student_context: false })
+    expect(props.onGenerate.mock.calls[1][0]).not.toHaveProperty('student_id')
+  })
+
+  it('resets mistake context when the active run changes', () => {
+    const { props, view } = renderPanel({ run: { ...run, student_id: 42 } })
+    const checkbox = screen.getByRole('checkbox', { name: 'Use student mistakes' })
+    fireEvent.click(checkbox)
+    expect(checkbox).toBeChecked()
+
+    view.rerender(<PracticeDraftPanel {...props} run={{ ...run, id: 2, student_id: 43 }} />)
+
+    expect(screen.getByRole('checkbox', { name: 'Use student mistakes' })).not.toBeChecked()
+  })
+
   it('surfaces generation errors from props', () => {
     renderPanel({ error: '生成练习草稿失败' })
     expect(screen.getByText('生成练习草稿失败')).toBeInTheDocument()

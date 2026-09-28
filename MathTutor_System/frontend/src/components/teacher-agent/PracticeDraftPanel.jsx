@@ -22,7 +22,7 @@ export default function PracticeDraftPanel({
     question_types: ['choice'],
     difficulty: 'medium',
     knowledge_points: '',
-    use_student_context: true,
+    use_student_context: false,
     use_knowledge_base: false,
     additional_requirements: '',
   })
@@ -34,15 +34,25 @@ export default function PracticeDraftPanel({
     setDialogOpen(false)
   }, [artifact?.id, artifact?.version])
 
+  useEffect(() => {
+    setConfig((current) => ({ ...current, use_student_context: false }))
+  }, [run?.id])
+
   if (run?.status !== 'completed') return null
   const content = draftContent || artifact?.content_json
   const validation = artifact?.validation_json
+  const studentId = run.student_id
+  const hasStudent = studentId != null
 
   const submitGenerate = () => {
-    onGenerate({
+    const useStudentContext = hasStudent && config.use_student_context
+    const payload = {
       ...config,
+      use_student_context: useStudentContext,
       knowledge_points: config.knowledge_points.split(',').map((item) => item.trim()).filter(Boolean),
-    })
+    }
+    if (useStudentContext) payload.student_id = Number(studentId)
+    onGenerate(payload)
   }
 
   const updateQuestion = (index, nextQuestion) => {
@@ -105,7 +115,12 @@ export default function PracticeDraftPanel({
       </div>
       <div className="mt-3 flex flex-wrap gap-3">
         <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" checked={config.use_student_context} onChange={(e) => setConfig({ ...config, use_student_context: e.target.checked })} />
+          <input
+            type="checkbox"
+            checked={hasStudent && config.use_student_context}
+            disabled={!hasStudent}
+            onChange={(e) => setConfig({ ...config, use_student_context: e.target.checked })}
+          />
           Use student mistakes
         </label>
         <label className="inline-flex items-center gap-2 text-sm text-slate-700">
