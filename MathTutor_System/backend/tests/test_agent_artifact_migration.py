@@ -57,6 +57,39 @@ def _run_alembic(*args: str, db_url: str) -> None:
     )
 
 
+def _assert_practice_delete_rules(inspector):
+    expected = {
+        ("agent_runs", "user_id", "users"): "CASCADE",
+        ("agent_artifacts", "user_id", "users"): "CASCADE",
+        ("agent_artifacts", "agent_run_id", "agent_runs"): "CASCADE",
+        ("agent_actions", "user_id", "users"): "CASCADE",
+        ("agent_actions", "agent_run_id", "agent_runs"): "CASCADE",
+        ("agent_actions", "artifact_id", "agent_artifacts"): "CASCADE",
+    }
+    for (table, column, referred_table), ondelete in expected.items():
+        foreign_key = next(
+            fk for fk in inspector.get_foreign_keys(table)
+            if fk["constrained_columns"] == [column] and fk["referred_table"] == referred_table
+        )
+        assert foreign_key["options"].get("ondelete") == ondelete, (table, column, foreign_key)
+
+
+def _assert_practice_delete_rules_downgraded(inspector):
+    for table, column, referred_table in (
+        ("agent_runs", "user_id", "users"),
+        ("agent_artifacts", "user_id", "users"),
+        ("agent_artifacts", "agent_run_id", "agent_runs"),
+        ("agent_actions", "user_id", "users"),
+        ("agent_actions", "agent_run_id", "agent_runs"),
+        ("agent_actions", "artifact_id", "agent_artifacts"),
+    ):
+        foreign_key = next(
+            fk for fk in inspector.get_foreign_keys(table)
+            if fk["constrained_columns"] == [column] and fk["referred_table"] == referred_table
+        )
+        assert foreign_key["options"].get("ondelete") is None, (table, column, foreign_key)
+
+
 def test_agent_artifact_action_migration_upgrade_downgrade_retry_preserves_existing_data(request):
     if TEST_TMP_DIR.exists():
         shutil.rmtree(TEST_TMP_DIR)
@@ -82,7 +115,7 @@ def test_agent_artifact_action_migration_upgrade_downgrade_retry_preserves_exist
         )
 
     _run_alembic("stamp", BASE_REVISION, db_url=db_url)
-    _run_alembic("upgrade", ARTIFACT_REVISION, db_url=db_url)
+    _run_alembic("upgrade", "head", db_url=db_url)
 
     inspector = inspect(engine)
     assert "agent_artifacts" in inspector.get_table_names()
@@ -94,10 +127,19 @@ def test_agent_artifact_action_migration_upgrade_downgrade_retry_preserves_exist
     artifact_fks = inspector.get_foreign_keys("agent_artifacts")
     assert any(fk["referred_table"] == "agent_runs" for fk in artifact_fks)
     assert any(fk["referred_table"] == "users" for fk in artifact_fks)
+    _assert_practice_delete_rules(inspector)
     with engine.connect() as conn:
         assert conn.execute(
             text("select goal from agent_runs where id = :run_id"), {"run_id": 1}
         ).scalar_one() == "goal"
+
+    _run_alembic("downgrade", ARTIFACT_REVISION, db_url=db_url)
+    inspector = inspect(engine)
+    assert "agent_artifacts" in inspector.get_table_names()
+    assert "agent_actions" in inspector.get_table_names()
+    _assert_practice_delete_rules_downgraded(inspector)
+    _run_alembic("upgrade", "head", db_url=db_url)
+    _assert_practice_delete_rules(inspect(engine))
 
     _run_alembic("downgrade", BASE_REVISION, db_url=db_url)
     inspector = inspect(engine)
@@ -108,10 +150,11 @@ def test_agent_artifact_action_migration_upgrade_downgrade_retry_preserves_exist
             text("select username from users where id = :user_id"), {"user_id": 1}
         ).scalar_one() == "teacher-a"
 
-    _run_alembic("upgrade", ARTIFACT_REVISION, db_url=db_url)
+    _run_alembic("upgrade", "head", db_url=db_url)
     inspector = inspect(engine)
     assert "agent_artifacts" in inspector.get_table_names()
     assert "agent_actions" in inspector.get_table_names()
+    _assert_practice_delete_rules(inspector)
     engine.dispose()
 
 
@@ -158,5 +201,12 @@ def test_fresh_bootstrap_schema_matches_migrated_schema(request):
         b_idx = {i["name"] for i in b_ins.get_indexes(table)}
         assert m_idx == b_idx, f"{table}: index drift: {m_idx ^ b_idx}"
     assert "question_bank" in b_ins.get_table_names()
+    _assert_practice_delete_rules(m_ins)
+    _assert_practice_delete_rules(b_ins)
+    qbank_fk = next(
+        fk for fk in b_ins.get_foreign_keys("question_bank")
+        if fk["constrained_columns"] == ["owner_user_id"]
+    )
+    assert qbank_fk["options"].get("ondelete") is None
     main_engine.dispose()
     bootstrap_engine.dispose()

@@ -3,7 +3,7 @@ SQLAlchemy base, engine, session, and shared column helpers.
 """
 from datetime import UTC, datetime
 
-from sqlalchemy import Column, DateTime, Integer, create_engine
+from sqlalchemy import Column, DateTime, Integer, create_engine, event
 from sqlalchemy.dialects.sqlite import JSON
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -39,6 +39,13 @@ engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
 )
+if "sqlite" in DATABASE_URL:
+    @event.listens_for(engine, "connect")
+    def _enable_sqlite_foreign_keys(dbapi_connection, _connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
 Base = declarative_base()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

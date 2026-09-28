@@ -95,6 +95,27 @@ LEGACY_DDL_STATEMENTS = (
         grade_results TEXT
     )
     """,
+    """
+    CREATE TABLE agent_runs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        goal TEXT NOT NULL,
+        status VARCHAR(32) NOT NULL,
+        intent_json JSON,
+        context_snapshot_json JSON,
+        selected_tools_json JSON,
+        tool_calls_json JSON,
+        plan_json JSON,
+        missing_fields_json JSON,
+        warnings_json JSON,
+        error_code VARCHAR(64),
+        error_message VARCHAR(512),
+        created_at DATETIME NOT NULL,
+        updated_at DATETIME NOT NULL,
+        completed_at DATETIME,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    )
+    """,
 )
 
 
@@ -119,6 +140,8 @@ def _build_legacy_db(db_path: Path) -> str:
     with engine.begin() as conn:
         for statement in LEGACY_DDL_STATEMENTS:
             conn.execute(text(statement))
+        conn.execute(text("CREATE INDEX ix_agent_runs_user_id ON agent_runs (user_id)"))
+        conn.execute(text("CREATE INDEX ix_agent_runs_status ON agent_runs (status)"))
         conn.execute(
             text(
                 "insert into users (id, username, hashed_password, is_active, role, created_at) values "
@@ -131,6 +154,13 @@ def _build_legacy_db(db_path: Path) -> str:
                 "insert into students (id, user_id, name, grade, class_name, tags, performance_score, created_at) values "
                 "(10, 1, '学生A', '高一', '1班', '[]', 60, CURRENT_TIMESTAMP), "
                 "(20, 2, '学生B', '高一', '2班', '[]', 60, CURRENT_TIMESTAMP)"
+            )
+        )
+        conn.execute(
+            text(
+                "insert into agent_runs (id, user_id, goal, status, context_snapshot_json, created_at, updated_at) "
+                "values (1, 1, 'legacy practice prompt', 'completed', '{\"student\":\"context\"}', "
+                "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
             )
         )
         for table in ("questions", "question_bank", "exams"):
@@ -214,6 +244,7 @@ def test_resource_owner_migration_upgrade_backfill_downgrade_reupgrade(request):
         assert conn.execute(text("select count(*) from question_bank")).scalar_one() == 4
         assert conn.execute(text("select count(*) from exams")).scalar_one() == 4
         assert conn.execute(text("select content from questions where id = 1")).scalar_one() == "questions-1"
+        assert conn.execute(text("select goal from agent_runs where id = 1")).scalar_one() == "legacy practice prompt"
     engine.dispose()
 
     # 幂等：重复 upgrade 无变化、无失败

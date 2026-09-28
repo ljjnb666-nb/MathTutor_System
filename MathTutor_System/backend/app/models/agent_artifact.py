@@ -1,8 +1,7 @@
-"""Versioned Teacher Agent artifacts and confirmed actions.
+"""Versioned Teacher Agent practice artifacts and confirmed actions.
 
-These rows are audit history: parent foreign keys deliberately use the
-database's default NO ACTION/RESTRICT behavior so users, runs, and artifacts
-cannot be removed while dependent practice history exists.
+Practice content is user data, not a permanent audit log. Database foreign-key
+cascades remove artifacts and actions with their user/run/artifact parents.
 """
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.sqlite import JSON
@@ -14,8 +13,8 @@ class AgentArtifact(Base):
     __tablename__ = "agent_artifacts"
 
     id = pk_column()
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    agent_run_id = Column(Integer, ForeignKey("agent_runs.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    agent_run_id = Column(Integer, ForeignKey("agent_runs.id", ondelete="CASCADE"), nullable=False, index=True)
     artifact_type = Column(String(64), nullable=False, index=True)
     status = Column(String(32), nullable=False, index=True)
     version = Column(Integer, nullable=False, default=1)
@@ -44,9 +43,9 @@ class AgentAction(Base):
     )
 
     id = pk_column()
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    agent_run_id = Column(Integer, ForeignKey("agent_runs.id"), nullable=False, index=True)
-    artifact_id = Column(Integer, ForeignKey("agent_artifacts.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    agent_run_id = Column(Integer, ForeignKey("agent_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    artifact_id = Column(Integer, ForeignKey("agent_artifacts.id", ondelete="CASCADE"), nullable=False, index=True)
     action_type = Column(String(96), nullable=False, index=True)
     status = Column(String(32), nullable=False, index=True)
     idempotency_key = Column(String(128), nullable=False)

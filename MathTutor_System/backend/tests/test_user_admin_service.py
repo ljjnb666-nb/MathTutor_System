@@ -1,7 +1,8 @@
 from datetime import timedelta
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event, inspect
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 from app.models.base import Base
@@ -12,6 +13,7 @@ from app.models.order import Order
 from app.models.plan import Plan
 from app.models.schedule import Schedule
 from app.models.student import Student
+from app.models.question_bank import QuestionBank
 from app.models.subscription import Subscription
 from app.models.subscription_history import SubscriptionHistory
 from app.models.user import User
@@ -20,12 +22,18 @@ from app.services.user_admin_service import (
     delete_user_and_related,
     set_user_subscription,
     utc_now,
-    UserAdminServiceError,
 )
 
 
 def make_db():
     engine = create_engine("sqlite:///:memory:")
+
+    @event.listens_for(engine, "connect")
+    def enable_foreign_keys(dbapi_connection, _):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
     Base.metadata.create_all(
         engine,
         tables=[
@@ -37,6 +45,7 @@ def make_db():
             Subscription.__table__,
             SubscriptionHistory.__table__,
             Student.__table__,
+            QuestionBank.__table__,
             ChatSession.__table__,
             ChatMessage.__table__,
             Order.__table__,
@@ -142,17 +151,142 @@ def test_delete_user_and_related_removes_owned_records_and_unassigns_students():
     assert db.get(Student, 1).user_id is None
 
 
-def test_delete_user_is_blocked_when_teacher_agent_audit_history_exists():
+def _add_practice_graph(db, user_id: int, *, artifact_status="draft", action_status=None):
+    run = AgentRun(
+        user_id=user_id,
+        goal="PRIVATE_PROMPT_CONTEXT",
+        status="completed",
+        context_snapshot_json={"student_mistakes": ["PRIVATE_STUDENT_CONTEXT"]},
+    )
+    db.add(run)
+    db.flush()
+    artifact = AgentArtifact(
+        user_id=user_id,
+        agent_run_id=run.id,
+        artifact_type="practice_set",
+        status=artifact_status,
+        version=1,
+        title="Private draft",
+        content_json={"questions": [{"stem": "PRIVATE_GENERATED_QUESTION"}]},
+        validation_json={},
+        context_summary_json={"summary": "PRIVATE_CONTEXT_JSON"},
+    )
+    db.add(artifact)
+    db.flush()
+    action = None
+    if action_status:
+        action = AgentAction(
+            user_id=user_id,
+            agent_run_id=run.id,
+            artifact_id=artifact.id,
+            action_type="save_practice_set",
+            status=action_status,
+            idempotency_key=f"action-{user_id}-{action_status}",
+            payload_hash="a" * 64,
+            expected_artifact_version=1,
+            result_json={"generated": "PRIVATE_MODEL_RESPONSE"} if action_status == "completed" else None,
+        )
+        db.add(action)
+    db.commit()
+    return run, artifact, action
+
+
+def test_delete_user_with_zero_practice_data_succeeds():
     db = make_db()
     add_user(db, 1, "admin", role="admin")
     add_user(db, 2, "teacher")
-    run = AgentRun(user_id=2, goal="保留的教学规划历史", status="completed")
-    db.add(run)
+
+    delete_user_and_related(db, user_id=2, current_user_id=1)
+
+    assert db.get(User, 2) is None
+
+
+def test_delete_user_cascades_draft_artifact_and_private_run_context():
+    db = make_db()
+    add_user(db, 1, "admin", role="admin")
+    add_user(db, 2, "teacher")
+    run, artifact, _ = _add_practice_graph(db, 2)
+    run_id, artifact_id = run.id, artifact.id
+
+    delete_user_and_related(db, user_id=2, current_user_id=1)
+
+    assert db.get(User, 2) is None
+    assert db.get(AgentRun, run_id) is None
+    assert db.get(AgentArtifact, artifact_id) is None
+    assert db.query(AgentArtifact).filter(AgentArtifact.user_id == 2).count() == 0
+    assert db.query(AgentArtifact).filter(AgentArtifact.context_summary_json.is_not(None)).count() == 0
+
+
+@pytest.mark.parametrize("action_status", ["pending_confirmation", "completed"])
+def test_delete_user_cascades_prepared_and_completed_practice_actions(action_status):
+    db = make_db()
+    add_user(db, 1, "admin", role="admin")
+    add_user(db, 2, "teacher")
+    run, artifact, action = _add_practice_graph(
+        db,
+        2,
+        artifact_status="saved" if action_status == "completed" else "ready_for_confirmation",
+        action_status=action_status,
+    )
+    run_id, artifact_id, action_id = run.id, artifact.id, action.id
+
+    delete_user_and_related(db, user_id=2, current_user_id=1)
+
+    assert db.get(AgentRun, run_id) is None
+    assert db.get(AgentArtifact, artifact_id) is None
+    assert db.get(AgentAction, action_id) is None
+    assert db.query(AgentAction).filter(AgentAction.user_id == 2).count() == 0
+
+
+def test_delete_user_keeps_other_teachers_practice_data():
+    db = make_db()
+    add_user(db, 1, "admin", role="admin")
+    add_user(db, 2, "teacher-a")
+    add_user(db, 3, "teacher-b")
+    run_a, artifact_a, action_a = _add_practice_graph(db, 2, action_status="pending_confirmation")
+    run_b, artifact_b, action_b = _add_practice_graph(db, 3, action_status="completed")
+    run_a_id, artifact_a_id, action_a_id = run_a.id, artifact_a.id, action_a.id
+    run_b_id, artifact_b_id, action_b_id = run_b.id, artifact_b.id, action_b.id
+
+    delete_user_and_related(db, user_id=2, current_user_id=1)
+
+    assert db.get(AgentRun, run_a_id) is None
+    assert db.get(AgentArtifact, artifact_a_id) is None
+    assert db.get(AgentAction, action_a_id) is None
+    assert db.get(User, 3) is not None
+    assert db.get(AgentRun, run_b_id) is not None
+    assert db.get(AgentArtifact, artifact_b_id) is not None
+    assert db.get(AgentAction, action_b_id) is not None
+
+
+def test_question_bank_owner_delete_contract_remains_no_action():
+    db = make_db()
+    add_user(db, 1, "admin", role="admin")
+    add_user(db, 2, "teacher")
+    question = QuestionBank(
+        owner_user_id=2,
+        content="Existing owned question",
+        options=[],
+        answer="A",
+        analysis="",
+        question_type="single_choice",
+        difficulty="medium",
+        knowledge_point="algebra",
+        source="manual",
+        tags=[],
+        images=[],
+        content_hash="q" * 64,
+    )
+    db.add(question)
     db.commit()
 
-    with pytest.raises(UserAdminServiceError) as error:
+    question_fk = next(
+        fk for fk in inspect(db.get_bind()).get_foreign_keys("question_bank")
+        if fk["constrained_columns"] == ["owner_user_id"]
+    )
+    assert question_fk["options"].get("ondelete") is None
+    with pytest.raises(IntegrityError):
         delete_user_and_related(db, user_id=2, current_user_id=1)
-
-    assert error.value.status_code == 409
+    db.rollback()
     assert db.get(User, 2) is not None
-    assert db.query(AgentRun).filter(AgentRun.user_id == 2).count() == 1
+    assert db.get(QuestionBank, question.id) is not None

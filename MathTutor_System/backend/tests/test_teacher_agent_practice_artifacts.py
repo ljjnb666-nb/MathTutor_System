@@ -1,7 +1,6 @@
 import pytest
 from fastapi import HTTPException
 from sqlalchemy import create_engine, event, text
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 from app.core.deps import LLMConfig
@@ -27,6 +26,13 @@ from app.services.teacher_agent_artifact_service import (
 
 def make_db():
     engine = create_engine("sqlite:///:memory:")
+
+    @event.listens_for(engine, "connect")
+    def enable_foreign_keys(dbapi_connection, _):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
     Base.metadata.create_all(
         engine,
         tables=[
@@ -292,7 +298,47 @@ def test_medium_write_tool_is_not_low_registry():
     assert ACTION_SAVE_PRACTICE_SET not in TOOL_REGISTRY
 
 
-def test_audit_foreign_keys_restrict_user_run_and_artifact_deletion():
+def _seed_practice_graph(session, username="cascade-owner"):
+    user = User(username=username, hashed_password="x", role="teacher", is_active=True)
+    session.add(user)
+    session.flush()
+    run = AgentRun(
+        user_id=user.id,
+        goal="PRIVATE_PROMPT",
+        status="completed",
+        context_snapshot_json={"student_context": "PRIVATE_STUDENT_CONTEXT"},
+    )
+    session.add(run)
+    session.flush()
+    artifact = AgentArtifact(
+        user_id=user.id,
+        agent_run_id=run.id,
+        artifact_type="practice_set",
+        status="ready_for_confirmation",
+        version=1,
+        title="Private draft",
+        content_json={"question": "PRIVATE_GENERATED_CONTENT"},
+        validation_json={},
+        context_summary_json={"context": "PRIVATE_USER_CONTEXT"},
+    )
+    session.add(artifact)
+    session.flush()
+    action = AgentAction(
+        user_id=user.id,
+        agent_run_id=run.id,
+        artifact_id=artifact.id,
+        action_type=ACTION_SAVE_PRACTICE_SET,
+        status="pending_confirmation",
+        idempotency_key=f"cascade-{username}",
+        payload_hash="a" * 64,
+        expected_artifact_version=1,
+    )
+    session.add(action)
+    session.commit()
+    return user, run, artifact, action
+
+
+def test_database_cascade_removes_private_practice_graph_on_user_delete():
     engine = create_engine("sqlite:///:memory:")
 
     @event.listens_for(engine, "connect")
@@ -306,50 +352,53 @@ def test_audit_foreign_keys_restrict_user_run_and_artifact_deletion():
         tables=[User.__table__, Student.__table__, AgentRun.__table__, AgentArtifact.__table__, AgentAction.__table__],
     )
     session = sessionmaker(bind=engine)()
-    user = User(username="audit-owner", hashed_password="x", role="teacher", is_active=True)
-    session.add(user)
-    session.flush()
-    run = AgentRun(user_id=user.id, goal="audit goal", status="completed")
-    session.add(run)
-    session.flush()
-    artifact = AgentArtifact(
-        user_id=user.id,
-        agent_run_id=run.id,
-        artifact_type="practice_set",
-        status="ready_for_confirmation",
-        version=1,
-        title="Audit draft",
-        content_json={},
-        validation_json={},
-    )
-    session.add(artifact)
-    session.flush()
-    action = AgentAction(
-        user_id=user.id,
-        agent_run_id=run.id,
-        artifact_id=artifact.id,
-        action_type=ACTION_SAVE_PRACTICE_SET,
-        status="pending_confirmation",
-        idempotency_key="audit-key",
-        payload_hash="a" * 64,
-        expected_artifact_version=1,
-    )
-    session.add(action)
+    user, run, artifact, action = _seed_practice_graph(session)
+    user_id, run_id, artifact_id, action_id = user.id, run.id, artifact.id, action.id
+
+    # Raw SQL bypasses ORM deletion behavior and proves the database FK graph.
+    session.execute(text("DELETE FROM users WHERE id = :id"), {"id": user_id})
     session.commit()
 
-    for statement, row_id in (
-        ("DELETE FROM users WHERE id = :id", user.id),
-        ("DELETE FROM agent_runs WHERE id = :id", run.id),
-        ("DELETE FROM agent_artifacts WHERE id = :id", artifact.id),
-    ):
-        with pytest.raises(IntegrityError):
-            session.execute(text(statement), {"id": row_id})
-            session.commit()
-        session.rollback()
+    assert session.get(User, user_id) is None
+    assert session.get(AgentRun, run_id) is None
+    assert session.get(AgentArtifact, artifact_id) is None
+    assert session.get(AgentAction, action_id) is None
+    assert session.execute(text("SELECT count(*) FROM agent_artifacts WHERE user_id=:id"), {"id": user_id}).scalar_one() == 0
+    assert session.execute(text("SELECT count(*) FROM agent_actions WHERE user_id=:id"), {"id": user_id}).scalar_one() == 0
+    session.close()
+    engine.dispose()
 
-    assert session.get(User, user.id) is not None
-    assert session.get(AgentRun, run.id) is not None
-    assert session.get(AgentArtifact, artifact.id) is not None
-    assert session.get(AgentAction, action.id) is not None
+
+def test_database_cascade_removes_practice_children_on_run_and_artifact_delete():
+    engine = create_engine("sqlite:///:memory:")
+
+    @event.listens_for(engine, "connect")
+    def enable_foreign_keys(dbapi_connection, _):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+    Base.metadata.create_all(
+        engine,
+        tables=[User.__table__, Student.__table__, AgentRun.__table__, AgentArtifact.__table__, AgentAction.__table__],
+    )
+    session = sessionmaker(bind=engine)()
+    user, run, artifact, action = _seed_practice_graph(session, "run-delete-owner")
+    user_id, run_id, artifact_id, action_id = user.id, run.id, artifact.id, action.id
+    session.execute(text("DELETE FROM agent_runs WHERE id = :id"), {"id": run_id})
+    session.commit()
+    assert session.get(User, user_id) is not None
+    assert session.get(AgentRun, run_id) is None
+    assert session.get(AgentArtifact, artifact_id) is None
+    assert session.get(AgentAction, action_id) is None
+
+    user2, run2, artifact2, action2 = _seed_practice_graph(session, "artifact-delete-owner")
+    user2_id, run2_id, artifact2_id, action2_id = user2.id, run2.id, artifact2.id, action2.id
+    session.execute(text("DELETE FROM agent_artifacts WHERE id = :id"), {"id": artifact2_id})
+    session.commit()
+    assert session.get(User, user2_id) is not None
+    assert session.get(AgentRun, run2_id) is not None
+    assert session.get(AgentArtifact, artifact2_id) is None
+    assert session.get(AgentAction, action2_id) is None
     session.close()
     engine.dispose()
