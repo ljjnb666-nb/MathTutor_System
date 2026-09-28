@@ -61,7 +61,10 @@ describe('TeacherAgent', () => {
 
     expect(screen.getByText('只读规划模式')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /生成教学计划/ })).toBeDisabled()
-    expect(screen.queryByText(/确认入库|练习草稿|保存到题库/)).not.toBeInTheDocument()
+    // convergence: practice drafts are a separate confirm-gated flow; the
+    // panel stays hidden until a run reaches 'completed'.
+    expect(screen.queryByText('Practice draft')).not.toBeInTheDocument()
+    expect(screen.queryByText('保存到题库')).not.toBeInTheDocument()
   })
 
   it('renders a completed structured plan', async () => {
