@@ -8,6 +8,7 @@ WORKDIR /build/teacher
 ENV NODE_OPTIONS=--max-old-space-size=512
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm install --legacy-peer-deps
+COPY shared /build/shared
 COPY frontend/ .
 RUN npm run build
 
@@ -17,6 +18,7 @@ WORKDIR /build/student
 ENV NODE_OPTIONS=--max-old-space-size=512
 COPY frontend-student/package.json frontend-student/package-lock.json* ./
 RUN npm install --legacy-peer-deps
+COPY shared /build/shared
 COPY frontend-student/ .
 ENV VITE_BASE_URL=/student/
 RUN npm run build
@@ -29,8 +31,7 @@ WORKDIR /usr/share/nginx/html
 COPY --from=builder-teacher /build/teacher/dist .
 
 # 学生端产出放到 /student
-RUN mkdir -p student
-COPY --from=builder-student /build/student/dist student/
+COPY --from=builder-student /build/student/dist ./student/
 
 COPY nginx/nginx.conf /etc/nginx/conf.d/default.conf
 
