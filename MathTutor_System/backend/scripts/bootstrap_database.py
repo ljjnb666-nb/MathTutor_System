@@ -29,6 +29,7 @@ from app.models.base import Base, engine
 BASELINE_REVISION = "388fe57f097c"
 AGENT_RUNS_REVISION = "7f1f4d9a2c10"
 OWNER_TABLES = ("questions", "question_bank", "exams")
+POST_AGENT_RUNS_TABLES = frozenset(("agent_artifacts", "agent_actions"))
 
 # 7f1f4d9a2c10 的权威签名：列名取自 AgentRun.__table__，索引与 FK 显式声明。
 # 表存在不等于迁移已应用；补标记前必须正向验证全部签名。
@@ -92,6 +93,11 @@ def _base_schema_signature_problems(inspector: Inspector, *, previous_head: bool
     problems: list[str] = []
     for name, table in sorted(Base.metadata.tables.items()):
         if name == "agent_runs":
+            continue
+        if previous_head and name in POST_AGENT_RUNS_TABLES:
+            # These tables were introduced by e4f7a1b9c2d8 after the legacy
+            # revisions being signature-checked here. Do not require them
+            # before reconciliation has a chance to apply that migration.
             continue
         expected_columns = {column.name for column in table.columns}
         if previous_head and name in OWNER_TABLES:
