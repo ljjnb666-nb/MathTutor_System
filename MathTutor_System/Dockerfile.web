@@ -21,8 +21,8 @@ COPY frontend-student/ .
 ENV VITE_BASE_URL=/student/
 RUN npm run build
 
-# ---------- 阶段 3：Nginx 合并部署 ----------
-FROM nginx:alpine
+# ---------- 阶段 3：Nginx 合并部署（非 root，监听 8080） ----------
+FROM nginxinc/nginx-unprivileged:alpine
 WORKDIR /usr/share/nginx/html
 
 # 教师端产出放到根
@@ -34,5 +34,5 @@ COPY --from=builder-student /build/student/dist student/
 
 COPY nginx/nginx.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
+EXPOSE 8080
 CMD ["nginx", "-g", "daemon off;"]
