@@ -127,7 +127,7 @@ class RAGService:
                         try:
                             self.delete_document(owner_user_id, old_id)
                         except Exception as exc:
-                            logger.warning("RAG: old document cleanup failed source=%s old_document_id=%s: %s", source, old_id, exc)
+                            logger.warning("RAG old document cleanup failed source=%s old_document_id=%s error_type=%s", source, old_id, type(exc).__name__)
             else:
                 _registry_add(source, len(chunks), [kp] if kp else [])
         except Exception:
@@ -144,7 +144,7 @@ class RAGService:
             docs = self.vector_store.similarity_search(query.strip(), k=n_results)
             return "\n\n".join(doc.page_content for doc in docs if doc.page_content)
         except Exception as exc:
-            logger.warning("RAG search failed: %s", exc)
+            logger.warning("RAG search failed external_error_type=%s", type(exc).__name__)
             return ""
 
     def _retrieve_with_relaxed_kp(
@@ -214,7 +214,7 @@ class RAGService:
                         seen.add(doc.page_content)
                         out.append((doc.page_content, source_of(doc)))
         except Exception as exc:
-            logger.warning("RAG retrieve failed: %s", exc)
+            logger.warning("RAG retrieve failed external_error_type=%s", type(exc).__name__)
         return out[:n_results]
 
     def _format_context_with_sources(self, items: list[tuple[str, str]]) -> tuple[str, list[str]]:
@@ -288,7 +288,7 @@ class RAGService:
             sources = [str((meta or {}).get("source") or "unknown").strip() or "unknown" for meta in data.get("metadatas") or []]
             return [{"source": name, "chunk_count": count} for name, count in Counter(sources).items()]
         except Exception as exc:
-            logger.warning("RAG list_documents failed: %s", exc)
+            logger.warning("RAG list_documents failed external_error_type=%s", type(exc).__name__)
             return []
 
     def list_owned_documents(self, owner_user_id: int) -> list[dict]:
@@ -317,7 +317,7 @@ class RAGService:
                 coll.delete(ids=ids)
             return len(ids)
         except Exception as exc:
-            logger.warning("RAG temporary document cleanup failed: %s", exc)
+            logger.warning("RAG temporary document cleanup failed external_error_type=%s", type(exc).__name__)
             return 0
 
     def delete_by_source(self, source: str) -> int:
@@ -333,7 +333,7 @@ class RAGService:
                 coll.delete(ids=ids)
             return len(ids)
         except Exception as exc:
-            logger.warning("RAG delete_by_source failed: %s", exc)
+            logger.warning("RAG delete_by_source failed external_error_type=%s", type(exc).__name__)
             raise
 
 

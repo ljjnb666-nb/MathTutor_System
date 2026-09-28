@@ -40,7 +40,7 @@ def get_collection_only():
         try:
             client = chromadb.PersistentClient(path=path_str)
         except Exception:
-            logger.warning("ChromaDB PersistentClient(path) fallback failed: %s", first_error)
+            logger.warning("ChromaDB PersistentClient fallback failed external_error_type=%s", type(first_error).__name__)
             raise first_error
     return client.get_or_create_collection(COLLECTION_NAME)
 
@@ -199,7 +199,7 @@ def rag_delete_document(owner_user_id: int, document_id: str) -> int:
             registry_remove("", owner_user_id=owner_user_id, document_id=doc_id)
         return len(owned_ids)
     except Exception as exc:
-        logger.warning("RAG delete_document failed: %s", exc)
+        logger.warning("RAG delete_document failed external_error_type=%s", type(exc).__name__)
         raise
 
 
@@ -237,7 +237,7 @@ def rag_list_documents_no_auth() -> list[dict]:
             for name, (count, knowledge_points) in by_source.items()
         ]
     except BaseException as exc:
-        logger.warning("rag_list_documents_no_auth failed: %s", exc)
+        logger.warning("rag_list_documents_no_auth failed external_error_type=%s", type(exc).__name__)
         return []
 
 
@@ -274,5 +274,5 @@ def rag_delete_by_source_no_auth(source: str) -> int:
             registry_remove(source.strip())
         return len(ids)
     except Exception as exc:
-        logger.warning("RAG delete_by_source failed: %s", exc)
+        logger.warning("RAG delete_by_source failed external_error_type=%s", type(exc).__name__)
         raise

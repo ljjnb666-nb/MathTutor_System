@@ -80,7 +80,7 @@ def convert_docx_to_pdf(docx_bytes: bytes) -> bytes | None:
         logger.warning("Word→PDF 转换超时")
         return None
     except Exception as e:
-        logger.warning("Word→PDF 转换异常: %s", e, exc_info=True)
+        logger.warning("docx_to_pdf_failed external_error_type=%s", type(e).__name__)
         return None
     finally:
         try:

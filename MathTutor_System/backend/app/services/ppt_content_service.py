@@ -6,6 +6,7 @@ from typing import Any
 from openai import OpenAI
 
 from app.core.config import AI_REQUEST_TIMEOUT, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL
+from app.core.llm_sanitize import external_error_type
 from app.services.json_repair_utils import strip_json_markdown
 
 logger = logging.getLogger(__name__)
@@ -62,11 +63,11 @@ def generate_lecture_content(
         )
 
     url = (base_url or "").strip() or DEEPSEEK_BASE_URL
-    client = OpenAI(base_url=url, api_key=key, timeout=float(AI_REQUEST_TIMEOUT))
     model_name = (model or "").strip() or DEEPSEEK_MODEL
     user_content = f"Topic: {topic}\nGrade level: {grade}"
 
     try:
+        client = OpenAI(base_url=url, api_key=key, timeout=float(AI_REQUEST_TIMEOUT))
         resp = client.chat.completions.create(
             model=model_name,
             messages=[
@@ -85,15 +86,9 @@ def generate_lecture_content(
         return data
     except json.JSONDecodeError as exc:
         logger.warning(
-            "ppt_lecture_generate_failed",
-            extra={"error_type": "JSONDecodeError", "detail": str(exc)},
-            exc_info=True,
+            "ppt_lecture_generate_failed external_error_type=JSONDecodeError",
         )
-        raise ValueError(f"AI 返回内容不是合法 JSON: {exc}") from exc
+        raise ValueError("LLM_RESPONSE_INVALID: 讲稿服务返回格式无法解析，请调整主题后重试。") from None
     except Exception as exc:
-        logger.warning(
-            "ppt_lecture_generate_failed",
-            extra={"error_type": type(exc).__name__, "detail": str(exc)},
-            exc_info=True,
-        )
-        raise ValueError(f"生成讲稿失败: {str(exc)}") from exc
+        logger.warning("ppt_lecture_generate_failed external_error_type=%s", external_error_type(exc))
+        raise ValueError("LLM_PROVIDER_ERROR: 讲稿生成服务暂时不可用，请稍后重试。") from None

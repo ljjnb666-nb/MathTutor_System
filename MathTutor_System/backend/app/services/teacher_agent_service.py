@@ -104,7 +104,7 @@ def run_teacher_agent(
         return row
     except Exception as exc:
         row = db.get(AgentRun, row.id)
-        _persist_failed(db, row, "workflow_error", str(exc)[:240])
+        _persist_failed(db, row, "workflow_error", "Agent workflow failed. Please retry.")
         db.refresh(row)
         return row
 
@@ -148,7 +148,7 @@ def _extract_structured_intent(state: AgentState) -> AgentState:
         state["intent"] = _sanitize_intent(intent, state["request"])
     except Exception as exc:
         state["error_code"] = "intent_extraction_failed"
-        state["error_message"] = _sanitize_text(str(exc), 300)
+        state["error_message"] = "Intent extraction failed. Please retry."
     return state
 
 
@@ -231,7 +231,7 @@ def _compose_structured_plan(state: AgentState) -> AgentState:
         state["plan"] = plan
     except Exception as exc:
         state["error_code"] = "plan_composition_failed"
-        state["error_message"] = _sanitize_text(str(exc), 300)
+        state["error_message"] = "Plan composition failed. Please retry."
     return state
 
 

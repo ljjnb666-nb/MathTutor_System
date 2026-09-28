@@ -43,7 +43,6 @@ class LLMPracticeDraftGenerator:
     ) -> PracticeSetDraft:
         if not (llm_config.api_key or "").strip():
             raise ValueError("LLM API key is required for practice draft generation.")
-        last_error = "Unknown generation error"
         for _ in range(self.max_attempts):
             raw = await call_llm_async(
                 _build_prompt(teacher_goal, intent, request, context_summary),
@@ -53,9 +52,9 @@ class LLMPracticeDraftGenerator:
             )
             try:
                 return PracticeSetDraft.model_validate(_parse_json_object(raw))
-            except Exception as exc:
-                last_error = str(exc)[:300]
-        raise ValueError(f"Practice draft generation failed validation after retries: {last_error}")
+            except Exception:
+                continue
+        raise ValueError("LLM_RESPONSE_INVALID: Practice draft did not match the required schema.") from None
 
 
 class DeterministicFakePracticeDraftGenerator:

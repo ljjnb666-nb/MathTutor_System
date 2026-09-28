@@ -62,7 +62,7 @@ def resolve_gemini_proxy() -> str:
     if os.name == "nt":
         proxy = get_windows_system_proxy()
         if proxy:
-            logger.info("使用 Windows 系统代理作为 Gemini 代理: %s", proxy[:50])
+            logger.info("Using Windows system proxy for Gemini")
             return proxy
     return ""
 
@@ -127,9 +127,9 @@ def gemini_rest_sync(
                     if match:
                         host, port = match.group(1), match.group(2) or "7897"
                         proxy_to_use = f"http://{host}:{port}"
-                        logger.info("SOCKS5 代理连接异常，改用同端口 HTTP 重试: %s", proxy_to_use)
+                        logger.info("Gemini SOCKS5 proxy connection failed; retrying with HTTP proxy")
                         continue
-            raise
+            raise RuntimeError("Gemini provider connection failed") from None
 
     if response is None:
         raise RuntimeError("Gemini 请求未返回响应")
@@ -141,7 +141,7 @@ def gemini_rest_sync(
                 "Gemini 接口返回：当前地区不可用（User location is not supported）。"
                 "请确认：(1) 代理已开启且 .env 中 LLM_HTTPS_PROXY 端口正确；(2) 代理出口在支持地区（如美/日）。"
             )
-        response.raise_for_status()
+        raise RuntimeError(f"Gemini provider request failed with HTTP {response.status_code}") from None
 
     return _extract_gemini_text(response.json())
 
@@ -192,7 +192,7 @@ def gemini_rest_vision_sync(
                     "Gemini 接口返回：当前地区不可用（User location is not supported）。"
                     "建议：在前端「设置」中切换为「OpenRouter」使用 Gemini 模型，可免代理、无地区限制；或配置 .env 中 LLM_HTTPS_PROXY。"
                 )
-            response.raise_for_status()
+            raise RuntimeError(f"Gemini provider request failed with HTTP {response.status_code}") from None
         data = response.json()
     return _extract_gemini_text(data)
 
@@ -217,7 +217,7 @@ async def gemini_rest_with_proxy(
         if "User location" in err_msg or "地区不可用" in err_msg:
             sys_proxy = get_windows_system_proxy()
             if sys_proxy and sys_proxy != proxy_url:
-                logger.warning("Env 代理仍被判定为不可用地区，尝试 Windows 系统代理: %s", sys_proxy[:50])
+                logger.warning("Gemini region restriction persists; retrying with Windows system proxy")
                 try:
                     return await asyncio.to_thread(
                         gemini_rest_sync, prompt, api_key, model, temperature, max_tokens, sys_proxy

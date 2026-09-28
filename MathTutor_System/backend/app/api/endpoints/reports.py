@@ -101,10 +101,8 @@ async def generate_after_class_comment(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        traceback.print_exc()
-        logger.exception("课后评语生成失败")
-        detail = str(e).strip() or "生成评语失败，请检查 API 配置与网络后重试。"
-        raise HTTPException(status_code=500, detail=detail[:500])
+        logger.error("after_class_comment_failed external_error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="REPORT_PROVIDER_ERROR: 评语生成失败，请稍后重试。") from None
 
 
 def _strip_json_markdown(text: str) -> str:
@@ -179,14 +177,13 @@ async def parse_learning_report(
         )
         return _parse_learning_report_payload((content or "").strip())
     except json.JSONDecodeError as e:
-        logger.warning("学习报告解析 JSON 失败: %s", e)
+        logger.warning("learning_report_response_invalid error_type=%s", type(e).__name__)
         raise HTTPException(status_code=400, detail="AI 返回格式无法解析，请简化描述后重试。")
     except HTTPException:
         raise
     except Exception as e:
-        traceback.print_exc()
-        logger.exception("学习报告解析失败")
-        raise HTTPException(status_code=500, detail=str(e).strip()[:500])
+        logger.error("learning_report_parse_failed external_error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="REPORT_PROVIDER_ERROR: 学情报告解析失败，请稍后重试。") from None
 
 
 @router.get("/{student_id}")
@@ -207,5 +204,5 @@ def get_student_report_pdf(
     except HTTPException:
         raise
     except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"生成报告失败: {str(e)}")
+        logger.error("student_report_pdf_failed external_error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="REPORT_GENERATION_ERROR: 生成报告失败。") from None

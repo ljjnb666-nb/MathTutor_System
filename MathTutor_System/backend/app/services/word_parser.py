@@ -16,6 +16,7 @@ from openai import OpenAI
 from PIL import Image
 
 from app.core.config import AI_REQUEST_TIMEOUT, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL
+from app.core.llm_sanitize import external_error_type
 from app.services.exam_question_merge import (
     append_region as _append_region,
     merge_by_section_headers as _merge_by_section_headers,
@@ -113,8 +114,8 @@ def parse_with_deepseek(
             full_prompt = f"{system_prompt}\n\nInput:\n{text}"
             raw = gemini_rest_text_sync(full_prompt, api_key=key, model=model_name, temperature=0.2, max_tokens=4096)
         except Exception as e:
-            logger.warning("word_parse_failed", extra={"error_type": type(e).__name__, "detail": str(e)}, exc_info=True)
-            raise ValueError(f"LLM 解析失败: {str(e)}") from e
+            logger.warning("word_parse_failed external_error_type=%s", external_error_type(e))
+            raise ValueError("LLM_PROVIDER_ERROR: 试卷识别服务暂时不可用，请稍后重试。") from None
     else:
         key = (api_key or "").strip() or DEEPSEEK_API_KEY
         if not key:
@@ -122,9 +123,9 @@ def parse_with_deepseek(
                 "未配置 API Key。请在前端「设置」中选择模型提供商并填写 API Key 后保存，或在 .env 中设置对应 API Key。"
             )
         url = (base_url or "").strip() or DEEPSEEK_BASE_URL
-        client = OpenAI(base_url=url, api_key=key, timeout=float(AI_REQUEST_TIMEOUT))
         model_name = (model or "").strip() or DEEPSEEK_MODEL
         try:
+            client = OpenAI(base_url=url, api_key=key, timeout=float(AI_REQUEST_TIMEOUT))
             resp = client.chat.completions.create(
                 model=model_name,
                 messages=[
@@ -135,8 +136,8 @@ def parse_with_deepseek(
             )
             raw = (resp.choices[0].message.content or "").strip()
         except Exception as e:
-            logger.warning("word_parse_failed", extra={"error_type": type(e).__name__, "detail": str(e)}, exc_info=True)
-            raise ValueError(f"LLM 解析失败: {str(e)}") from e
+            logger.warning("word_parse_failed external_error_type=%s", external_error_type(e))
+            raise ValueError("LLM_PROVIDER_ERROR: 试卷识别服务暂时不可用，请稍后重试。") from None
 
     try:
         cleaned = _clean_json_string(raw)
@@ -154,10 +155,9 @@ def parse_with_deepseek(
     except json.JSONDecodeError as e:
         logger.warning(
             "word_parse_failed",
-            extra={"error_type": "JSONDecodeError", "detail": str(e)},
-            exc_info=True,
+            extra={"error_type": "JSONDecodeError"},
         )
-        raise ValueError(f"LLM 返回内容不是合法 JSON: {e}") from e
+        raise ValueError("LLM_RESPONSE_INVALID: 识别服务返回格式无法解析，请调整文档后重试。") from None
 
 
 def parse_page_image_with_vision(
@@ -193,14 +193,14 @@ def parse_page_image_with_vision(
                 mime_type="image/png", temperature=0.2, max_tokens=4096,
             )
         except Exception as e:
-            logger.warning("按页识图失败: %s", e)
-            raise ValueError(f"按页识图失败: {str(e)}") from e
+            logger.warning("page_vision_failed external_error_type=%s", external_error_type(e))
+            raise ValueError("LLM_PROVIDER_ERROR: 试卷识图服务暂时不可用，请稍后重试。") from None
     else:
         url = (base_url or "").strip() or DEEPSEEK_BASE_URL
         model_name = (model or "").strip() or DEEPSEEK_MODEL
         data_uri = f"data:image/png;base64,{b64}"
-        client = OpenAI(base_url=url, api_key=key, timeout=float(AI_REQUEST_TIMEOUT))
         try:
+            client = OpenAI(base_url=url, api_key=key, timeout=float(AI_REQUEST_TIMEOUT))
             resp = client.chat.completions.create(
                 model=model_name,
                 messages=[
@@ -218,8 +218,8 @@ def parse_page_image_with_vision(
             )
             raw = (resp.choices[0].message.content or "").strip()
         except Exception as e:
-            logger.warning("按页识图失败: %s", e)
-            raise ValueError(f"按页识图失败: {str(e)}") from e
+            logger.warning("page_vision_failed external_error_type=%s", external_error_type(e))
+            raise ValueError("LLM_PROVIDER_ERROR: 试卷识图服务暂时不可用，请稍后重试。") from None
 
     try:
         cleaned = _clean_json_string(raw)
@@ -233,7 +233,7 @@ def parse_page_image_with_vision(
         data = _merge_by_section_headers(data)
         return data
     except json.JSONDecodeError as e:
-        logger.warning("按页识图返回非 JSON: %s", e)
+        logger.warning("page_vision_response_invalid error_type=%s", type(e).__name__)
         return []
 
 
@@ -269,7 +269,7 @@ def _crop_page_image_by_region(page_image_bytes: bytes, region: dict[str, float]
         cropped.save(buf, format="JPEG", quality=85)
         return buf.getvalue()
     except Exception as e:
-        logger.warning("按区域裁剪页图失败: %s", e)
+        logger.warning("page_image_region_crop_failed error_type=%s", type(e).__name__)
         return None
 
 

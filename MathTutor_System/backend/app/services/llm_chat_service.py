@@ -129,16 +129,29 @@ async def chat_completion_async(
                 msg = await asyncio.to_thread(llm.invoke, lc_messages)
             out = _get_message_content_safe(msg)
             return (str(out).strip() if out is not None else "") or "（无回复）"
-        except ValueError:
-            raise
+        except ValueError as exc:
+            message = str(exc)
+            if message.startswith("Gemini 接口返回：当前地区不可用"):
+                raise
+            logger.warning("chat_completion_async provider_error_type=%s", type(exc).__name__)
+            raise ValueError("LLM_PROVIDER_ERROR: 对话请求失败，请检查服务配置后重试。") from None
         except Exception as exc:
             last_error = exc
-            logger.warning("chat_completion_async 第 %s 次失败: %s", attempt + 1, type(exc).__name__)
+            logger.warning(
+                "chat_completion_async attempt=%s external_error_type=%s",
+                attempt + 1,
+                type(exc).__name__,
+            )
 
     err_msg = getattr(last_error, "message", None) or str(last_error or "")
-    if "api_key" in err_msg.lower() or "auth" in err_msg.lower() or "401" in err_msg:
-        raise ValueError("API Key 无效或认证失败。请在前端「设置」中核对 API Key 与 Base URL，保存后重试。")
-    raise ValueError(f"对话请求失败：{err_msg[:200]}")
+    if (
+        type(last_error).__name__ == "AuthenticationError"
+        or "api_key" in err_msg.lower()
+        or "auth" in err_msg.lower()
+        or "401" in err_msg
+    ):
+        raise ValueError("LLM_AUTH_ERROR: API Key 无效或认证失败，请检查服务配置后重试。") from None
+    raise ValueError("LLM_PROVIDER_ERROR: 对话请求失败，请检查服务配置后重试。") from None
 
 
 async def chat_completion_stream_async(
@@ -172,25 +185,29 @@ async def chat_completion_stream_async(
     except ImportError as exc:
         raise ValueError("当前环境未安装 langchain-openai，请执行: pip install langchain-openai") from exc
 
-    is_deepseek = base_url and "deepseek" in base_url.lower()
-    kwargs: dict[str, Any] = {
-        "api_key": api_key,
-        "model": model or "gpt-4o-mini",
-        "temperature": 1.0 if is_deepseek else temperature,
-        "max_tokens": max_tokens,
-        "request_timeout": timeout,
-    }
-    if base_url:
-        kwargs["base_url"] = base_url.rstrip("/")
-    kwargs["http_async_client"] = httpx.AsyncClient(follow_redirects=False)
-    llm = ChatOpenAI(**kwargs)
-    if hasattr(llm, "astream"):
-        async for chunk in llm.astream(lc_messages):
-            part = _get_message_content_safe(chunk)
-            if part is not None and str(part).strip():
-                yield str(part)
-    else:
-        msg = await asyncio.to_thread(llm.invoke, lc_messages)
-        out = _get_message_content_safe(msg)
-        if out:
-            yield str(out).strip()
+    try:
+        is_deepseek = base_url and "deepseek" in base_url.lower()
+        kwargs: dict[str, Any] = {
+            "api_key": api_key,
+            "model": model or "gpt-4o-mini",
+            "temperature": 1.0 if is_deepseek else temperature,
+            "max_tokens": max_tokens,
+            "request_timeout": timeout,
+        }
+        if base_url:
+            kwargs["base_url"] = base_url.rstrip("/")
+        kwargs["http_async_client"] = httpx.AsyncClient(follow_redirects=False)
+        llm = ChatOpenAI(**kwargs)
+        if hasattr(llm, "astream"):
+            async for chunk in llm.astream(lc_messages):
+                part = _get_message_content_safe(chunk)
+                if part is not None and str(part).strip():
+                    yield str(part)
+        else:
+            msg = await asyncio.to_thread(llm.invoke, lc_messages)
+            out = _get_message_content_safe(msg)
+            if out:
+                yield str(out).strip()
+    except Exception as exc:
+        logger.warning("chat_completion_stream_failed external_error_type=%s", type(exc).__name__)
+        raise ValueError("LLM_PROVIDER_ERROR: 对话请求失败，请检查服务配置后重试。") from None

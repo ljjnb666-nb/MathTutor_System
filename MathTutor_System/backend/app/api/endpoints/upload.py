@@ -133,9 +133,9 @@ async def parse_word_exam(
             except Exception as e:
                 if first_vision_error is None:
                     first_vision_error = e
-                    logger.warning("第 %s 页识图失败，跳过该页: %s", i + 1, e, exc_info=True)
+                    logger.warning("page_vision_failed page=%s external_error_type=%s", i + 1, type(e).__name__)
                 else:
-                    logger.warning("第 %s 页识图失败，跳过该页: %s", i + 1, e)
+                    logger.warning("page_vision_failed page=%s external_error_type=%s", i + 1, type(e).__name__)
                 pages_questions.append([])
 
         questions = merge_page_questions(pages_questions)
@@ -148,14 +148,11 @@ async def parse_word_exam(
     except HTTPException:
         raise
     except ValueError as e:
-        logger.warning("试卷解析参数或 API 错误: %s", e)
+        logger.warning("exam_parse_failed error_type=%s", type(e).__name__)
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.exception("试卷解析失败")
-        raise HTTPException(
-            status_code=500,
-            detail=f"解析失败: {str(e)}",
-        )
+        logger.error("exam_parse_failed external_error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="DOCUMENT_PARSE_ERROR: 试卷解析失败，请检查文件后重试。") from None
 
 
 @router.post("/generate-analysis")
@@ -184,9 +181,5 @@ async def generate_analysis(
     except HTTPException:
         raise
     except Exception as e:
-        traceback.print_exc()
-        logger.exception("生成解析失败")
-        raise HTTPException(
-            status_code=500,
-            detail=f"生成解析失败: {str(e)[:200]}",
-        )
+        logger.error("analysis_generation_failed external_error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="LLM_PROVIDER_ERROR: 生成解析失败，请稍后重试。") from None

@@ -103,3 +103,45 @@ async def test_chat_completion_stream_async_disables_redirects(monkeypatch):
     assert chunks == ["ok"]
     assert captured["http_async_client"].follow_redirects is False
     await captured["http_async_client"].aclose()
+
+
+@pytest.mark.asyncio
+async def test_chat_completion_provider_error_returns_stable_safe_code(monkeypatch, caplog):
+    secret = "sk-provider-secret-123456"
+
+    class FailingChatOpenAI:
+        def __init__(self, **kwargs):
+            pass
+
+        async def ainvoke(self, messages):
+            raise RuntimeError(f"provider body token={secret}")
+
+    monkeypatch.setitem(sys.modules, "langchain_openai", SimpleNamespace(ChatOpenAI=FailingChatOpenAI))
+    with pytest.raises(ValueError) as exc_info:
+        await chat_completion_async([{"role": "user", "content": "hello"}], None, OpenAIConfig())
+
+    assert str(exc_info.value).startswith("LLM_PROVIDER_ERROR:")
+    assert secret not in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_chat_completion_stream_provider_error_is_safe(monkeypatch):
+    secret = "sk-stream-secret-abcdef"
+
+    class FailingChatOpenAI:
+        def __init__(self, **kwargs):
+            pass
+
+        async def astream(self, messages):
+            raise RuntimeError(f"provider response token={secret}")
+            yield "unreachable"
+
+    monkeypatch.setitem(sys.modules, "langchain_openai", SimpleNamespace(ChatOpenAI=FailingChatOpenAI))
+    with pytest.raises(ValueError) as exc_info:
+        async for _ in chat_completion_stream_async(
+            [{"role": "user", "content": "hello"}], None, OpenAIConfig()
+        ):
+            pass
+
+    assert str(exc_info.value).startswith("LLM_PROVIDER_ERROR:")
+    assert secret not in str(exc_info.value)

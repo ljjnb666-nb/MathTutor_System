@@ -60,10 +60,15 @@ def parse_file_from_bytes(content: bytes, filename: str) -> str:
                     content_str += "\n"
         else:
             raise ValueError("不支持的文件格式，仅支持 PDF (.pdf) 和 Word (.docx)")
-    except ValueError:
-        raise
-    except Exception as e:
-        raise ValueError(f"文件解析失败: {str(e)}")
+    except ValueError as exc:
+        if str(exc) in {
+            "不支持的文件格式，仅支持 PDF (.pdf) 和 Word (.docx)",
+            "未安装 python-docx，无法解析 Word 文档。请执行: pip install python-docx",
+        }:
+            raise
+        raise ValueError("DOCUMENT_PARSE_ERROR: 文件解析失败，请检查文档格式后重试。") from None
+    except Exception:
+        raise ValueError("DOCUMENT_PARSE_ERROR: 文件解析失败，请检查文档格式后重试。") from None
 
     return _normalize_text(content_str)
 

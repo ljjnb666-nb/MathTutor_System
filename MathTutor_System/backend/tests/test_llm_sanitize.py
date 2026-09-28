@@ -28,6 +28,42 @@ def test_mask_secrets_masks_key_values_but_keeps_field_name():
     assert "api_key" in masked
 
 
+@pytest.mark.parametrize(
+    "field",
+    ["api_key", "api-key", "apikey", "key", "token", "access_token", "password", "secret"],
+)
+def test_mask_secrets_masks_short_and_long_secret_fields(field):
+    secret = "prefix-secret-tail"
+    masked = mask_secrets(f"provider failed: {field}={secret}")
+    assert secret not in masked
+    assert "prefix" not in masked
+    assert "tail" not in masked
+    assert field in masked
+
+
+def test_mask_secrets_masks_basic_authorization_header():
+    secret = "dXNlcjpwYXNzd29yZA=="
+    masked = mask_secrets(f"Authorization: Basic {secret}")
+    assert secret not in masked
+    assert "Authorization" in masked
+    assert "Basic" in masked
+
+
+def test_mask_secrets_masks_json_query_multiline_and_nested_serialized_errors():
+    secrets = ["json-secret-value", "query-secret-value", "nested-secret-value", "line-secret-value"]
+    text = (
+        '{"token":"json-secret-value", "password":"also-secret-value"} '
+        "https://provider.test/path?access_token=query-secret-value&x=1\n"
+        'provider error: {\\"error\\":{\\"token\\":\\"nested-secret-value\\"}}\n'
+        "password=line-secret-value"
+    )
+    masked = mask_secrets(text)
+    for secret in secrets + ["also-secret-value"]:
+        assert secret not in masked
+    assert '"token"' in masked
+    assert "access_token" in masked
+
+
 def test_mask_secrets_leaves_clean_text_unchanged():
     text = "模型连接超时，请检查网络 Base URL https://api.deepseek.com"
     assert mask_secrets(text) == text
@@ -81,7 +117,7 @@ def test_call_llm_error_message_is_sanitized(monkeypatch):
     msg = str(exc_info.value)
     assert "sk-deadbeef12345678" not in msg
     assert "AbCdEf1234567890123456" not in msg
-    assert "LLM 调用失败" in msg
+    assert msg.startswith("LLM_PROVIDER_ERROR:")
 
 
 def test_call_llm_auth_error_keeps_fixed_message(monkeypatch):
@@ -99,3 +135,74 @@ def test_call_llm_auth_error_keeps_fixed_message(monkeypatch):
     with pytest.raises(ValueError) as exc_info:
         lcs.call_llm("ping", _dummy_config())
     assert "API Key" in str(exc_info.value)
+
+
+def test_word_parser_provider_error_is_mapped_and_not_logged(monkeypatch, caplog):
+    import logging
+    import app.services.word_parser as word_parser
+
+    secret = "sk-provider-secret-123456"
+
+    class _Completions:
+        def create(self, **kwargs):
+            raise RuntimeError(f"provider rejected request Authorization: Bearer {secret}")
+
+    class _OpenAI:
+        def __init__(self, **kwargs):
+            self.chat = type("_Chat", (), {"completions": _Completions()})()
+
+    monkeypatch.setattr(word_parser, "OpenAI", _OpenAI)
+    with caplog.at_level(logging.WARNING):
+        with pytest.raises(ValueError) as exc_info:
+            word_parser.parse_with_deepseek(
+                "question", api_key="fixture-api-key", base_url="https://provider.test", provider="openai"
+            )
+
+    assert str(exc_info.value).startswith("LLM_PROVIDER_ERROR:")
+    assert secret not in str(exc_info.value)
+    assert secret not in caplog.text
+    assert "RuntimeError" in caplog.text
+
+
+def test_ppt_provider_error_is_mapped_and_not_logged(monkeypatch, caplog):
+    import logging
+    import app.services.ppt_content_service as ppt
+
+    secret = "token-provider-secret-tail"
+
+    class _Completions:
+        def create(self, **kwargs):
+            raise RuntimeError(f"provider body token={secret}")
+
+    class _OpenAI:
+        def __init__(self, **kwargs):
+            self.chat = type("_Chat", (), {"completions": _Completions()})()
+
+    monkeypatch.setattr(ppt, "OpenAI", _OpenAI)
+    with caplog.at_level(logging.WARNING):
+        with pytest.raises(ValueError) as exc_info:
+            ppt.generate_lecture_content("linear functions", "middle", api_key="fixture-api-key")
+
+    assert str(exc_info.value).startswith("LLM_PROVIDER_ERROR:")
+    assert secret not in str(exc_info.value)
+    assert secret not in caplog.text
+    assert "RuntimeError" in caplog.text
+
+
+def test_word_parser_client_setup_error_is_mapped(monkeypatch):
+    import app.services.word_parser as word_parser
+
+    secret = "password=setup-secret-tail"
+
+    class _OpenAI:
+        def __init__(self, **kwargs):
+            raise RuntimeError(f"client setup failed: {secret}")
+
+    monkeypatch.setattr(word_parser, "OpenAI", _OpenAI)
+    with pytest.raises(ValueError) as exc_info:
+        word_parser.parse_with_deepseek(
+            "question", api_key="fixture-api-key", base_url="https://provider.test", provider="openai"
+        )
+
+    assert str(exc_info.value).startswith("LLM_PROVIDER_ERROR:")
+    assert "setup-secret-tail" not in str(exc_info.value)
