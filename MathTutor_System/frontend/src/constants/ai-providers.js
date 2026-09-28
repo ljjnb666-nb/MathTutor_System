@@ -125,6 +125,15 @@ export const PROVIDERS = [
 ]
 
 const STORAGE_KEY = 'app_settings'
+const LEGACY_CLIENT_SECRET_FIELDS = [
+  'apiKey',
+  'apiKeysByProvider',
+  'api_key',
+  'api-key',
+  'apikey',
+  'llmApiKey',
+  'llm_api_key',
+]
 
 const defaultSettings = {
   provider: 'deepseek',
@@ -138,19 +147,38 @@ const defaultSettings = {
   apiVersionsByProvider: {},
 }
 
-export function getStoredSettings() {
+export function sanitizeStoredSettings(settings, { production = Boolean(import.meta.env.PROD) } = {}) {
+  production = Boolean(import.meta.env.PROD || production)
+  const value = settings && typeof settings === 'object' && !Array.isArray(settings) ? { ...settings } : {}
+  if (production) {
+    for (const field of LEGACY_CLIENT_SECRET_FIELDS) delete value[field]
+  }
+  return value
+}
+
+function containsClientSecrets(settings) {
+  return LEGACY_CLIENT_SECRET_FIELDS.some((field) => Object.prototype.hasOwnProperty.call(settings, field))
+}
+
+export function getStoredSettings({ production = Boolean(import.meta.env.PROD) } = {}) {
+  production = Boolean(import.meta.env.PROD || production)
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return { ...defaultSettings }
     const parsed = JSON.parse(raw)
-    return { ...defaultSettings, ...parsed }
+    const sanitized = sanitizeStoredSettings(parsed, { production })
+    if (production && containsClientSecrets(parsed)) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized))
+    }
+    return { ...defaultSettings, ...sanitized }
   } catch {
+    if (production) localStorage.removeItem(STORAGE_KEY)
     return { ...defaultSettings }
   }
 }
 
-export function getApiKeyForProvider(providerValue) {
-  const stored = getStoredSettings()
+export function getApiKeyForProvider(providerValue, options) {
+  const stored = getStoredSettings(options)
   const byProvider = stored.apiKeysByProvider || {}
   if (Object.prototype.hasOwnProperty.call(byProvider, providerValue))
     return byProvider[providerValue] ?? ''
@@ -182,8 +210,9 @@ export function getApiVersionForProvider(providerValue) {
   return p.apiVersion ?? ''
 }
 
-export function setStoredSettings(settings) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
+export function setStoredSettings(settings, { production = Boolean(import.meta.env.PROD) } = {}) {
+  production = Boolean(import.meta.env.PROD || production)
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitizeStoredSettings(settings, { production })))
 }
 
 export function getProviderByValue(value) {
@@ -194,7 +223,8 @@ export function normalizeBaseUrl(value) {
   return String(value || '').trim().replace(/\/+$/, '')
 }
 
-export function getActiveLlmConfig(settings = getStoredSettings()) {
+export function getActiveLlmConfig(settings = getStoredSettings(), options) {
+  settings = sanitizeStoredSettings(settings, options)
   const provider = getProviderByValue(settings.provider ?? defaultSettings.provider)
   const providerValue = provider.value
   const apiKeysByProvider = settings.apiKeysByProvider || {}
@@ -223,8 +253,8 @@ export function getActiveLlmConfig(settings = getStoredSettings()) {
   }
 }
 
-export function saveActiveLlmConfig(config) {
-  const stored = getStoredSettings()
+export function saveActiveLlmConfig(config, options) {
+  const stored = getStoredSettings(options)
   const provider = getProviderByValue(config.provider ?? stored.provider ?? defaultSettings.provider)
   const providerValue = provider.value
   const next = {
@@ -248,6 +278,7 @@ export function saveActiveLlmConfig(config) {
       [providerValue]: String(config.apiVersion ?? provider.apiVersion ?? '').trim(),
     },
   }
-  setStoredSettings(next)
-  return next
+  const safeNext = sanitizeStoredSettings(next, options)
+  setStoredSettings(safeNext, options)
+  return safeNext
 }

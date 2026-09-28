@@ -1,11 +1,14 @@
 import asyncio
+import os
+import re
 import time
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.api.endpoints.auth import get_current_user
-from app.core.deps import LLMConfig, get_llm_config
+from app.core.llm_sanitize import mask_secrets
+from app.core.deps import LLMConfig, client_llm_config_allowed, get_llm_config
 from app.models.user import User
 from app.services.llm_client_service import call_llm_async
 
@@ -20,6 +23,40 @@ class LLMTestResponse(BaseModel):
     key_source: str | None = None
     code: str | None = None
     message: str
+
+
+class LLMRuntimeStatus(BaseModel):
+    configured: bool
+    provider: str
+    model: str
+    config_source: str
+    client_config_allowed: bool
+
+
+@router.get("/status", response_model=LLMRuntimeStatus)
+def get_llm_runtime_status(_current_user: User = Depends(get_current_user)) -> LLMRuntimeStatus:
+    """Expose safe server configuration state without credential details."""
+    server_key = os.getenv("LLM_API_KEY", "").strip()
+    return LLMRuntimeStatus(
+        configured=bool(server_key),
+        provider=_safe_runtime_label(os.getenv("LLM_PROVIDER", "gemini"), server_key).lower() or "gemini",
+        model=_safe_runtime_label(os.getenv("LLM_MODEL", ""), server_key),
+        config_source="server",
+        client_config_allowed=client_llm_config_allowed(),
+    )
+
+
+def _safe_runtime_label(value: str, server_key: str) -> str:
+    label = str(value or "").strip()
+    if not label:
+        return ""
+    if server_key and len(server_key) >= 4:
+        fragments = {server_key, server_key[:8], server_key[-8:]}
+        if any(fragment and fragment in label for fragment in fragments):
+            return "configured"
+    if mask_secrets(label) != label or not re.fullmatch(r"[A-Za-z0-9._:/-]{1,100}", label):
+        return "configured"
+    return label
 
 
 @router.post("/test", response_model=LLMTestResponse)

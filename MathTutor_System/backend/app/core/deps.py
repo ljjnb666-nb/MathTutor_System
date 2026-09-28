@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 from dotenv import load_dotenv
 from fastapi import Header, HTTPException
 
-from app.core.config import ALLOW_CLIENT_LLM_CONFIG
+from app.core.config import ALLOW_CLIENT_LLM_CONFIG, IS_PRODUCTION
 
 load_dotenv()
 
@@ -32,6 +32,11 @@ CLIENT_PROVIDER_ALLOWED_HOSTS = {
     provider: {urlparse(base_url).hostname or ""}
     for provider, base_url in CLIENT_PROVIDER_ALLOWED_URLS.items()
 }
+
+
+def client_llm_config_allowed() -> bool:
+    """Production always uses server-side LLM credentials, regardless of flags."""
+    return bool(ALLOW_CLIENT_LLM_CONFIG and not IS_PRODUCTION)
 
 
 @dataclass
@@ -64,10 +69,10 @@ def get_llm_config(
         value and value.strip()
         for value in (x_llm_provider, x_llm_api_key, x_llm_base_url, x_llm_api_version, x_llm_model)
     )
-    if has_client_config and not ALLOW_CLIENT_LLM_CONFIG:
+    if has_client_config and not client_llm_config_allowed():
         raise HTTPException(status_code=403, detail=CLIENT_CONFIG_DISABLED_ERROR)
 
-    if has_client_config and ALLOW_CLIENT_LLM_CONFIG:
+    if has_client_config and client_llm_config_allowed():
         provider = (x_llm_provider or os.getenv("LLM_PROVIDER", "gemini")).strip().lower()
         api_key = (x_llm_api_key or "").strip() or os.getenv("LLM_API_KEY", "").strip()
         base_url = (x_llm_base_url or "").strip().rstrip("/")

@@ -44,6 +44,12 @@ describe('httpClient LLM headers', () => {
     expect(shouldSendClientLlmHeaders({ DEV: false, VITE_ALLOW_CLIENT_LLM_CONFIG: 'true' })).toBe(true)
   })
 
+  it('never sends client LLM headers in a production build, even with the explicit flag', () => {
+    const meta = { env: { PROD: true, DEV: false, VITE_ALLOW_CLIENT_LLM_CONFIG: 'true' } }
+    expect(shouldSendClientLlmHeaders(meta)).toBe(false)
+    expect(buildClientLlmHeaders(meta)).toBeNull()
+  })
+
   it('keeps buildAuthHeaders consistent with client LLM header policy', () => {
     localStorage.setItem(AUTH_TOKEN_KEY, 'token-a')
 

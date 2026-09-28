@@ -11,6 +11,8 @@ import {
   getApiVersionForProvider,
 } from '../constants/ai-providers'
 
+const IS_PRODUCTION_BUILD = import.meta.env.PROD
+
 export default function SettingsModal({ open, onClose }) {
   const [providerValue, setProviderValue] = useState('deepseek')
   const [model, setModel] = useState('')
@@ -192,7 +194,11 @@ export default function SettingsModal({ open, onClose }) {
           </div>
 
           {/* API Key */}
-          <div>
+          {IS_PRODUCTION_BUILD ? (
+            <p role="status" className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+              生产环境由服务器管理模型凭据，浏览器不会保存 API Key。
+            </p>
+          ) : <div>
             <label className="mb-1.5 block text-xs font-medium text-gray-600">
               API Key
             </label>
@@ -217,7 +223,7 @@ export default function SettingsModal({ open, onClose }) {
                 )}
               </button>
             </div>
-          </div>
+          </div>}
 
           {/* Base URL + 自动填充（手机端上下排列） */}
           <div>

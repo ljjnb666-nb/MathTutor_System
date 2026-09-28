@@ -8,8 +8,10 @@ export const SESSION_EXPIRED_KEY = 'math_tutor_session_expired'
 const VITE_ALLOW_CLIENT_LLM_CONFIG = import.meta.env.VITE_ALLOW_CLIENT_LLM_CONFIG
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 const IS_DEV = import.meta.env.DEV
+const IS_PROD = import.meta.env.PROD
 const DEFAULT_CLIENT_LLM_ENV = {
   DEV: IS_DEV,
+  PROD: IS_PROD,
   VITE_ALLOW_CLIENT_LLM_CONFIG,
 }
 
@@ -28,7 +30,9 @@ function resolveEnv(importMetaOrEnv = DEFAULT_CLIENT_LLM_ENV) {
 }
 
 export function shouldSendClientLlmHeaders(importMetaOrEnv = DEFAULT_CLIENT_LLM_ENV) {
+  if (import.meta.env.PROD) return false
   const env = resolveEnv(importMetaOrEnv)
+  if (env?.PROD === true) return false
   const explicit = env?.VITE_ALLOW_CLIENT_LLM_CONFIG
   if (explicit != null && explicit !== '') {
     return String(explicit).toLowerCase() === 'true'
@@ -44,6 +48,7 @@ export function buildClientLlmHeaders(importMetaOrEnv = DEFAULT_CLIENT_LLM_ENV) 
 }
 
 export function buildLlmHeadersFromConfig(config) {
+  if (import.meta.env.PROD) return null
   if (!config) return null
   const headers = {}
   if (config.provider) headers['x-llm-provider'] = config.provider
