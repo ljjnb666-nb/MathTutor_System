@@ -1,10 +1,13 @@
 """Password hashing and JWT helpers."""
+import logging
 import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import bcrypt
 from jose import JWTError, jwt
+
+logger = logging.getLogger(__name__)
 
 _DEFAULT_SECRET = "math-tutor-dev-secret-change-in-production"
 SECRET_KEY = os.getenv("SECRET_KEY", _DEFAULT_SECRET)
@@ -17,6 +20,12 @@ _is_production = os.getenv("ENV", "development").lower() == "production" or os.g
 )
 if _is_production and (not SECRET_KEY.strip() or SECRET_KEY == _DEFAULT_SECRET):
     raise RuntimeError("SECRET_KEY must be set to a non-default value in production.")
+if not _is_production and SECRET_KEY == _DEFAULT_SECRET:
+    # Visibility only: never print the key itself, only the fact that it is the default.
+    logger.warning(
+        "Using the default development SECRET_KEY. Set SECRET_KEY in .env before deploying "
+        "outside local development."
+    )
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
