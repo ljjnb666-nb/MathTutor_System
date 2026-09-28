@@ -6,6 +6,7 @@ from typing import Any
 
 import httpx
 
+from app.core.llm_sanitize import sanitize_llm_error_message
 from app.services.gemini_rest_service import (
     gemini_rest_with_proxy as _gemini_rest_with_proxy,
     resolve_gemini_proxy as _resolve_gemini_proxy,
@@ -147,7 +148,7 @@ def call_llm(prompt: str, llm_config: Any, *, temperature: float = 0.3) -> str:
     if auth_message:
         raise ValueError(auth_message)
     err_msg = getattr(last_error, "message", None) or str(last_error or "")
-    raise ValueError(f"LLM 调用失败，请检查 Base URL、模型与网络：{err_msg[:200]}")
+    raise ValueError(f"LLM 调用失败，请检查 Base URL、模型与网络：{sanitize_llm_error_message(err_msg)}")
 
 
 async def call_llm_async(
@@ -245,4 +246,4 @@ async def call_llm_async(
     if auth_message:
         raise ValueError(auth_message)
     err_msg = getattr(last_error, "message", None) or str(last_error or "")
-    raise ValueError(f"LLM 调用失败，请检查 Base URL、模型与网络：{err_msg[:200]}")
+    raise ValueError(f"LLM 调用失败，请检查 Base URL、模型与网络：{sanitize_llm_error_message(err_msg)}")

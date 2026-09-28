@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.api.endpoints.auth import get_current_user
 from app.core.deps import LLMConfig, get_llm_config
+from app.core.llm_sanitize import mask_secrets
 from app.core.subscription import get_current_subscription, require_feature
 from app.models.base import get_db
 from app.models.user import User
@@ -155,7 +156,7 @@ async def rag_upload(
     except HTTPException:
         raise
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=mask_secrets(str(exc)))
     except Exception:
         logger.exception("RAG upload failed")
         raise HTTPException(status_code=500, detail="Upload failed")
