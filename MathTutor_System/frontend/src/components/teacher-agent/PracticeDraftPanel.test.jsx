@@ -93,7 +93,7 @@ describe('PracticeDraftPanel', () => {
   })
 
   it('binds enabled student mistakes to the selected run student and supports turning the option off', () => {
-    const { props } = renderPanel({ run: { ...run, student_id: 42 } })
+    const { props } = renderPanel({ run: { ...run, context_snapshot_json: { student_id: 42 } } })
     const checkbox = screen.getByRole('checkbox', { name: 'Use student mistakes' })
 
     expect(checkbox).toBeEnabled()

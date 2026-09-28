@@ -43,7 +43,7 @@ export default function PracticeDraftPanel({
   if (run?.status !== 'completed') return null
   const content = draftContent || artifact?.content_json
   const validation = artifact?.validation_json
-  const studentId = run.student_id
+  const studentId = run.student_id ?? run.context_snapshot_json?.student_id ?? null
   const hasStudent = studentId != null
 
   const submitGenerate = () => {
