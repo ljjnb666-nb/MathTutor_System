@@ -15,6 +15,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 应用代码
 COPY app ./app
 COPY scripts ./scripts
+COPY alembic.ini ./alembic.ini
+COPY migrations ./migrations
 
 # 数据目录（SQLite、RAG 向量库由 volume 挂载到 /app 下）
 ENV PYTHONUNBUFFERED=1
