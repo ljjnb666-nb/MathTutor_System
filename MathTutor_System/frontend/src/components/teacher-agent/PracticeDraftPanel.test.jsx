@@ -74,6 +74,12 @@ describe('PracticeDraftPanel', () => {
     expect(screen.getByDisplayValue('What is the slope of y = 2x + 1?')).toBeInTheDocument()
   })
 
+  it('disables draft edits while a save action is executing', () => {
+    renderPanel({ artifact: makeArtifact({ status: 'saving' }) })
+    expect(screen.getByRole('button', { name: 'Save edit' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Save to question bank' })).toBeDisabled()
+  })
+
   it('keeps student mistakes off and disabled without a selected student', () => {
     const { props } = renderPanel()
     const checkbox = screen.getByRole('checkbox', { name: 'Use student mistakes' })

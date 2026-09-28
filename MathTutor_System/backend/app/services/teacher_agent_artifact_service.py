@@ -92,21 +92,43 @@ def get_artifact_or_404(db: Session, user: User, artifact_id: int) -> AgentArtif
 
 def update_practice_artifact(db: Session, user: User, artifact_id: int, request: PracticeDraftUpdate) -> AgentArtifact:
     artifact = get_artifact_or_404(db, user, artifact_id)
-    if artifact.status in TERMINAL_ARTIFACT_STATUSES:
+    if artifact.status in TERMINAL_ARTIFACT_STATUSES or artifact.status == "saving":
         raise HTTPException(status_code=409, detail="Artifact cannot be edited in its current status")
     if artifact.version != request.expected_version:
         raise HTTPException(status_code=409, detail="Practice draft has changed. Refresh and retry.")
     validation = validate_practice_draft(request.content, _request_from_artifact(artifact))
     if not validation["valid"]:
         raise HTTPException(status_code=400, detail={"message": "Practice draft validation failed", "validation": validation})
-    artifact.content_json = request.content.model_dump()
-    artifact.validation_json = validation
-    artifact.title = request.content.title
-    artifact.version += 1
-    artifact.status = "ready_for_confirmation"
+
+    updated = (
+        db.query(AgentArtifact)
+        .filter(
+            AgentArtifact.id == artifact_id,
+            AgentArtifact.user_id == user.id,
+            AgentArtifact.version == request.expected_version,
+            AgentArtifact.status.in_(["draft", "ready_for_confirmation"]),
+        )
+        .update(
+            {
+                AgentArtifact.content_json: request.content.model_dump(),
+                AgentArtifact.validation_json: validation,
+                AgentArtifact.title: request.content.title,
+                AgentArtifact.version: AgentArtifact.version + 1,
+                AgentArtifact.status: "ready_for_confirmation",
+                AgentArtifact.updated_at: _now(),
+            },
+            synchronize_session=False,
+        )
+    )
+    if updated != 1:
+        db.rollback()
+        current = get_artifact_or_404(db, user, artifact_id)
+        if current.status in TERMINAL_ARTIFACT_STATUSES or current.status == "saving":
+            raise HTTPException(status_code=409, detail="Artifact cannot be edited in its current status")
+        raise HTTPException(status_code=409, detail="Practice draft has changed. Refresh and retry.")
     db.commit()
-    db.refresh(artifact)
-    return artifact
+    db.expire_all()
+    return get_artifact_or_404(db, user, artifact_id)
 
 
 def prepare_practice_save(db: Session, user: User, artifact_id: int) -> tuple[AgentAction, dict]:
@@ -149,15 +171,26 @@ def get_action_or_404(db: Session, user: User, action_id: int) -> AgentAction:
 
 
 def cancel_action(db: Session, user: User, action_id: int) -> AgentAction:
-    action = get_action_or_404(db, user, action_id)
-    if action.status != "pending_confirmation":
-        raise HTTPException(status_code=409, detail="Only pending actions can be cancelled")
     now = _now()
-    action.status = "cancelled"
-    action.cancelled_at = now
+    cancelled = (
+        db.query(AgentAction)
+        .filter(
+            AgentAction.id == action_id,
+            AgentAction.user_id == user.id,
+            AgentAction.status == "pending_confirmation",
+        )
+        .update(
+            {AgentAction.status: "cancelled", AgentAction.cancelled_at: now},
+            synchronize_session=False,
+        )
+    )
+    if cancelled != 1:
+        db.rollback()
+        get_action_or_404(db, user, action_id)
+        raise HTTPException(status_code=409, detail="Only pending actions can be cancelled")
     db.commit()
-    db.refresh(action)
-    return action
+    db.expire_all()
+    return get_action_or_404(db, user, action_id)
 
 
 def confirm_action(db: Session, user: User, action_id: int, request: PracticeDraftConfirm) -> AgentAction:
@@ -184,12 +217,20 @@ def confirm_action(db: Session, user: User, action_id: int, request: PracticeDra
         raise HTTPException(status_code=409, detail="Artifact payload has changed")
 
     now = _now()
+    expected_version = request.expected_artifact_version
+    artifact_id = artifact.id
+
+    # End the read transaction before the conditional writes. This avoids a
+    # stale SQLite read-to-write upgrade while the WHERE clauses remain the
+    # authority for version and status.
+    db.rollback()
     claimed = (
         db.query(AgentAction)
         .filter(
-            AgentAction.id == action.id,
+            AgentAction.id == action_id,
             AgentAction.user_id == user.id,
             AgentAction.status == "pending_confirmation",
+            AgentAction.expected_artifact_version == expected_version,
         )
         .update(
             {
@@ -208,9 +249,29 @@ def confirm_action(db: Session, user: User, action_id: int, request: PracticeDra
         if current.status == "executing":
             raise HTTPException(status_code=409, detail="Action is already executing")
         raise HTTPException(status_code=409, detail="Action is not pending confirmation")
+
+    artifact_claimed = (
+        db.query(AgentArtifact)
+        .filter(
+            AgentArtifact.id == artifact_id,
+            AgentArtifact.user_id == user.id,
+            AgentArtifact.version == expected_version,
+            AgentArtifact.status == "ready_for_confirmation",
+        )
+        .update({AgentArtifact.status: "saving", AgentArtifact.updated_at: now}, synchronize_session=False)
+    )
+    if artifact_claimed != 1:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Artifact version has changed")
+    db.commit()
+
     try:
+        db.expire_all()
         action = get_action_or_404(db, user, action_id)
-        _assert_ready_artifact(db, user, artifact)
+        artifact = get_artifact_or_404(db, user, artifact_id)
+        if action.status != "executing" or artifact.status != "saving" or artifact.version != expected_version:
+            raise HTTPException(status_code=409, detail="Action state changed before save")
+        _assert_ready_artifact(db, user, artifact, allow_saving=True)
         draft = PracticeSetDraft.model_validate(artifact.content_json)
         validation = validate_practice_draft(draft, _request_from_artifact(artifact))
         if not validation["valid"]:
@@ -224,26 +285,84 @@ def confirm_action(db: Session, user: User, action_id: int, request: PracticeDra
             "artifact_id": artifact.id,
             "artifact_version": artifact.version,
         }
-        artifact.status = "saved"
-        artifact.confirmed_at = now
-        artifact.validation_json = validation
-        action.status = "completed"
-        action.result_json = result
-        action.completed_at = now
+        artifact_saved = (
+            db.query(AgentArtifact)
+            .filter(
+                AgentArtifact.id == artifact_id,
+                AgentArtifact.user_id == user.id,
+                AgentArtifact.version == expected_version,
+                AgentArtifact.status == "saving",
+            )
+            .update(
+                {
+                    AgentArtifact.status: "saved",
+                    AgentArtifact.confirmed_at: now,
+                    AgentArtifact.validation_json: validation,
+                    AgentArtifact.updated_at: _now(),
+                },
+                synchronize_session=False,
+            )
+        )
+        action_completed = (
+            db.query(AgentAction)
+            .filter(
+                AgentAction.id == action_id,
+                AgentAction.user_id == user.id,
+                AgentAction.expected_artifact_version == expected_version,
+                AgentAction.status == "executing",
+            )
+            .update(
+                {
+                    AgentAction.status: "completed",
+                    AgentAction.result_json: result,
+                    AgentAction.completed_at: _now(),
+                },
+                synchronize_session=False,
+            )
+        )
+        if artifact_saved != 1 or action_completed != 1:
+            raise RuntimeError("Practice save state changed before commit")
         db.commit()
-        db.refresh(action)
-        return action
+        db.expire_all()
+        return get_action_or_404(db, user, action_id)
     except Exception as exc:
         db.rollback()
-        action = db.get(AgentAction, action_id)
-        if action is None:
-            raise
-        action.status = "failed"
-        action.error_code = "save_failed"
-        action.error_message = _sanitize_error(exc)
-        action.completed_at = _now()
+        failed_at = _now()
+        action_failed = (
+            db.query(AgentAction)
+            .filter(
+                AgentAction.id == action_id,
+                AgentAction.user_id == user.id,
+                AgentAction.status == "executing",
+            )
+            .update(
+                {
+                    AgentAction.status: "failed",
+                    AgentAction.error_code: "save_failed",
+                    AgentAction.error_message: _sanitize_error(exc),
+                    AgentAction.completed_at: failed_at,
+                },
+                synchronize_session=False,
+            )
+        )
+        artifact_restored = (
+            db.query(AgentArtifact)
+            .filter(
+                AgentArtifact.id == artifact_id,
+                AgentArtifact.user_id == user.id,
+                AgentArtifact.version == expected_version,
+                AgentArtifact.status == "saving",
+            )
+            .update(
+                {AgentArtifact.status: "ready_for_confirmation", AgentArtifact.updated_at: failed_at},
+                synchronize_session=False,
+            )
+        )
+        if action_failed != 1 or artifact_restored != 1:
+            db.rollback()
+            raise HTTPException(status_code=409, detail="Practice save state could not be finalized") from exc
         db.commit()
-        db.refresh(action)
+        db.expire_all()
         if isinstance(exc, HTTPException):
             raise exc
         raise HTTPException(status_code=500, detail="Practice save failed")
@@ -289,12 +408,13 @@ def _require_student_owned_if_set(db: Session, user: User, student_id: int | Non
         raise HTTPException(status_code=404, detail="Student not found")
 
 
-def _assert_ready_artifact(db: Session, user: User, artifact: AgentArtifact) -> None:
+def _assert_ready_artifact(db: Session, user: User, artifact: AgentArtifact, *, allow_saving: bool = False) -> None:
     if artifact.user_id != user.id:
         raise HTTPException(status_code=404, detail="Artifact not found")
     if artifact.artifact_type != ARTIFACT_TYPE_PRACTICE_SET:
         raise HTTPException(status_code=409, detail="Unsupported artifact type")
-    if artifact.status != "ready_for_confirmation":
+    allowed_status = "saving" if allow_saving else "ready_for_confirmation"
+    if artifact.status != allowed_status:
         raise HTTPException(status_code=409, detail="Artifact is not ready for confirmation")
     if not (artifact.validation_json or {}).get("valid"):
         raise HTTPException(status_code=409, detail="Artifact validation has not passed")
