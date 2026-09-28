@@ -29,6 +29,15 @@ TEST_TMP_DIR = Path(__file__).resolve().parent / ".tmp_bootstrap_db_reconcile"
 BASELINE_REVISION = "388fe57f097c"
 AGENT_RUNS_REVISION = "7f1f4d9a2c10"
 OWNER_REVISION = "b7e2c94f6a15"
+def _current_head_revision() -> str:
+    """Current alembic head so head assertions survive new migrations."""
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+    cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    return ScriptDirectory.from_config(cfg).get_current_head()
+
+
+HEAD_REVISION = _current_head_revision()
 OWNER_TABLES = ("questions", "question_bank", "exams")
 
 # 残缺 agent_runs：仅 6 列、无 JSON/结果列、无索引、无 FK —— 不得被视为 7f1f4d9a2c10。
@@ -112,15 +121,18 @@ def _rebuild_table_without_owner_column(engine, table: Table) -> None:
 
 
 def _build_previous_head_schema(db_path: Path, *, keep_version_table: bool) -> None:
-    """当前 Base.metadata 建库后移除 owner 列 -> 权威的上一代 head（7f1f4d9a2c10）schema。
+    """当前 Base.metadata 建库后移除后代增量 -> 权威的上一代 head（7f1f4d9a2c10）schema。
 
-    本 PR 相对上一代 head 只新增 owner 三表的 owner_user_id（列/索引/FK），
-    因此"当前 metadata - owner 列"即等价于上一代 head 的完整应用 schema。
-    keep_version_table=True 时补一个 7f1f4d9a2c10 版本表（STATE B 世界）。
+    相对上一代 head 的增量 = e4f7a1b9c2d8 新建的 agent_artifacts/agent_actions 两表 +
+    owner 三表的 owner_user_id（列/索引/FK）。移除这些即等价于上一代 head 的完整
+    应用 schema。keep_version_table=True 时补一个 7f1f4d9a2c10 版本表（STATE B 世界）。
     """
     db_url = f"sqlite:///{db_path.as_posix()}"
     engine = create_engine(db_url)
     Base.metadata.create_all(engine)
+    engine.dispose()
+    _drop_tables(db_path, "agent_actions", "agent_artifacts")
+    engine = create_engine(db_url)
     for name in OWNER_TABLES:
         _rebuild_table_without_owner_column(engine, Base.metadata.tables[name])
     engine.dispose()
@@ -175,7 +187,7 @@ def test_boot_db_01_fresh_new_metadata_db_stamps_head_without_replaying(case_dir
     proc = _run_bootstrap(db_path)
 
     assert proc.returncode == 0, proc.stderr
-    assert _read_version(db_path) == OWNER_REVISION
+    assert _read_version(db_path) == HEAD_REVISION
     assert all(_owner_columns_present(db_path).values())
 
 
@@ -188,7 +200,7 @@ def test_boot_db_02_legacy_previous_head_schema_upgrades_owner_migration(case_di
     proc = _run_bootstrap(db_path)
 
     assert proc.returncode == 0, proc.stderr
-    assert _read_version(db_path) == OWNER_REVISION
+    assert _read_version(db_path) == HEAD_REVISION
     assert all(_owner_columns_present(db_path).values())
 
 
@@ -202,7 +214,7 @@ def test_boot_db_03_pre_agent_runs_baseline_runs_both_migrations(case_dir):
     proc = _run_bootstrap(db_path)
 
     assert proc.returncode == 0, proc.stderr
-    assert _read_version(db_path) == OWNER_REVISION
+    assert _read_version(db_path) == HEAD_REVISION
     assert all(_owner_columns_present(db_path).values())
     engine = create_engine(f"sqlite:///{db_path.as_posix()}")
     assert "agent_runs" in inspect(engine).get_table_names()
@@ -235,7 +247,7 @@ def test_boot_db_05_existing_alembic_db_standard_upgrade(case_dir):
     proc = _run_bootstrap(db_path)
 
     assert proc.returncode == 0, proc.stderr
-    assert _read_version(db_path) == OWNER_REVISION
+    assert _read_version(db_path) == HEAD_REVISION
     assert all(_owner_columns_present(db_path).values())
 
 

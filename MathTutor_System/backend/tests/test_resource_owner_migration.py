@@ -293,6 +293,12 @@ def test_fresh_create_all_schema_is_migration_compatible(request):
 
     engine = create_engine(db_url)
     Base.metadata.create_all(engine)
+    # 后代 revision（e4f7a1b9c2d8）新增的表必须剔除：stamp 点是 b7e2c94f6a15，
+    # 否则 upgrade head 时 create_table 与 create_all 产物冲突。
+    from app.models.agent_artifact import AgentAction as _LegacyAgentAction
+    from app.models.agent_artifact import AgentArtifact as _LegacyAgentArtifact
+
+    Base.metadata.drop_all(engine, tables=[_LegacyAgentAction.__table__, _LegacyAgentArtifact.__table__])
     with engine.begin() as conn:
         conn.execute(
             text(
