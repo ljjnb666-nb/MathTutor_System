@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, Bot, CheckCircle2, Circle, Loader2, ShieldCheck } from 'lucide-react'
 import {
   cancelPracticeAction,
@@ -43,10 +43,22 @@ export default function TeacherAgent() {
   const [draftConfirmation, setDraftConfirmation] = useState(null)
   const [draftLoading, setDraftLoading] = useState(false)
   const [draftError, setDraftError] = useState('')
+  const mountedRef = useRef(false)
+  const runRequestRef = useRef(0)
+  const historyRequestRef = useRef(0)
+  const draftRequestRef = useRef(0)
+  const activeRunIdRef = useRef(null)
 
   useEffect(() => {
+    mountedRef.current = true
     refreshStudents()
     loadHistory()
+    return () => {
+      mountedRef.current = false
+      runRequestRef.current += 1
+      historyRequestRef.current += 1
+      draftRequestRef.current += 1
+    }
   }, [refreshStudents])
 
   useEffect(() => {
@@ -56,17 +68,23 @@ export default function TeacherAgent() {
   const canSubmit = goal.trim().length > 0 && !loading
 
   async function loadHistory() {
+    const requestId = ++historyRequestRef.current
     try {
       const res = await getTeacherAgentRuns(20)
-      setHistory(Array.isArray(res.data) ? res.data : [])
+      if (mountedRef.current && requestId === historyRequestRef.current) {
+        setHistory(Array.isArray(res.data) ? res.data : [])
+      }
     } catch {
-      setHistory([])
+      if (mountedRef.current && requestId === historyRequestRef.current) setHistory([])
     }
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
     if (!canSubmit) return
+    const requestId = ++runRequestRef.current
+    activeRunIdRef.current = null
+    draftRequestRef.current += 1
     setLoading(true)
     setError('')
     setRun(null)
@@ -78,22 +96,34 @@ export default function TeacherAgent() {
         use_knowledge_base: useKnowledgeBase,
       }
       const res = await createTeacherAgentRun(payload)
+      if (!mountedRef.current || requestId !== runRequestRef.current) return
+      activeRunIdRef.current = res.data?.id ?? null
       setRun(res.data)
       await loadHistory()
     } catch (err) {
-      setError(err.response?.data?.detail || err.message || '生成教学计划失败')
+      if (mountedRef.current && requestId === runRequestRef.current) {
+        setError(err.response?.data?.detail || err.message || '生成教学计划失败')
+      }
     } finally {
-      setLoading(false)
+      if (mountedRef.current && requestId === runRequestRef.current) setLoading(false)
     }
   }
 
   async function openHistory(id) {
+    const requestId = ++runRequestRef.current
+    activeRunIdRef.current = null
+    draftRequestRef.current += 1
+    setDraftArtifact(null)
+    setDraftAction(null)
+    setDraftConfirmation(null)
     try {
       const res = await getTeacherAgentRun(id)
+      if (!mountedRef.current || requestId !== runRequestRef.current) return
+      activeRunIdRef.current = res.data?.id ?? id
       setRun(res.data)
       setError('')
     } catch {
-      setError('无法读取该运行记录')
+      if (mountedRef.current && requestId === runRequestRef.current) setError('无法读取该运行记录')
     }
   }
 
@@ -102,17 +132,22 @@ export default function TeacherAgent() {
   const warnings = run?.warnings_json || plan?.warnings || []
   const activeStep = loading ? 5 : run?.status === 'completed' ? 7 : run?.status === 'needs_input' ? 2 : 0
 
-  async function loadDraftState(runId) {
+  async function loadDraftState(runId, requestId = ++draftRequestRef.current) {
+    const isCurrent = () => mountedRef.current
+      && requestId === draftRequestRef.current
+      && String(activeRunIdRef.current) === String(runId)
     setDraftArtifact(null)
     setDraftAction(null)
     setDraftConfirmation(null)
     try {
       const res = await getTeacherAgentRunArtifacts(runId)
+      if (!isCurrent()) return
       const artifacts = Array.isArray(res.data) ? res.data : []
       const latest = artifacts[0] || null
       setDraftArtifact(latest)
       if (latest) {
         const actionsRes = await getPracticeArtifactActions(latest.id)
+        if (!isCurrent()) return
         setDraftAction((Array.isArray(actionsRes.data) ? actionsRes.data : [])[0] || null)
       }
     } catch {
@@ -121,9 +156,12 @@ export default function TeacherAgent() {
   }
 
   useEffect(() => {
+    const requestId = ++draftRequestRef.current
     if (run?.status === 'completed' && run?.id) {
-      loadDraftState(run.id)
+      activeRunIdRef.current = run.id
+      loadDraftState(run.id, requestId)
     } else {
+      activeRunIdRef.current = run?.id ?? null
       setDraftArtifact(null)
       setDraftAction(null)
       setDraftConfirmation(null)
@@ -132,52 +170,74 @@ export default function TeacherAgent() {
   }, [run?.id, run?.status])
 
   async function handleGenerateDraft(payload) {
+    const runId = run?.id
+    const requestId = ++draftRequestRef.current
+    const isCurrent = () => mountedRef.current && requestId === draftRequestRef.current
+      && String(activeRunIdRef.current) === String(runId)
     setDraftLoading(true)
     setDraftError('')
     try {
-      const res = await createPracticeDraft(run.id, payload)
+      const res = await createPracticeDraft(runId, payload)
+      if (!isCurrent()) return
       setDraftArtifact(res.data)
-      await loadDraftState(run.id)
+      await loadDraftState(runId, requestId)
     } catch (err) {
-      setDraftError(err.response?.data?.detail?.message || err.response?.data?.detail || err.message || '生成练习草稿失败')
+      if (isCurrent()) setDraftError(err.response?.data?.detail?.message || err.response?.data?.detail || err.message || '生成练习草稿失败')
     } finally {
-      setDraftLoading(false)
+      if (isCurrent()) setDraftLoading(false)
     }
   }
 
   async function handleUpdateDraft(payload) {
+    const runId = run?.id
+    const artifactId = draftArtifact?.id
+    const requestId = ++draftRequestRef.current
+    const isCurrent = () => mountedRef.current && requestId === draftRequestRef.current
+      && String(activeRunIdRef.current) === String(runId)
     setDraftLoading(true)
     setDraftError('')
     try {
-      const res = await updatePracticeArtifact(draftArtifact.id, payload)
+      const res = await updatePracticeArtifact(artifactId, payload)
+      if (!isCurrent()) return null
       setDraftArtifact(res.data)
       return res.data
     } catch (err) {
-      setDraftError(err.response?.data?.detail?.message || err.message || '保存草稿编辑失败')
+      if (isCurrent()) setDraftError(err.response?.data?.detail?.message || err.message || '保存草稿编辑失败')
       return null
     } finally {
-      setDraftLoading(false)
+      if (isCurrent()) setDraftLoading(false)
     }
   }
 
   async function handlePrepareDraft() {
+    const runId = run?.id
+    const artifactId = draftArtifact?.id
+    const requestId = ++draftRequestRef.current
+    const isCurrent = () => mountedRef.current && requestId === draftRequestRef.current
+      && String(activeRunIdRef.current) === String(runId)
     setDraftLoading(true)
     setDraftError('')
     try {
-      const res = await preparePracticeSave(draftArtifact.id)
+      const res = await preparePracticeSave(artifactId)
+      if (!isCurrent()) return null
       setDraftAction(res.data.action)
       setDraftConfirmation(res.data.confirmation_summary)
       return res.data
     } catch (err) {
-      setDraftError(err.response?.data?.detail?.message || err.message || '准备保存失败')
+      if (isCurrent()) setDraftError(err.response?.data?.detail?.message || err.message || '准备保存失败')
       return null
     } finally {
-      setDraftLoading(false)
+      if (isCurrent()) setDraftLoading(false)
     }
   }
 
   async function handleConfirmDraft() {
     if (!draftAction) return
+    const runId = run?.id
+    const artifactId = draftArtifact?.id
+    const requestId = ++draftRequestRef.current
+    const isCurrent = () => mountedRef.current && requestId === draftRequestRef.current
+      && String(activeRunIdRef.current) === String(runId)
     setDraftLoading(true)
     setDraftError('')
     try {
@@ -185,32 +245,38 @@ export default function TeacherAgent() {
         idempotency_key: draftAction.idempotency_key,
         expected_artifact_version: draftAction.expected_artifact_version,
       })
+      if (!isCurrent()) return
       setDraftAction(res.data)
-      await loadDraftState(run.id)
+      await loadDraftState(runId, requestId)
     } catch (err) {
-      setDraftError(err.response?.data?.detail?.message || err.message || '确认保存失败')
+      if (isCurrent()) setDraftError(err.response?.data?.detail?.message || err.message || '确认保存失败')
       try {
-        const actionsRes = await getPracticeArtifactActions(draftArtifact.id)
-        setDraftAction((Array.isArray(actionsRes.data) ? actionsRes.data : [])[0] || null)
+        const actionsRes = await getPracticeArtifactActions(artifactId)
+        if (isCurrent()) setDraftAction((Array.isArray(actionsRes.data) ? actionsRes.data : [])[0] || null)
       } catch {
         /* keep previous action state */
       }
     } finally {
-      setDraftLoading(false)
+      if (isCurrent()) setDraftLoading(false)
     }
   }
 
   async function handleCancelDraft() {
     if (!draftAction) return
+    const runId = run?.id
+    const requestId = ++draftRequestRef.current
+    const isCurrent = () => mountedRef.current && requestId === draftRequestRef.current
+      && String(activeRunIdRef.current) === String(runId)
     setDraftLoading(true)
     setDraftError('')
     try {
       const res = await cancelPracticeAction(draftAction.id)
+      if (!isCurrent()) return
       setDraftAction(res.data)
     } catch (err) {
-      setDraftError(err.response?.data?.detail?.message || err.message || '取消失败')
+      if (isCurrent()) setDraftError(err.response?.data?.detail?.message || err.message || '取消失败')
     } finally {
-      setDraftLoading(false)
+      if (isCurrent()) setDraftLoading(false)
     }
   }
 

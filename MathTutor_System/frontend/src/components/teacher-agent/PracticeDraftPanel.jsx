@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Loader2, PlusCircle, Save } from 'lucide-react'
 import PracticeQuestionEditor from './PracticeQuestionEditor'
 import ConfirmPracticeSaveDialog from './ConfirmPracticeSaveDialog'
@@ -28,8 +28,10 @@ export default function PracticeDraftPanel({
   })
   const [draftContent, setDraftContent] = useState(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const requestGenerationRef = useRef(0)
 
   useEffect(() => {
+    requestGenerationRef.current += 1
     setDraftContent(artifact?.content_json || null)
     setDialogOpen(false)
   }, [artifact?.id, artifact?.version])
@@ -62,13 +64,32 @@ export default function PracticeDraftPanel({
   }
 
   const saveEdit = async () => {
+    const requestId = requestGenerationRef.current
+    const runId = run?.id
+    const artifactId = artifact?.id
     const updated = await onUpdate({ expected_version: artifact.version, content })
-    setDraftContent(updated?.content_json || null)
+    if (requestId === requestGenerationRef.current && runId === run?.id && artifactId === artifact?.id) {
+      setDraftContent(updated?.content_json || null)
+    }
   }
 
   const prepare = async () => {
+    const requestId = requestGenerationRef.current
+    const runId = run?.id
+    const artifactId = artifact?.id
     const prepared = await onPrepare()
-    if (prepared?.action && prepared?.confirmation_summary) setDialogOpen(true)
+    if (requestId === requestGenerationRef.current && runId === run?.id && artifactId === artifact?.id
+      && prepared?.action && prepared?.confirmation_summary) setDialogOpen(true)
+  }
+
+  const confirm = async () => {
+    const requestId = requestGenerationRef.current
+    const runId = run?.id
+    const artifactId = artifact?.id
+    await onConfirm()
+    if (requestId === requestGenerationRef.current && runId === run?.id && artifactId === artifact?.id) {
+      setDialogOpen(false)
+    }
   }
 
   return (
@@ -167,7 +188,7 @@ export default function PracticeDraftPanel({
         </div>
       )}
       <AgentActionStatus action={action} />
-      <ConfirmPracticeSaveDialog open={dialogOpen} summary={confirmation} loading={loading} onCancel={() => setDialogOpen(false)} onConfirm={async () => { await onConfirm(); setDialogOpen(false) }} />
+      <ConfirmPracticeSaveDialog open={dialogOpen} summary={confirmation} loading={loading} onCancel={() => setDialogOpen(false)} onConfirm={confirm} />
     </section>
   )
 }
