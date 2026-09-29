@@ -90,10 +90,10 @@ def rag_list_documents(
     try:
         return {"documents": store_list_documents(current_user.id)}
     except DocumentRegistryError as exc:
-        logger.warning("RAG registry list failed: %s", exc)
+        logger.warning("RAG registry list failed error_type=%s", type(exc).__name__)
         raise HTTPException(status_code=500, detail="Document registry is unavailable")
     except Exception as exc:
-        logger.warning("RAG list failed: %s", exc)
+        logger.warning("RAG list failed error_type=%s", type(exc).__name__)
         raise HTTPException(status_code=500, detail="Document list failed")
 
 
@@ -155,10 +155,10 @@ async def rag_upload(
     except HTTPException:
         raise
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except Exception:
-        logger.exception("RAG upload failed")
-        raise HTTPException(status_code=500, detail="Upload failed")
+        raise HTTPException(status_code=400, detail="RAG_UPLOAD_ERROR: 文档无法处理，请检查文件格式后重试。") from None
+    except Exception as exc:
+        logger.error("RAG upload failed external_error_type=%s", type(exc).__name__)
+        raise HTTPException(status_code=500, detail="RAG_PROVIDER_ERROR: 知识库处理失败，请稍后重试。") from None
 
 
 def _do_upload_sync(
@@ -218,8 +218,8 @@ async def _run_upload_task(
         _upload_status[task_id].update(
             {"status": "done", "message": "Knowledge base updated", "filename": filename, "document_id": document_id}
         )
-    except Exception:
-        logger.exception("RAG async upload failed: %s", filename)
+    except Exception as exc:
+        logger.error("RAG async upload failed external_error_type=%s", type(exc).__name__)
         _upload_status[task_id].update({"status": "failed", "error": "Upload failed", "filename": filename})
 
 

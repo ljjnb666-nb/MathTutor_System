@@ -108,7 +108,7 @@ def build_chat_context(db: Session, request: ChatRequest, current_user: User, ll
                     + kb_context.strip()[:4000]
                 )
         except Exception as exc:
-            logger.warning("RAG 检索失败，继续不带知识库对话: %s", exc)
+            logger.warning("chat_rag_search_failed external_error_type=%s", type(exc).__name__)
             rag_sources = []
 
     context_question = (request.context_question or "").strip()

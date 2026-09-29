@@ -19,6 +19,13 @@ const api = vi.hoisted(() => ({
   createTeacherAgentRun: vi.fn(),
   getTeacherAgentRun: vi.fn(),
   getTeacherAgentRuns: vi.fn(),
+  getTeacherAgentRunArtifacts: vi.fn(),
+  getPracticeArtifactActions: vi.fn(),
+  createPracticeDraft: vi.fn(),
+  updatePracticeArtifact: vi.fn(),
+  preparePracticeSave: vi.fn(),
+  confirmPracticeAction: vi.fn(),
+  cancelPracticeAction: vi.fn(),
 }))
 
 vi.mock('../services/teacherAgentApi', () => api)
@@ -47,7 +54,16 @@ beforeEach(() => {
   api.createTeacherAgentRun.mockReset()
   api.getTeacherAgentRun.mockReset()
   api.getTeacherAgentRuns.mockReset()
+  api.getTeacherAgentRunArtifacts.mockReset()
+  api.getPracticeArtifactActions.mockReset()
+  api.createPracticeDraft.mockReset()
+  api.updatePracticeArtifact.mockReset()
+  api.preparePracticeSave.mockReset()
+  api.confirmPracticeAction.mockReset()
+  api.cancelPracticeAction.mockReset()
   api.getTeacherAgentRuns.mockResolvedValue({ data: [] })
+  api.getTeacherAgentRunArtifacts.mockResolvedValue({ data: [] })
+  api.getPracticeArtifactActions.mockResolvedValue({ data: [] })
   studentContext.refreshStudents.mockReset()
 })
 
@@ -61,7 +77,10 @@ describe('TeacherAgent', () => {
 
     expect(screen.getByText('只读规划模式')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /生成教学计划/ })).toBeDisabled()
-    expect(screen.queryByText(/确认入库|练习草稿|保存到题库/)).not.toBeInTheDocument()
+    // convergence: practice drafts are a separate confirm-gated flow; the
+    // panel stays hidden until a run reaches 'completed'.
+    expect(screen.queryByText('Practice draft')).not.toBeInTheDocument()
+    expect(screen.queryByText('保存到题库')).not.toBeInTheDocument()
   })
 
   it('renders a completed structured plan', async () => {
@@ -142,5 +161,53 @@ describe('TeacherAgent', () => {
     await waitFor(() => expect(screen.queryByText(/SYSTEM RULES/)).not.toBeInTheDocument())
     expect(screen.queryByText(/api_key/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/确认入库|题库事务|保存到题库/)).not.toBeInTheDocument()
+  })
+
+  it('ignores an older history response after a newer selection resolves', async () => {
+    let resolveFirst
+    let resolveSecond
+    api.getTeacherAgentRuns.mockResolvedValue({ data: [
+      { id: 1, goal: 'Older history item', status: 'completed', created_at: new Date().toISOString() },
+      { id: 2, goal: 'Newer history item', status: 'completed', created_at: new Date().toISOString() },
+    ] })
+    api.getTeacherAgentRun.mockImplementation((id) => new Promise((resolve) => {
+      if (id === 1) resolveFirst = resolve
+      else resolveSecond = resolve
+    }))
+    render(<TeacherAgent />)
+
+    await userEvent.click(await screen.findByRole('button', { name: /Older history item/ }))
+    await userEvent.click(screen.getByRole('button', { name: /Newer history item/ }))
+    resolveSecond({ data: { ...completedRun(), id: 2, plan_json: { ...completedRun().plan_json, title: 'Newer plan' } } })
+    expect(await screen.findByText('Newer plan')).toBeInTheDocument()
+    resolveFirst({ data: { ...completedRun(), id: 1, plan_json: { ...completedRun().plan_json, title: 'Older plan' } } })
+
+    await waitFor(() => expect(screen.queryByText('Older plan')).not.toBeInTheDocument())
+    expect(screen.getByText('Newer plan')).toBeInTheDocument()
+  })
+
+  it('does not apply draft artifacts from a previously selected run', async () => {
+    let resolveFirstArtifacts
+    let resolveSecondArtifacts
+    api.getTeacherAgentRuns.mockResolvedValue({ data: [
+      { id: 1, goal: 'First run', status: 'completed', created_at: new Date().toISOString() },
+      { id: 2, goal: 'Second run', status: 'completed', created_at: new Date().toISOString() },
+    ] })
+    api.getTeacherAgentRun.mockImplementation(async (id) => ({ data: { ...completedRun(), id, goal: `${id} run` } }))
+    api.getTeacherAgentRunArtifacts.mockImplementation((id) => new Promise((resolve) => {
+      if (id === 1) resolveFirstArtifacts = resolve
+      else resolveSecondArtifacts = resolve
+    }))
+    render(<TeacherAgent />)
+
+    await userEvent.click(await screen.findByRole('button', { name: /First run/ }))
+    await waitFor(() => expect(api.getTeacherAgentRunArtifacts).toHaveBeenCalledWith(1))
+    await userEvent.click(screen.getByRole('button', { name: /Second run/ }))
+    await waitFor(() => expect(api.getTeacherAgentRunArtifacts).toHaveBeenCalledWith(2))
+    resolveSecondArtifacts({ data: [] })
+    resolveFirstArtifacts({ data: [{ id: 11, content_json: { title: 'Stale artifact', questions: [] } }] })
+
+    await waitFor(() => expect(screen.queryByText('Stale artifact')).not.toBeInTheDocument())
+    expect(screen.getByText('Practice draft')).toBeInTheDocument()
   })
 })

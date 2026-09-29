@@ -217,7 +217,7 @@ def parse_questions(raw: str) -> list[QuestionItem]:
                 )
             )
         except Exception as err:
-            logger.warning("解析题目项 index=%s 失败: %s", index, err)
+            logger.warning("question_json_parse_failed index=%s error_type=%s", index, type(err).__name__)
     return result
 
 
@@ -336,7 +336,7 @@ def parse_sync_tutoring_response(raw: str) -> dict[str, Any]:
                 )
             )
         except Exception as err:
-            logger.warning("同步辅导题目项 index=%s 解析失败: %s", index, err)
+            logger.warning("guided_question_parse_failed index=%s error_type=%s", index, type(err).__name__)
 
     return {
         "knowledge_card": knowledge_card,

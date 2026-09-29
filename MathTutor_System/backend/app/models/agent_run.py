@@ -8,7 +8,7 @@ class AgentRun(Base):
     __tablename__ = "agent_runs"
 
     id = pk_column()
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     goal = Column(Text, nullable=False)
     status = Column(String(32), nullable=False, default="created", index=True)
     intent_json = Column(JSON, nullable=True)

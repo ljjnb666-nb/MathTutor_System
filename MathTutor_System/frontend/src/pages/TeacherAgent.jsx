@@ -1,7 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, Bot, CheckCircle2, Circle, Loader2, ShieldCheck } from 'lucide-react'
-import { createTeacherAgentRun, getTeacherAgentRun, getTeacherAgentRuns } from '../services/teacherAgentApi'
+import {
+  cancelPracticeAction,
+  confirmPracticeAction,
+  createPracticeDraft,
+  createTeacherAgentRun,
+  getPracticeArtifactActions,
+  getTeacherAgentRun,
+  getTeacherAgentRunArtifacts,
+  getTeacherAgentRuns,
+  preparePracticeSave,
+  updatePracticeArtifact,
+} from '../services/teacherAgentApi'
 import { useStudent } from '../contexts/StudentContext'
+import PracticeDraftPanel from '../components/teacher-agent/PracticeDraftPanel'
 import { EmptyState, PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
 
 const STEPS = ['理解目标', '读取学生', '分析薄弱点', '读取错题', '检索知识库', '生成计划', '完成']
@@ -26,10 +38,27 @@ export default function TeacherAgent() {
   const [run, setRun] = useState(null)
   const [history, setHistory] = useState([])
   const [error, setError] = useState('')
+  const [draftArtifact, setDraftArtifact] = useState(null)
+  const [draftAction, setDraftAction] = useState(null)
+  const [draftConfirmation, setDraftConfirmation] = useState(null)
+  const [draftLoading, setDraftLoading] = useState(false)
+  const [draftError, setDraftError] = useState('')
+  const mountedRef = useRef(false)
+  const runRequestRef = useRef(0)
+  const historyRequestRef = useRef(0)
+  const draftRequestRef = useRef(0)
+  const activeRunIdRef = useRef(null)
 
   useEffect(() => {
+    mountedRef.current = true
     refreshStudents()
     loadHistory()
+    return () => {
+      mountedRef.current = false
+      runRequestRef.current += 1
+      historyRequestRef.current += 1
+      draftRequestRef.current += 1
+    }
   }, [refreshStudents])
 
   useEffect(() => {
@@ -39,17 +68,23 @@ export default function TeacherAgent() {
   const canSubmit = goal.trim().length > 0 && !loading
 
   async function loadHistory() {
+    const requestId = ++historyRequestRef.current
     try {
       const res = await getTeacherAgentRuns(20)
-      setHistory(Array.isArray(res.data) ? res.data : [])
+      if (mountedRef.current && requestId === historyRequestRef.current) {
+        setHistory(Array.isArray(res.data) ? res.data : [])
+      }
     } catch {
-      setHistory([])
+      if (mountedRef.current && requestId === historyRequestRef.current) setHistory([])
     }
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
     if (!canSubmit) return
+    const requestId = ++runRequestRef.current
+    activeRunIdRef.current = null
+    draftRequestRef.current += 1
     setLoading(true)
     setError('')
     setRun(null)
@@ -61,22 +96,34 @@ export default function TeacherAgent() {
         use_knowledge_base: useKnowledgeBase,
       }
       const res = await createTeacherAgentRun(payload)
+      if (!mountedRef.current || requestId !== runRequestRef.current) return
+      activeRunIdRef.current = res.data?.id ?? null
       setRun(res.data)
       await loadHistory()
     } catch (err) {
-      setError(err.response?.data?.detail || err.message || '生成教学计划失败')
+      if (mountedRef.current && requestId === runRequestRef.current) {
+        setError(err.response?.data?.detail || err.message || '生成教学计划失败')
+      }
     } finally {
-      setLoading(false)
+      if (mountedRef.current && requestId === runRequestRef.current) setLoading(false)
     }
   }
 
   async function openHistory(id) {
+    const requestId = ++runRequestRef.current
+    activeRunIdRef.current = null
+    draftRequestRef.current += 1
+    setDraftArtifact(null)
+    setDraftAction(null)
+    setDraftConfirmation(null)
     try {
       const res = await getTeacherAgentRun(id)
+      if (!mountedRef.current || requestId !== runRequestRef.current) return
+      activeRunIdRef.current = res.data?.id ?? id
       setRun(res.data)
       setError('')
     } catch {
-      setError('无法读取该运行记录')
+      if (mountedRef.current && requestId === runRequestRef.current) setError('无法读取该运行记录')
     }
   }
 
@@ -84,6 +131,154 @@ export default function TeacherAgent() {
   const missingFields = run?.missing_fields_json || plan?.missing_fields || []
   const warnings = run?.warnings_json || plan?.warnings || []
   const activeStep = loading ? 5 : run?.status === 'completed' ? 7 : run?.status === 'needs_input' ? 2 : 0
+
+  async function loadDraftState(runId, requestId = ++draftRequestRef.current) {
+    const isCurrent = () => mountedRef.current
+      && requestId === draftRequestRef.current
+      && String(activeRunIdRef.current) === String(runId)
+    setDraftArtifact(null)
+    setDraftAction(null)
+    setDraftConfirmation(null)
+    try {
+      const res = await getTeacherAgentRunArtifacts(runId)
+      if (!isCurrent()) return
+      const artifacts = Array.isArray(res.data) ? res.data : []
+      const latest = artifacts[0] || null
+      setDraftArtifact(latest)
+      if (latest) {
+        const actionsRes = await getPracticeArtifactActions(latest.id)
+        if (!isCurrent()) return
+        setDraftAction((Array.isArray(actionsRes.data) ? actionsRes.data : [])[0] || null)
+      }
+    } catch {
+      /* draft state is optional; ignore read failures */
+    }
+  }
+
+  useEffect(() => {
+    const requestId = ++draftRequestRef.current
+    if (run?.status === 'completed' && run?.id) {
+      activeRunIdRef.current = run.id
+      loadDraftState(run.id, requestId)
+    } else {
+      activeRunIdRef.current = run?.id ?? null
+      setDraftArtifact(null)
+      setDraftAction(null)
+      setDraftConfirmation(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run?.id, run?.status])
+
+  async function handleGenerateDraft(payload) {
+    const runId = run?.id
+    const requestId = ++draftRequestRef.current
+    const isCurrent = () => mountedRef.current && requestId === draftRequestRef.current
+      && String(activeRunIdRef.current) === String(runId)
+    setDraftLoading(true)
+    setDraftError('')
+    try {
+      const res = await createPracticeDraft(runId, payload)
+      if (!isCurrent()) return
+      setDraftArtifact(res.data)
+      await loadDraftState(runId, requestId)
+    } catch (err) {
+      if (isCurrent()) setDraftError(err.response?.data?.detail?.message || err.response?.data?.detail || err.message || '生成练习草稿失败')
+    } finally {
+      if (isCurrent()) setDraftLoading(false)
+    }
+  }
+
+  async function handleUpdateDraft(payload) {
+    const runId = run?.id
+    const artifactId = draftArtifact?.id
+    const requestId = ++draftRequestRef.current
+    const isCurrent = () => mountedRef.current && requestId === draftRequestRef.current
+      && String(activeRunIdRef.current) === String(runId)
+    setDraftLoading(true)
+    setDraftError('')
+    try {
+      const res = await updatePracticeArtifact(artifactId, payload)
+      if (!isCurrent()) return null
+      setDraftArtifact(res.data)
+      return res.data
+    } catch (err) {
+      if (isCurrent()) setDraftError(err.response?.data?.detail?.message || err.message || '保存草稿编辑失败')
+      return null
+    } finally {
+      if (isCurrent()) setDraftLoading(false)
+    }
+  }
+
+  async function handlePrepareDraft() {
+    const runId = run?.id
+    const artifactId = draftArtifact?.id
+    const requestId = ++draftRequestRef.current
+    const isCurrent = () => mountedRef.current && requestId === draftRequestRef.current
+      && String(activeRunIdRef.current) === String(runId)
+    setDraftLoading(true)
+    setDraftError('')
+    try {
+      const res = await preparePracticeSave(artifactId)
+      if (!isCurrent()) return null
+      setDraftAction(res.data.action)
+      setDraftConfirmation(res.data.confirmation_summary)
+      return res.data
+    } catch (err) {
+      if (isCurrent()) setDraftError(err.response?.data?.detail?.message || err.message || '准备保存失败')
+      return null
+    } finally {
+      if (isCurrent()) setDraftLoading(false)
+    }
+  }
+
+  async function handleConfirmDraft() {
+    if (!draftAction) return
+    const runId = run?.id
+    const artifactId = draftArtifact?.id
+    const requestId = ++draftRequestRef.current
+    const isCurrent = () => mountedRef.current && requestId === draftRequestRef.current
+      && String(activeRunIdRef.current) === String(runId)
+    setDraftLoading(true)
+    setDraftError('')
+    try {
+      const res = await confirmPracticeAction(draftAction.id, {
+        idempotency_key: draftAction.idempotency_key,
+        expected_artifact_version: draftAction.expected_artifact_version,
+      })
+      if (!isCurrent()) return
+      setDraftAction(res.data)
+      await loadDraftState(runId, requestId)
+    } catch (err) {
+      if (isCurrent()) setDraftError(err.response?.data?.detail?.message || err.message || '确认保存失败')
+      try {
+        const actionsRes = await getPracticeArtifactActions(artifactId)
+        if (isCurrent()) setDraftAction((Array.isArray(actionsRes.data) ? actionsRes.data : [])[0] || null)
+      } catch {
+        /* keep previous action state */
+      }
+    } finally {
+      if (isCurrent()) setDraftLoading(false)
+    }
+  }
+
+  async function handleCancelDraft() {
+    if (!draftAction) return
+    const runId = run?.id
+    const requestId = ++draftRequestRef.current
+    const isCurrent = () => mountedRef.current && requestId === draftRequestRef.current
+      && String(activeRunIdRef.current) === String(runId)
+    setDraftLoading(true)
+    setDraftError('')
+    try {
+      const res = await cancelPracticeAction(draftAction.id)
+      if (!isCurrent()) return
+      setDraftAction(res.data)
+    } catch (err) {
+      if (isCurrent()) setDraftError(err.response?.data?.detail?.message || err.message || '取消失败')
+    } finally {
+      if (isCurrent()) setDraftLoading(false)
+    }
+  }
 
   return (
     <PageShell className="flex flex-col">
@@ -229,6 +424,19 @@ export default function TeacherAgent() {
           {run?.status === 'failed' && <StateNotice tone="error" text={run.error_message || '运行失败'} />}
           {run?.status === 'needs_input' && <MissingFields fields={missingFields} />}
           {plan && <PlanResult plan={plan} warnings={warnings} />}
+          <PracticeDraftPanel
+            run={run}
+            artifact={draftArtifact}
+            action={draftAction}
+            loading={draftLoading}
+            error={draftError}
+            confirmation={draftConfirmation}
+            onGenerate={handleGenerateDraft}
+            onUpdate={handleUpdateDraft}
+            onPrepare={handlePrepareDraft}
+            onConfirm={handleConfirmDraft}
+            onCancelAction={handleCancelDraft}
+          />
         </main>
 
         <aside className="min-h-0 space-y-4 xl:overflow-auto">
@@ -248,11 +456,11 @@ export default function TeacherAgent() {
               </div>
             </dl>
           </SectionCard>
-          <SectionCard title="安全与确认" description="本阶段保持只读边界，不添加写入型教学动作。">
+          <SectionCard title="安全与确认" description="规划阶段保持只读；练习草稿仅在教师显式确认后写入私有题库。">
             <div className="flex flex-wrap gap-2">
               <StatusBadge tone="success">只读生成计划</StatusBadge>
-              <StatusBadge tone="neutral">无写入产物</StatusBadge>
-              <StatusBadge tone="neutral">无写入确认</StatusBadge>
+              <StatusBadge tone="neutral">草稿不落库</StatusBadge>
+              <StatusBadge tone="success">保存需二次确认</StatusBadge>
             </div>
           </SectionCard>
         </aside>

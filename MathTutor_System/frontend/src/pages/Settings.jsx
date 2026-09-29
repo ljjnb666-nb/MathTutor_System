@@ -25,6 +25,7 @@ import {
 } from '../constants/ai-providers'
 import { buildLlmHeadersFromConfig, shouldSendClientLlmHeaders } from '../services/httpClient'
 import { testLlmConnection } from '../services/llmApi'
+import { getLlmRuntimeStatus } from '../services/llmApi'
 import { applyTheme } from '../utils/theme'
 import { PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
 
@@ -53,6 +54,7 @@ const navItems = [
   { id: 'ai', label: 'AI 本地偏好', icon: Key },
   { id: 'local', label: '数据与隐私', icon: Database },
 ]
+const IS_PRODUCTION_BUILD = import.meta.env.PROD
 
 export default function Settings() {
   const { user } = useAuth()
@@ -68,6 +70,7 @@ export default function Settings() {
   const [notice, setNotice] = useState('')
   const [apiTestState, setApiTestState] = useState({ status: 'idle', message: '' })
   const [activeSection, setActiveSection] = useState('profile')
+  const [runtimeStatus, setRuntimeStatus] = useState(null)
 
   const provider = getProviderByValue(providerValue)
   const isCustomProvider = provider.value === 'custom'
@@ -88,6 +91,20 @@ export default function Settings() {
     setTheme(savedTheme)
     setAccentColor(savedAccent)
     setDensity(savedDensity)
+
+    if (IS_PRODUCTION_BUILD) {
+      let active = true
+      getLlmRuntimeStatus()
+        .then((status) => {
+          if (active) setRuntimeStatus(status)
+        })
+        .catch(() => {
+          if (active) setRuntimeStatus({ error: true })
+        })
+      return () => {
+        active = false
+      }
+    }
 
     applyTheme(savedTheme)
     document.documentElement.dataset.accent = savedAccent
@@ -130,7 +147,9 @@ export default function Settings() {
       baseUrl,
       apiVersion: provider.apiVersion ?? '',
     })
-    setNotice('AI 偏好已保存到当前浏览器')
+    setNotice(IS_PRODUCTION_BUILD
+      ? '非敏感偏好已保存；AI 凭据由服务器管理'
+      : 'AI 偏好已保存到当前浏览器')
   }
 
   async function handleTestApiKey() {
@@ -235,7 +254,31 @@ export default function Settings() {
             <ActionButton onClick={handleSaveAppearance}>保存外观设置</ActionButton>
           </SectionCard>
 
-          <SectionCard title="AI 本地偏好" description="保存到 localStorage，测试会走与聊天一致的后端配置链路。">
+          <SectionCard
+            title={IS_PRODUCTION_BUILD ? 'AI 服务器配置' : 'AI 本地偏好'}
+            description={IS_PRODUCTION_BUILD
+              ? '生产环境由后端服务器管理模型凭据；浏览器不保存或发送 API Key。'
+              : '保存到 localStorage，测试会走与聊天一致的后端配置链路。'}
+          >
+            {IS_PRODUCTION_BUILD && (
+              <div className="v2-settings-preview" role="status" data-testid="llm-runtime-status">
+                <span>后端运行状态</span>
+                <strong>
+                  {runtimeStatus?.error
+                    ? '状态暂不可用'
+                    : runtimeStatus
+                      ? runtimeStatus.configured
+                        ? `${runtimeStatus.provider}${runtimeStatus.model ? ` / ${runtimeStatus.model}` : ''}`
+                        : '后端尚未配置模型凭据'
+                      : '正在读取'}
+                </strong>
+                {runtimeStatus && !runtimeStatus.error && (
+                  <span>
+                    来源：{runtimeStatus.config_source} · 浏览器配置：{runtimeStatus.client_config_allowed ? '允许' : '禁用'}
+                  </span>
+                )}
+              </div>
+            )}
             <div className="v2-settings-control-grid two">
               <SelectField
                 label="默认 Provider"
@@ -258,7 +301,7 @@ export default function Settings() {
                 placeholder={provider.baseUrl || ''}
                 disabled={!isCustomProvider}
               />
-              <div>
+              {!IS_PRODUCTION_BUILD && <div>
                 <label className="v2-settings-label" htmlFor="settings-api-key">API Key</label>
                 <div className="v2-settings-secret">
                   <input
@@ -279,7 +322,7 @@ export default function Settings() {
                 <p className="v2-settings-secret-mask" data-testid="api-key-mask">
                   当前保存值：{maskedKey || '未填写'}
                 </p>
-              </div>
+              </div>}
             </div>
             <p className="v2-settings-help" data-testid="base-url-security-hint">
               {isCustomProvider
@@ -290,14 +333,14 @@ export default function Settings() {
               <input type="checkbox" checked={showThinking} onChange={(e) => setShowThinking(e.target.checked)} />
               <span>显示 AI 思考过程</span>
             </label>
-            {apiTestState.message && (
+            {!IS_PRODUCTION_BUILD && apiTestState.message && (
               <p className={`v2-settings-test-result is-${apiTestState.status}`} role="status" data-testid="api-key-test-result">
                 {apiTestState.message}
               </p>
             )}
             <div className="v2-settings-ai-actions">
               <ActionButton onClick={handleSaveAI}>保存 AI 偏好</ActionButton>
-              <TestButton onClick={handleTestApiKey} loading={apiTestState.status === 'testing'} />
+              {!IS_PRODUCTION_BUILD && <TestButton onClick={handleTestApiKey} loading={apiTestState.status === 'testing'} />}
             </div>
           </SectionCard>
 
@@ -333,9 +376,11 @@ export default function Settings() {
             <span>{provider.baseUrl || '自定义 Base URL'}</span>
           </div>
           <div className="v2-settings-status-card">
-            <p>本地配置</p>
-            <strong>{apiKey ? '已填写 Key' : '未填写 Key'}</strong>
-            <span>仅保存在当前浏览器。</span>
+            <p>{IS_PRODUCTION_BUILD ? 'AI 运行配置' : '本地配置'}</p>
+            <strong>{IS_PRODUCTION_BUILD
+              ? runtimeStatus?.configured ? '服务器已配置' : runtimeStatus?.error ? '状态暂不可用' : '服务器未配置'
+              : apiKey ? '已填写 Key' : '未填写 Key'}</strong>
+            <span>{IS_PRODUCTION_BUILD ? '凭据仅由服务器持有。' : '仅保存在当前浏览器。'}</span>
           </div>
         </aside>
       </div>

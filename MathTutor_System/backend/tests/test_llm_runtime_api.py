@@ -1,4 +1,7 @@
 from fastapi.testclient import TestClient
+import os
+import subprocess
+import sys
 import pytest
 
 from app.api.endpoints import llm as llm_endpoint
@@ -125,6 +128,88 @@ def test_llm_test_rejects_client_headers_when_disabled(monkeypatch, authenticate
     assert response.status_code == 403
     assert CLIENT_SECRET not in response.text
     assert calls == []
+
+
+def test_production_rejects_client_headers_even_when_flag_is_true(monkeypatch, authenticated_teacher):
+    monkeypatch.setattr(deps, "ALLOW_CLIENT_LLM_CONFIG", True)
+    monkeypatch.setattr(deps, "IS_PRODUCTION", True)
+    calls = _record_provider_calls(monkeypatch)
+
+    response = client.post(
+        "/api/llm/test",
+        headers={
+            "x-llm-provider": "deepseek",
+            "x-llm-api-key": CLIENT_SECRET,
+            "x-llm-model": "deepseek-v4-flash",
+        },
+    )
+
+    assert response.status_code == 403
+    assert CLIENT_SECRET not in response.text
+    assert calls == []
+
+
+def test_runtime_status_requires_authentication():
+    response = client.get("/api/llm/status")
+
+    assert response.status_code == 401
+
+
+def test_runtime_status_exposes_only_safe_server_configuration(monkeypatch, authenticated_teacher):
+    monkeypatch.setenv("LLM_API_KEY", SERVER_ENV_KEY)
+    monkeypatch.setenv("LLM_PROVIDER", "deepseek")
+    monkeypatch.setenv("LLM_MODEL", "deepseek-v4-flash")
+    monkeypatch.setattr(deps, "ALLOW_CLIENT_LLM_CONFIG", True)
+    monkeypatch.setattr(deps, "IS_PRODUCTION", True)
+
+    response = client.get("/api/llm/status")
+    assert response.status_code == 200
+    assert response.json() == {
+        "configured": True,
+        "provider": "deepseek",
+        "model": "deepseek-v4-flash",
+        "config_source": "server",
+        "client_config_allowed": False,
+    }
+    for forbidden in (SERVER_ENV_KEY, SERVER_ENV_KEY[:8], SERVER_ENV_KEY[-4:], "base_url", "authorization"):
+        assert forbidden.lower() not in response.text.lower()
+
+
+def test_production_config_hard_disables_client_override_in_fresh_process():
+    environment = os.environ.copy()
+    environment.update({
+        "ENV": "production",
+        "DEBUG": "true",
+        "ALLOW_CLIENT_LLM_CONFIG": "true",
+    })
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from app.core.config import IS_PRODUCTION, ALLOW_CLIENT_LLM_CONFIG; "
+            "print(IS_PRODUCTION, ALLOW_CLIENT_LLM_CONFIG)",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+
+    assert result.stdout.strip() == "True False"
+
+
+def test_runtime_status_does_not_echo_server_key_inside_a_label(monkeypatch, authenticated_teacher):
+    monkeypatch.setenv("LLM_API_KEY", SERVER_ENV_KEY)
+    monkeypatch.setenv("LLM_PROVIDER", "deepseek")
+    monkeypatch.setenv("LLM_MODEL", SERVER_ENV_KEY)
+
+    response = client.get("/api/llm/status")
+
+    assert response.status_code == 200
+    assert response.json()["model"] == "configured"
+    assert SERVER_ENV_KEY not in response.text
+    assert SERVER_ENV_KEY[:8] not in response.text
+    assert SERVER_ENV_KEY[-4:] not in response.text
 
 
 def test_llm_test_rejects_untrusted_client_base_url_without_echoing_secrets(

@@ -63,12 +63,8 @@ async def api_chat(
     except HTTPException:
         raise
     except Exception as e:
-        traceback.print_exc()
-        logger.exception("AI 对话出错")
-        detail = str(e).strip() or "对话请求失败，请检查 API 配置与网络后重试。"
-        if len(detail) > 300:
-            detail = detail[:300] + "..."
-        raise HTTPException(status_code=500, detail=detail)
+        logger.error("AI 对话失败 external_error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="CHAT_PROVIDER_ERROR: 对话服务暂时不可用，请稍后重试。") from None
 
     session = persist_chat_turn(db, request, current_user.id, content)
     return ChatResponse(
@@ -95,7 +91,11 @@ async def _stream_chat_response(
             content_parts.append(chunk)
             yield (json.dumps({"content": chunk}, ensure_ascii=False) + "\n").encode("utf-8")
     except Exception as e:
-        yield (json.dumps({"error": str(e)[:200]}, ensure_ascii=False) + "\n").encode("utf-8")
+        logger.error("AI 流式对话失败 external_error_type=%s", type(e).__name__)
+        yield (json.dumps({
+            "code": "CHAT_PROVIDER_ERROR",
+            "error": "对话服务暂时不可用，请稍后重试。",
+        }, ensure_ascii=False) + "\n").encode("utf-8")
         return
     full_content = "".join(content_parts).strip() or "（无回复）"
 
@@ -158,8 +158,8 @@ def update_session(
         raise
     except Exception as e:
         db.rollback()
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("更新聊天会话失败 external_error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="CHAT_SESSION_ERROR: 更新会话失败。") from None
 
 
 @router.get("/sessions/{session_id}/messages", response_model=list[ChatMessageItem])
@@ -187,8 +187,8 @@ def update_session_message(
         raise
     except Exception as e:
         db.rollback()
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("更新聊天消息失败 external_error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="CHAT_SESSION_ERROR: 更新消息失败。") from None
 
 
 @router.delete("/sessions/{session_id}")
@@ -204,5 +204,5 @@ def delete_session(
         raise
     except Exception as e:
         db.rollback()
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("删除聊天会话失败 external_error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="CHAT_SESSION_ERROR: 删除会话失败。") from None

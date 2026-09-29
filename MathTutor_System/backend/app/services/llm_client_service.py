@@ -137,17 +137,19 @@ def call_llm(prompt: str, llm_config: Any, *, temperature: float = 0.3) -> str:
                 )
             )
             return _extract_normalized_message(llm.invoke(prompt))
-        except ValueError:
-            raise
+        except ValueError as exc:
+            message = str(exc)
+            if message.startswith("Gemini 接口返回：当前地区不可用"):
+                raise
+            raise ValueError("LLM_PROVIDER_ERROR: LLM 调用失败，请检查服务配置与网络后重试。") from None
         except Exception as exc:
             last_error = exc
             logger.warning("LLM 调用第 %s 次失败: %s", attempt + 1, type(exc).__name__)
 
     auth_message = _auth_error_message(last_error, async_mode=False)
     if auth_message:
-        raise ValueError(auth_message)
-    err_msg = getattr(last_error, "message", None) or str(last_error or "")
-    raise ValueError(f"LLM 调用失败，请检查 Base URL、模型与网络：{err_msg[:200]}")
+        raise ValueError(f"LLM_AUTH_ERROR: {auth_message}") from None
+    raise ValueError("LLM_PROVIDER_ERROR: LLM 调用失败，请检查服务配置与网络后重试。") from None
 
 
 async def call_llm_async(
@@ -228,8 +230,11 @@ async def call_llm_async(
             except KeyError:
                 logger.warning("LLM 返回解析 KeyError（OpenAI/DeepSeek），返回空题目列表")
                 return '{"questions":[]}'
-        except ValueError:
-            raise
+        except ValueError as exc:
+            message = str(exc)
+            if message.startswith("Gemini 接口返回：当前地区不可用"):
+                raise
+            raise ValueError("LLM_PROVIDER_ERROR: LLM 调用失败，请检查服务配置与网络后重试。") from None
         except Exception as exc:
             last_error = exc
             exc_name = type(exc).__name__
@@ -243,6 +248,5 @@ async def call_llm_async(
 
     auth_message = _auth_error_message(last_error, async_mode=True)
     if auth_message:
-        raise ValueError(auth_message)
-    err_msg = getattr(last_error, "message", None) or str(last_error or "")
-    raise ValueError(f"LLM 调用失败，请检查 Base URL、模型与网络：{err_msg[:200]}")
+        raise ValueError(f"LLM_AUTH_ERROR: {auth_message}") from None
+    raise ValueError("LLM_PROVIDER_ERROR: LLM 调用失败，请检查服务配置与网络后重试。") from None

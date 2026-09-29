@@ -36,5 +36,5 @@ def pdf_pages_to_images(pdf_bytes: bytes, dpi: int = 150) -> list[bytes]:
         doc.close()
         return images
     except Exception as e:
-        logger.warning("PDF 转图片失败: %s", e, exc_info=True)
+        logger.warning("pdf_to_images_failed external_error_type=%s", type(e).__name__)
         return []

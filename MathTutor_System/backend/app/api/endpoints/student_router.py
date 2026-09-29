@@ -204,13 +204,8 @@ def student_grade_exam(
         _raise_http_error(exc)
     except Exception as e:
         db.rollback()
-        import traceback
-
-        traceback.print_exc()
-        detail = str(e).strip() or "提交批改结果失败"
-        if len(detail) > 300:
-            detail = detail[:300] + "..."
-        raise HTTPException(status_code=500, detail=detail)
+        logger.error("student_exam_grading_failed error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="EXAM_GRADING_ERROR: 提交批改结果失败，请稍后重试。") from None
 
 
 # ----- 学习报告 -----
@@ -234,7 +229,5 @@ def student_report_pdf(
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"生成报告失败: {str(e)}")
+        logger.error("student_report_pdf_failed error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="REPORT_GENERATION_ERROR: 生成报告失败。") from None

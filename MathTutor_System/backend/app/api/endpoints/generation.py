@@ -75,12 +75,8 @@ async def api_generate_weak_point(
     except HTTPException:
         raise
     except Exception as e:
-        traceback.print_exc()
-        logger.exception("鎸夊急椤瑰嚭棰樻椂鍑洪敊")
-        detail = str(e).strip() or "生成题目时出错，请检查 API 配置与网络后重试。"
-        if len(detail) > 300:
-            detail = detail[:300] + "..."
-        raise HTTPException(status_code=500, detail=detail)
+        logger.error("weak_point_generation_failed external_error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="QUESTION_GENERATION_ERROR: 生成题目失败，请稍后重试。") from None
 
 
 @router.post("/generate")
@@ -117,12 +113,8 @@ async def api_generate(
     except HTTPException:
         raise
     except Exception as e:
-        traceback.print_exc()
-        logger.exception("生成题目时出错")
-        detail = str(e).strip() or "生成题目时出错，请检查 API 配置与网络后重试。"
-        if len(detail) > 300:
-            detail = detail[:300] + "..."
-        raise HTTPException(status_code=500, detail=detail)
+        logger.error("question_generation_failed external_error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="QUESTION_GENERATION_ERROR: 生成题目失败，请稍后重试。") from None
 
 
 @router.post("/exam", response_model=list[QuestionItem])
@@ -154,12 +146,8 @@ async def api_generate_exam(
     except HTTPException:
         raise
     except Exception as e:
-        traceback.print_exc()
-        logger.exception("生成完整试卷时出错")
-        detail = str(e).strip() or "生成完整试卷时出错，请检查 API 配置与网络后重试。"
-        if len(detail) > 300:
-            detail = detail[:300] + "..."
-        raise HTTPException(status_code=500, detail=detail)
+        logger.error("exam_generation_failed external_error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="EXAM_GENERATION_ERROR: 生成试卷失败，请稍后重试。") from None
 
 
 @router.post("/verify")
@@ -183,9 +171,5 @@ async def api_verify_question(
     except HTTPException:
         raise
     except Exception as e:
-        traceback.print_exc()
-        logger.exception("题目校对时出错")
-        detail = str(e).strip() or "题目校对失败，请检查 API 配置与网络后重试。"
-        if len(detail) > 300:
-            detail = detail[:300] + "..."
-        raise HTTPException(status_code=500, detail=detail)
+        logger.error("question_verification_failed external_error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="QUESTION_VERIFICATION_ERROR: 题目校对失败，请稍后重试。") from None

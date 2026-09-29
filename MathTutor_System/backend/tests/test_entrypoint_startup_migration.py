@@ -25,6 +25,14 @@ from tests.test_bootstrap_admin_security import _prepare_entrypoint_sandbox, _re
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 TEST_TMP_DIR = Path(__file__).resolve().parent / ".tmp_entrypoint_migration"
+def _current_head_revision() -> str:
+    """Current alembic head so head assertions survive new migrations."""
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+    cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    return ScriptDirectory.from_config(cfg).get_current_head()
+
+
 OWNER_TABLES = ("questions", "question_bank", "exams")
 BASH_EXE = _resolve_bash()
 
@@ -126,7 +134,7 @@ def test_fresh_db_with_valid_password_bootstraps_migrates_and_starts(request):
     assert marker.exists(), "bootstrap 成功后 uvicorn 应被启动"
     assert "Database bootstrap complete" in proc.stdout
     assert "alembic_version" in _table_names(db_path)
-    assert _alembic_version(db_path) == "b7e2c94f6a15"
+    assert _alembic_version(db_path) == _current_head_revision()
     assert all(
         "owner_user_id" in {c["name"] for c in inspect(create_engine(f"sqlite:///{db_path.as_posix()}")).get_columns(t)}
         for t in OWNER_TABLES
@@ -159,7 +167,7 @@ def test_existing_db_without_password_runs_bootstrap_migration_and_starts(reques
     assert rerun.returncode == 0, rerun.stderr
     assert marker.exists(), "已有数据库时 uvicorn 必须能继续启动"
     assert "Database bootstrap complete" in rerun.stdout
-    assert _alembic_version(db_path) == "b7e2c94f6a15"
+    assert _alembic_version(db_path) == _current_head_revision()
     engine = create_engine(f"sqlite:///{db_path.as_posix()}")
     try:
         with engine.connect() as conn:
@@ -201,7 +209,7 @@ def test_entrypoint_fresh_empty_02_empty_db_file_with_valid_password_bootstraps(
     assert proc.returncode == 0, proc.stderr
     assert marker.exists(), "bootstrap 成功后 uvicorn 应被启动"
     assert "Database bootstrap complete" in proc.stdout
-    assert _alembic_version(db_path) == "b7e2c94f6a15"
+    assert _alembic_version(db_path) == _current_head_revision()
     engine = create_engine(f"sqlite:///{db_path.as_posix()}")
     try:
         with engine.connect() as conn:

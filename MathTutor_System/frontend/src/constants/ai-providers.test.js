@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { getActiveLlmConfig, saveActiveLlmConfig } from './ai-providers'
+import { getActiveLlmConfig, getStoredSettings, saveActiveLlmConfig } from './ai-providers'
 
 // Deterministic runtime construction of key-shaped test fixtures: the
 // complete credential-like literals are not stored statically in the source
@@ -77,5 +77,42 @@ describe('active LLM config storage', () => {
       apiKey: keyFixture('custom'),
       baseUrl: 'https://proxy.example/v1',
     })
+  })
+
+  it('clears legacy browser keys in production while preserving non-secret preferences', () => {
+    localStorage.setItem('app_settings', JSON.stringify({
+      provider: 'openai',
+      model: 'gpt-4.1-mini',
+      apiKey: keyFixture('legacy-flat'),
+      apiKeysByProvider: { openai: keyFixture('legacy-provider') },
+      baseUrl: 'https://legacy.example/v1',
+      showThinking: true,
+    }))
+
+    const stored = getStoredSettings({ production: true })
+    const persisted = JSON.parse(localStorage.getItem('app_settings'))
+    expect(stored).toMatchObject({ provider: 'openai', model: 'gpt-4.1-mini', showThinking: true })
+    expect(stored.apiKey).toBe('')
+    expect(stored.apiKeysByProvider).toEqual({})
+    expect(persisted.apiKey).toBeUndefined()
+    expect(persisted.apiKeysByProvider).toBeUndefined()
+    expect(getActiveLlmConfig(stored, { production: true }).apiKey).toBe('')
+  })
+
+  it('does not persist or return new client keys in production', () => {
+    const saved = saveActiveLlmConfig({
+      provider: 'deepseek',
+      model: 'deepseek-v4-flash',
+      apiKey: keyFixture('new-production'),
+      baseUrl: 'https://api.deepseek.com',
+    }, { production: true })
+    const persisted = JSON.parse(localStorage.getItem('app_settings'))
+
+    expect(saved.apiKey).toBeUndefined()
+    expect(saved.apiKeysByProvider).toBeUndefined()
+    expect(persisted.apiKey).toBeUndefined()
+    expect(persisted.apiKeysByProvider).toBeUndefined()
+    expect(persisted.model).toBe('deepseek-v4-flash')
+    expect(persisted.baseUrlsByProvider.deepseek).toBe('https://api.deepseek.com')
   })
 })

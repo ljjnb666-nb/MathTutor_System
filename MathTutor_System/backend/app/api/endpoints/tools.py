@@ -68,11 +68,11 @@ def api_generate_ppt(
         )
         return content
     except ValueError as e:
-        logger.warning("PPT 生成参数或 AI 错误: %s", e)
+        logger.warning("ppt_generation_failed error_type=%s", type(e).__name__)
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.exception("PPT 生成失败")
-        raise HTTPException(status_code=500, detail=f"生成失败: {str(e)}")
+        logger.error("ppt_generation_failed external_error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="PPT_GENERATION_ERROR: 讲稿生成失败，请稍后重试。") from None
 
 
 @router.post("/build-pptx")
@@ -102,5 +102,5 @@ def api_build_pptx(
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception("构建 PPT 文件失败")
-        raise HTTPException(status_code=500, detail=f"构建失败: {str(e)}")
+        logger.error("pptx_build_failed error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="PPT_BUILD_ERROR: PPT 文件构建失败。") from None

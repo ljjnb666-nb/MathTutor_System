@@ -119,9 +119,9 @@ async def _validated_llm_json(prompt: str, llm_config: LLMConfig, model: type[T]
             current_prompt = (
                 prompt
                 + "\n\nYour previous output was invalid. Return one valid JSON object only, with no markdown. "
-                + f"Validation error: {str(exc)[:500]}"
+                + "The previous output did not match the required schema."
             )
-    raise ValueError(f"LLM structured output validation failed: {str(last_error)[:240]}")
+    raise ValueError("LLM_RESPONSE_INVALID: Structured output did not match the required schema.") from None
 
 
 def parse_validated_json(raw: str, model: type[T]) -> T:

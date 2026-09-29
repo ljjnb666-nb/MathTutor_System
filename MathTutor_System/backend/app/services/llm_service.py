@@ -77,10 +77,10 @@ async def _generate_single(
         parsed = _parse_questions(raw)
         return parsed if parsed else []
     except KeyError as e:
-        logger.warning("单题生成 index=%s KeyError（已忽略）: %s", index, e)
+        logger.warning("single_question_generation_failed index=%s error_type=%s", index, type(e).__name__)
         return []
     except Exception as e:
-        logger.warning("单题生成 index=%s 失败（已忽略）: %s", index, e)
+        logger.warning("single_question_generation_failed index=%s error_type=%s", index, type(e).__name__)
         return []
 
 
@@ -179,7 +179,7 @@ async def _apply_consistency_check_and_verify(
                 logger.info("题干-解析一致性检查触发校对并替换第 %s 题", index + 1)
                 return (index, new)
             except Exception as e:
-                logger.warning("一致性检查后校对第 %s 题失败，保留原题: %s", index + 1, e)
+                logger.warning("question_consistency_check_failed index=%s error_type=%s", index + 1, type(e).__name__)
                 return (index, q)
 
     tasks = [_check_one(i, q) for i, q in enumerate(questions)]
@@ -187,7 +187,7 @@ async def _apply_consistency_check_and_verify(
     out: list[QuestionItem] = list(questions)
     for r in results:
         if isinstance(r, Exception):
-            logger.warning("一致性检查任务异常: %s", r)
+            logger.warning("question_consistency_task_failed error_type=%s", type(r).__name__)
             continue
         idx, item = r
         if 0 <= idx < len(out):
@@ -246,7 +246,7 @@ async def generate_analysis_for_questions_async(
     result = [dict(q) for q in questions]
     for out in outcomes:
         if isinstance(out, Exception):
-            logger.warning("生成解析时出错: %s", out, exc_info=True)
+            logger.warning("analysis_generation_failed external_error_type=%s", type(out).__name__)
             continue
         idx, analysis_text = out
         if idx is not None and analysis_text is not None and 0 <= idx < len(result):
@@ -281,7 +281,7 @@ async def generate_questions_async(
             else:
                 knowledge_base_context = rag.search_context_for_generation((request.knowledge_point or "").strip(), n_results=RAG_TOP_K)
         except Exception as e:
-            logger.warning("RAG 检索失败，将不注入知识库上下文: %s", e)
+            logger.warning("question_generation_rag_failed error_type=%s", type(e).__name__)
 
     rag_used = bool(knowledge_base_context and knowledge_base_context.strip())
 
@@ -301,7 +301,7 @@ async def generate_questions_async(
                 return (flat, rag_used)
             return ([], rag_used)
         except Exception as e:
-            logger.warning("基于参考题生成失败: %s", e)
+            logger.warning("reference_question_generation_failed error_type=%s", type(e).__name__)
             raise
 
     if scenario == "sync":
@@ -317,7 +317,7 @@ async def generate_questions_async(
                 result["questions"] = await _apply_consistency_check_and_verify(result["questions"], llm_config)
             return (result, rag_used)
         except Exception as e:
-            logger.warning("同步辅导生成失败: %s", e)
+            logger.warning("guided_generation_failed error_type=%s", type(e).__name__)
             raise
 
     if scenario == "assessment":
@@ -336,7 +336,7 @@ async def generate_questions_async(
                 return (flat, rag_used)
             return ([], rag_used)
         except Exception as e:
-            logger.warning("新生摸底生成失败: %s", e)
+            logger.warning("diagnostic_generation_failed error_type=%s", type(e).__name__)
             raise
 
     # 综合题型且数量 >1：按 40% 选择 / 30% 填空 / 30% 解答 预分配每题题型，再并发请求，既保证混合又保持速度
@@ -358,7 +358,7 @@ async def generate_questions_async(
         flat: list[QuestionItem] = []
         for i, r in enumerate(results):
             if isinstance(r, Exception):
-                logger.warning("综合题型并发生成第 %s 道题异常（已忽略）: %s", i + 1, r)
+                logger.warning("complex_question_generation_failed index=%s error_type=%s", i + 1, type(r).__name__)
                 continue
             flat.extend(r[:1] if r else [])
         flat = await _apply_consistency_check_and_verify(flat, llm_config)
@@ -374,7 +374,7 @@ async def generate_questions_async(
     flat: list[QuestionItem] = []
     for i, r in enumerate(results):
         if isinstance(r, Exception):
-            logger.warning("并发生成第 %s 道题异常（已忽略）: %s", i + 1, r)
+            logger.warning("question_generation_failed index=%s error_type=%s", i + 1, type(r).__name__)
             continue
         flat.extend(r[:1] if r else [])
     flat = await _apply_consistency_check_and_verify(flat, llm_config)
@@ -406,7 +406,7 @@ async def generate_full_exam_paper(
             else:
                 knowledge_base_context = rag.search_context_for_generation(knowledge_point, n_results=RAG_TOP_K)
         except Exception as e:
-            logger.warning("试卷 RAG 检索失败，将不注入知识库上下文: %s", e)
+            logger.warning("exam_generation_rag_failed error_type=%s", type(e).__name__)
     rag_used = bool(knowledge_base_context and knowledge_base_context.strip())
 
     def _is_valid_choice(q: QuestionItem) -> bool:
@@ -506,7 +506,7 @@ async def generate_full_exam_paper(
     part_names = ["选择题", "填空题", "解答题(1)", "解答题(2)"]
     for i, r in enumerate(results):
         if isinstance(r, Exception):
-            logger.warning("试卷分块 %s 异常: %s", part_names[i], r)
+            logger.warning("exam_chunk_generation_failed chunk=%s error_type=%s", part_names[i], type(r).__name__)
             parts.append([])
         else:
             parts.append(r or [])

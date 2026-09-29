@@ -135,8 +135,5 @@ def grade_exam_for_user(
         raise
     except Exception as exc:
         db.rollback()
-        logger.exception("Grade exam %s failed: %s", exam_id, exc)
-        detail = str(exc).strip() or "提交批改结果失败"
-        if len(detail) > 300:
-            detail = detail[:300] + "..."
-        raise HTTPException(status_code=500, detail=detail)
+        logger.error("exam_grading_failed exam_id=%s error_type=%s", exam_id, type(exc).__name__)
+        raise HTTPException(status_code=500, detail="EXAM_GRADING_ERROR: 提交批改结果失败，请稍后重试。") from None

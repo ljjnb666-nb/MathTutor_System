@@ -64,7 +64,12 @@ async def global_exception_handler(request: Request, exc: Exception):
         raise exc
 
     logger = logging.getLogger(__name__)
-    logger.exception("Unhandled server error on %s %s", request.method, request.url.path, exc_info=exc)
+    logger.error(
+        "Unhandled server error on %s %s external_error_type=%s",
+        request.method,
+        request.url.path,
+        type(exc).__name__,
+    )
     return JSONResponse(
         content={"detail": "Internal server error"},
         status_code=500,
