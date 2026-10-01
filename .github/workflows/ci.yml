@@ -7,6 +7,20 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: tutorpro
+          POSTGRES_PASSWORD: tutorpro_test_password
+          POSTGRES_DB: tutorpro_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tutorpro -d tutorpro_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     defaults:
       run:
         working-directory: MathTutor_System/backend
@@ -23,7 +37,10 @@ jobs:
         env:
           ENV: development
           LLM_API_KEY: ""
-        run: python -m pytest -q
+          TUTORPRO_TEST_POSTGRES_URL: postgresql+psycopg://tutorpro:tutorpro_test_password@localhost:5432/tutorpro_test
+        run: python -m pytest -q -ra --junitxml=backend-results.xml
+      - name: Verify PostgreSQL gates actually ran
+        run: python scripts/verify_postgres_test_report.py backend-results.xml
 
   teacher-frontend:
     runs-on: ubuntu-latest

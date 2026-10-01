@@ -14,12 +14,13 @@ from app.services.user_admin_service import (
     UserAdminServiceError,
     batch_set_or_extend_subscriptions,
     create_user_with_default_subscription,
-    delete_user_and_related,
     get_subscription_history,
     list_users_with_subscription,
     set_user_subscription as set_user_subscription_service,
 )
 
+
+from app.services.user_deletion_service import delete_user_lifecycle
 
 router = APIRouter()
 
@@ -114,6 +115,6 @@ def delete_user(
 ) -> None:
     """删除指定管理员（仅 admin 可调用）。不允许删除自己。"""
     try:
-        delete_user_and_related(db, user_id, current_user.id)
+        delete_user_lifecycle(db, user_id, current_user.id)
     except UserAdminServiceError as exc:
         _raise_http_error(exc)

@@ -19,7 +19,7 @@ from app.models.schedule import Schedule
 from app.models.student import Student
 from app.models.subscription import Subscription
 from app.models.subscription_history import SubscriptionHistory
-from app.models.user import User
+from app.models.user import User, USER_DELETION_ACTIVE
 from app.schemas.plan_dto import SubscriptionHistoryItem
 from app.schemas.user_dto import UserCreate, UserResponse
 
@@ -75,6 +75,15 @@ def _get_user_or_error(db: Session, user_id: int) -> User:
     return user
 
 
+def _lock_active_user(db: Session, user_id: int) -> User:
+    user = db.query(User).filter(User.id == user_id).populate_existing().with_for_update().first()
+    if user is None:
+        raise UserAdminServiceError(404, "用户不存在")
+    if user.deletion_state != USER_DELETION_ACTIVE:
+        raise UserAdminServiceError(409, "用户正在删除中")
+    return user
+
+
 def _get_plan_or_error(db: Session, plan_code: str) -> Plan:
     plan = db.query(Plan).filter(Plan.code == plan_code).first()
     if not plan:
@@ -95,6 +104,7 @@ def _apply_plan_to_user(
     period_days: int | None,
     now: datetime,
 ) -> Subscription:
+    _lock_active_user(db, user_id)
     is_free = plan.code == "free"
     days = _subscription_days(plan, period_days)
     sub = db.query(Subscription).filter(Subscription.user_id == user_id).first()
@@ -165,7 +175,7 @@ def set_user_subscription(
     plan_code: str,
     period_days: int | None,
 ) -> UserResponse:
-    user = _get_user_or_error(db, user_id)
+    user = _lock_active_user(db, user_id)
     plan = _get_plan_or_error(db, plan_code)
     sub = _apply_plan_to_user(db, user_id, plan, period_days, utc_now())
     return _response_from_user(user, plan.code, sub.period_end)
@@ -184,9 +194,12 @@ def batch_set_or_extend_subscriptions(
     if plan_code is not None:
         plan = _get_plan_or_error(db, plan_code)
         for user_id in user_ids:
-            user = db.get(User, user_id)
+            user = db.query(User).filter(User.id == user_id).populate_existing().with_for_update().first()
             if not user:
                 failed.append({"user_id": user_id, "reason": "用户不存在"})
+                continue
+            if user.deletion_state != USER_DELETION_ACTIVE:
+                failed.append({"user_id": user_id, "reason": "用户正在删除中"})
                 continue
             try:
                 _apply_plan_to_user(db, user_id, plan, period_days, now)
@@ -200,9 +213,12 @@ def batch_set_or_extend_subscriptions(
         raise UserAdminServiceError(400, "仅续期时需传 period_days")
 
     for user_id in user_ids:
-        user = db.get(User, user_id)
+        user = db.query(User).filter(User.id == user_id).populate_existing().with_for_update().first()
         if not user:
             failed.append({"user_id": user_id, "reason": "用户不存在"})
+            continue
+        if user.deletion_state != USER_DELETION_ACTIVE:
+            failed.append({"user_id": user_id, "reason": "用户正在删除中"})
             continue
         sub = db.query(Subscription).filter(Subscription.user_id == user_id).first()
         if not sub:
@@ -249,76 +265,83 @@ def get_subscription_history(db: Session, user_id: int) -> list[SubscriptionHist
     ]
 
 
-def delete_user_and_related(db: Session, user_id: int, current_user_id: int) -> None:
+DELETION_CONFLICT_DETAIL = "该用户存在跨租户或归属不明的数据引用，删除已取消，请先修复数据关系"
+
+
+def lock_and_preflight_user_deletion(db: Session, user_id: int, current_user_id: int) -> tuple[User, list[int]]:
     if current_user_id == user_id:
         raise UserAdminServiceError(400, "不能删除当前登录账号")
-    conflict_detail = (
-        "该用户存在跨租户或归属不明的数据引用，删除已取消，请先修复数据关系"
-    )
+    conflict_detail = DELETION_CONFLICT_DETAIL
+    # No autoflush before all guards pass. PostgreSQL parent-row locks also
+    # block new FK references during preflight, especially CASCADE edges.
+    with db.no_autoflush:
+        user = db.query(User).filter(User.id == user_id).populate_existing().with_for_update().first()
+        if user is None:
+            raise UserAdminServiceError(404, "用户不存在")
+        student_ids = [
+            row.id
+            for row in db.query(Student.id)
+            .filter(Student.user_id == user_id)
+            .with_for_update()
+            .all()
+        ]
+        run_ids = [
+            row.id
+            for row in db.query(AgentRun.id)
+            .filter(AgentRun.user_id == user_id)
+            .with_for_update()
+            .all()
+        ]
+        artifact_ids = [
+            row.id
+            for row in db.query(AgentArtifact.id)
+            .filter(AgentArtifact.user_id == user_id)
+            .with_for_update()
+            .all()
+        ]
+
+        for model, owner in (
+            (Question, Question.owner_user_id),
+            (QuestionBank, QuestionBank.owner_user_id),
+            (Exam, Exam.owner_user_id),
+            (ChatSession, ChatSession.user_id),
+            (Schedule, Schedule.user_id),
+            (AgentArtifact, AgentArtifact.user_id),
+        ):
+            if (
+                db.query(model.id)
+                .filter(
+                    model.student_id.in_(student_ids),
+                    or_(owner.is_(None), owner != user_id),
+                )
+                .first()
+                is not None
+            ):
+                raise UserAdminServiceError(409, conflict_detail)
+
+        for model, reference, target_ids in (
+            (AgentArtifact, AgentArtifact.agent_run_id, run_ids),
+            (AgentAction, AgentAction.agent_run_id, run_ids),
+            (AgentAction, AgentAction.artifact_id, artifact_ids),
+        ):
+            if (
+                db.query(model.id)
+                .filter(
+                    reference.in_(target_ids),
+                    model.user_id != user_id,
+                )
+                .first()
+                is not None
+            ):
+                raise UserAdminServiceError(409, conflict_detail)
+
+    return user, student_ids
+
+
+def delete_user_and_related(db: Session, user_id: int, current_user_id: int) -> None:
+    conflict_detail = DELETION_CONFLICT_DETAIL
     try:
-        # No autoflush before all guards pass. PostgreSQL parent-row locks also
-        # block new FK references during preflight, especially CASCADE edges.
-        with db.no_autoflush:
-            user = db.query(User).filter(User.id == user_id).with_for_update().first()
-            if user is None:
-                raise UserAdminServiceError(404, "用户不存在")
-            student_ids = [
-                row.id
-                for row in db.query(Student.id)
-                .filter(Student.user_id == user_id)
-                .with_for_update()
-                .all()
-            ]
-            run_ids = [
-                row.id
-                for row in db.query(AgentRun.id)
-                .filter(AgentRun.user_id == user_id)
-                .with_for_update()
-                .all()
-            ]
-            artifact_ids = [
-                row.id
-                for row in db.query(AgentArtifact.id)
-                .filter(AgentArtifact.user_id == user_id)
-                .with_for_update()
-                .all()
-            ]
-
-            for model, owner in (
-                (Question, Question.owner_user_id),
-                (QuestionBank, QuestionBank.owner_user_id),
-                (Exam, Exam.owner_user_id),
-                (ChatSession, ChatSession.user_id),
-                (Schedule, Schedule.user_id),
-                (AgentArtifact, AgentArtifact.user_id),
-            ):
-                if (
-                    db.query(model.id)
-                    .filter(
-                        model.student_id.in_(student_ids),
-                        or_(owner.is_(None), owner != user_id),
-                    )
-                    .first()
-                    is not None
-                ):
-                    raise UserAdminServiceError(409, conflict_detail)
-
-            for model, reference, target_ids in (
-                (AgentArtifact, AgentArtifact.agent_run_id, run_ids),
-                (AgentAction, AgentAction.agent_run_id, run_ids),
-                (AgentAction, AgentAction.artifact_id, artifact_ids),
-            ):
-                if (
-                    db.query(model.id)
-                    .filter(
-                        reference.in_(target_ids),
-                        model.user_id != user_id,
-                    )
-                    .first()
-                    is not None
-                ):
-                    raise UserAdminServiceError(409, conflict_detail)
-
+        user, student_ids = lock_and_preflight_user_deletion(db, user_id, current_user_id)
         # Explicit authority-based deletion; student_id is only assignment
         # context for owner resources, never a reason to delete those resources.
         for model in (AgentAction, AgentArtifact, AgentRun):

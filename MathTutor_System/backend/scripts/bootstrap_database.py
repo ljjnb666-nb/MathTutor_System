@@ -29,6 +29,8 @@ from app.models.base import Base, engine
 
 BASELINE_REVISION = "388fe57f097c"
 AGENT_RUNS_REVISION = "7f1f4d9a2c10"
+PRE_STUDENT_AUTH_REVISION = "d9b5d0137a20"
+PRE_DELETION_REVISION = "a6c8e2f91b40"
 PRE_AUTH_SUBJECT_REVISION = "f2b9c7a41d63"
 OWNER_TABLES = ("questions", "question_bank", "exams")
 POST_AGENT_RUNS_TABLES = frozenset(("agent_artifacts", "agent_actions"))
@@ -82,7 +84,7 @@ def _agent_runs_matches_previous_head(inspector: Inspector) -> bool:
     return not _agent_runs_signature_problems(inspector)
 
 
-def _base_schema_signature_problems(inspector: Inspector, *, previous_head: bool, pre_auth_subject: bool = False) -> list[str]:
+def _base_schema_signature_problems(inspector: Inspector, *, previous_head: bool, pre_auth_subject: bool = False, pre_deletion: bool = False, pre_student_auth: bool = False) -> list[str]:
     """应用基础 schema（agent_runs 除外）缺失的表/列清单；空列表表示签名匹配。
 
     期望签名从 Base.metadata 派生，避免校验器与 ORM 漂移：
@@ -103,7 +105,11 @@ def _base_schema_signature_problems(inspector: Inspector, *, previous_head: bool
             continue
         expected_columns = {column.name for column in table.columns}
         # auth_subject was introduced after both supported historical signatures.
+        if name == "users" and (previous_head or pre_auth_subject or pre_deletion):
+            expected_columns.difference_update({"deletion_state", "deletion_started_at"})
         if name == "users" and (previous_head or pre_auth_subject):
+            expected_columns.discard("auth_subject")
+        if name == "students" and (previous_head or pre_auth_subject or pre_deletion or pre_student_auth):
             expected_columns.discard("auth_subject")
         if previous_head and name in OWNER_TABLES:
             expected_columns.discard("owner_user_id")
@@ -133,26 +139,46 @@ def _owner_head_signature_problems(inspector: Inspector) -> list[str]:
     return problems
 
 
-def _auth_subject_signature_problems(inspector: Inspector) -> list[str]:
-    columns = {column["name"]: column for column in inspector.get_columns("users")}
+def _subject_signature_problems(inspector: Inspector, table: str) -> list[str]:
+    if table not in inspector.get_table_names():
+        return [f"missing table: {table}"]
+    columns = {column["name"]: column for column in inspector.get_columns(table)}
     column = columns.get("auth_subject")
     if column is None:
-        return ["users: auth_subject column is missing"]
+        return [f"{table}: auth_subject column is missing"]
     problems = []
     if column["nullable"] or getattr(column["type"], "length", None) != 36:
-        problems.append("users: auth_subject must be NOT NULL VARCHAR(36)")
-    indexes = inspector.get_indexes("users")
-    if not any(index["name"] == "ix_users_auth_subject" and index.get("unique")
+        problems.append(f"{table}: auth_subject must be NOT NULL VARCHAR(36)")
+    indexes = inspector.get_indexes(table)
+    if not any(index["name"] == f"ix_{table}_auth_subject" and index.get("unique")
                and index["column_names"] == ["auth_subject"] for index in indexes):
-        problems.append("users: unique index ix_users_auth_subject is missing")
+        problems.append(f"{table}: unique index ix_{table}_auth_subject is missing")
     with engine.connect() as connection:
-        subjects = connection.execute(text("SELECT auth_subject FROM users")).scalars().all()
+        subjects = connection.execute(text(f"SELECT auth_subject FROM {table}")).scalars().all()
     try:
         valid = all(isinstance(subject, str) and str(UUID(subject)) == subject for subject in subjects)
     except ValueError:
         valid = False
     if not valid or len(set(subjects)) != len(subjects):
-        problems.append("users: auth_subject data contains NULL, invalid UUID, or duplicate values")
+        problems.append(f"{table}: auth_subject data contains NULL, invalid UUID, or duplicate values")
+    return problems
+
+
+def _auth_subject_signature_problems(inspector: Inspector) -> list[str]:
+    return _subject_signature_problems(inspector, "users")
+
+
+def _deletion_signature_problems(inspector: Inspector) -> list[str]:
+    columns = {column["name"]: column for column in inspector.get_columns("users")}
+    if not {"deletion_state", "deletion_started_at"} <= columns.keys():
+        return ["users: partial deletion lifecycle schema"]
+    problems = []
+    if columns["deletion_state"]["nullable"] or getattr(columns["deletion_state"]["type"], "length", None) != 16:
+        problems.append("users: deletion_state must be NOT NULL VARCHAR(16)")
+    with engine.connect() as connection:
+        invalid = connection.execute(text("SELECT count(*) FROM users WHERE deletion_state IS NULL OR deletion_state NOT IN ('active', 'deleting') OR (deletion_state = 'deleting' AND (is_active IS NULL OR is_active != false OR deletion_started_at IS NULL)) OR (deletion_state = 'active' AND deletion_started_at IS NOT NULL)")).scalar()
+    if invalid:
+        problems.append("users: invalid deletion lifecycle data")
     return problems
 
 
@@ -192,9 +218,30 @@ def _reconcile() -> None:
         command.stamp(config, "head")
         return
 
+    user_columns = {c["name"] for c in inspector.get_columns("users")} if "users" in tables else set()
+    lifecycle_columns = {"deletion_state", "deletion_started_at"} & user_columns
+    if lifecycle_columns:
+        if len(lifecycle_columns) != 2 or "auth_subject" not in user_columns:
+            raise BootstrapDatabaseError("users: partial or mixed deletion lifecycle schema")
+        problems = _deletion_signature_problems(inspector)
+        if problems:
+            raise BootstrapDatabaseError("; ".join(problems))
+
+    has_student_auth = "students" in tables and "auth_subject" in {c["name"] for c in inspector.get_columns("students")}
+    if has_student_auth:
+        if not lifecycle_columns:
+            raise BootstrapDatabaseError("students: auth_subject is present in a mixed historical schema")
+        problems = _subject_signature_problems(inspector, "students")
+        if problems:
+            raise BootstrapDatabaseError("; ".join(problems))
+
     if "alembic_version" in tables:
         # STATE B：正常 Alembic 管理的数据库 -> 直接升级到 head。
         command.upgrade(config, "head")
+        problems = (_deletion_signature_problems(inspect(engine))
+                    + _subject_signature_problems(inspect(engine), "students"))
+        if problems:
+            raise BootstrapDatabaseError("; ".join(problems))
         return
 
     if "users" not in tables:
@@ -219,9 +266,10 @@ def _reconcile() -> None:
         problems = (
             _agent_runs_signature_problems(inspector)
             + _owner_head_signature_problems(inspector)
-            + _base_schema_signature_problems(inspector, previous_head=False, pre_auth_subject=not has_auth_subject)
+            + _base_schema_signature_problems(inspector, previous_head=False, pre_auth_subject=not has_auth_subject, pre_deletion=not lifecycle_columns, pre_student_auth=not has_student_auth)
             + _practice_head_signature_problems(inspector)
             + (_auth_subject_signature_problems(inspector) if has_auth_subject else [])
+            + (_deletion_signature_problems(inspector) if lifecycle_columns else [])
         )
         if problems:
             raise BootstrapDatabaseError(
@@ -229,8 +277,14 @@ def _reconcile() -> None:
                 + "; ".join(problems)
                 + "). Manual migration required."
             )
-        if has_auth_subject:
+        if has_auth_subject and lifecycle_columns and has_student_auth:
             command.stamp(config, "head")
+        elif has_auth_subject and lifecycle_columns:
+            command.stamp(config, PRE_STUDENT_AUTH_REVISION)
+            command.upgrade(config, "head")
+        elif has_auth_subject:
+            command.stamp(config, PRE_DELETION_REVISION)
+            command.upgrade(config, "head")
         else:
             command.stamp(config, PRE_AUTH_SUBJECT_REVISION)
             command.upgrade(config, "head")
@@ -248,6 +302,10 @@ def _reconcile() -> None:
     # 无 owner 列的无版本库：只能证明"早于 owner 迁移"，具体补哪个历史版本
     # 仍需正向验证完整应用基础 schema（agent_runs 除外）后才允许标记。
     previous_head_problems = _base_schema_signature_problems(inspector, previous_head=True)
+    if has_student_auth:
+        previous_head_problems.append("students: auth_subject is present in a mixed historical schema")
+    if lifecycle_columns:
+        previous_head_problems.append("users: lifecycle columns are present in a mixed historical schema")
     if "users" in tables and "auth_subject" in {column["name"] for column in inspector.get_columns("users")}:
         previous_head_problems.append("users: auth_subject is present in a mixed historical schema")
     if "agent_runs" in tables:

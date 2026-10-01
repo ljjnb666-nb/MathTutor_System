@@ -4,6 +4,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from tests.schema_history import drop_student_auth_subject
+
 from sqlalchemy import create_engine, inspect, text
 
 from app.models.base import Base
@@ -39,6 +41,9 @@ def test_agent_runs_migration_upgrade_downgrade_retry_preserves_users(request):
     engine = create_engine(db_url)
     Base.metadata.create_all(engine, tables=[User.__table__])
     with engine.begin() as conn:
+        drop_student_auth_subject(conn)
+        conn.execute(text("ALTER TABLE users DROP COLUMN deletion_started_at"))
+        conn.execute(text("ALTER TABLE users DROP COLUMN deletion_state"))
         conn.execute(text("DROP INDEX ix_users_auth_subject"))
         conn.execute(text("ALTER TABLE users DROP COLUMN auth_subject"))
         conn.execute(

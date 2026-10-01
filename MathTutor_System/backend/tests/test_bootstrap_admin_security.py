@@ -98,7 +98,7 @@ def _fetch_users(db_path: Path) -> list[dict]:
     try:
         with engine.connect() as conn:
             rows = conn.execute(
-                text("select username, hashed_password, role, is_active, auth_subject from users")
+                text("select username, hashed_password, role, is_active, auth_subject, deletion_state, deletion_started_at from users")
             ).mappings().all()
             return [dict(row) for row in rows]
     finally:
@@ -162,6 +162,8 @@ def test_sec_boot_03_valid_password_creates_admin(bootstrap_tmp):
     assert proc.returncode == 0
     users = _fetch_users(db_path)
     assert UUID(users[0]["auth_subject"]).version == 4
+    assert users[0]["deletion_state"] == "active"
+    assert users[0]["deletion_started_at"] is None
     assert len(users) == 1
     assert users[0]["username"] == "admin"
     assert users[0]["role"] == "admin"

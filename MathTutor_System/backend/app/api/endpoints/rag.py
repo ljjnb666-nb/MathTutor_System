@@ -25,6 +25,7 @@ from app.services.rag_document_store import (
     rag_list_documents as store_list_documents,
 )
 from app.services.rag_service import get_rag_service
+from app.services.rag_account_service import StaleRAGAccountError, write_rag_for_account_instance
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -139,19 +140,25 @@ async def rag_upload(
     current_user: User = Depends(get_current_user),
 ):
     _require_rag(current_user, db)
+    owner_user_id, owner_auth_subject = current_user.id, current_user.auth_subject
     filename, file_bytes = await _read_validated_rag_upload(file)
     try:
         text = parse_file_from_bytes(file_bytes, filename)
         if not text.strip():
             raise HTTPException(status_code=400, detail="Parsed document is empty")
-        document_id = get_rag_service(llm_config=llm_config).add_document(
-            text,
-            filename,
-            owner_user_id=current_user.id,
-            knowledge_point=(knowledge_point or "").strip(),
-            chunk_type=(chunk_type or "question").strip() or "question",
+        document_id = write_rag_for_account_instance(
+            owner_user_id, owner_auth_subject,
+            lambda: get_rag_service(llm_config=llm_config).add_document(
+                text,
+                filename,
+                owner_user_id=owner_user_id,
+                knowledge_point=(knowledge_point or "").strip(),
+                chunk_type=(chunk_type or "question").strip() or "question",
+            ),
         )
         return {"message": "Knowledge base updated", "filename": filename, "document_id": document_id}
+    except StaleRAGAccountError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
     except HTTPException:
         raise
     except ValueError as exc:
@@ -171,18 +178,19 @@ def _do_upload_sync(
     base_url: str,
     model: str,
     owner_user_id: int,
+    owner_auth_subject: str,
 ) -> str | None:
     text = parse_file_from_bytes(file_bytes, filename)
     if not text.strip():
         raise ValueError("Parsed document is empty")
     rag = get_rag_service(LLMConfig(provider=provider, api_key=api_key, base_url=base_url, model=model))
-    return rag.add_document(
+    return write_rag_for_account_instance(owner_user_id, owner_auth_subject, lambda: rag.add_document(
         text,
         filename,
         owner_user_id=owner_user_id,
         knowledge_point=knowledge_point,
         chunk_type=chunk_type,
-    )
+    ))
 
 
 async def _run_upload_task(
@@ -196,6 +204,7 @@ async def _run_upload_task(
     base_url: str,
     model: str,
     owner_user_id: int,
+    owner_auth_subject: str,
 ) -> None:
     _upload_status[task_id]["status"] = "processing"
     _upload_status[task_id]["message"] = "Processing"
@@ -213,11 +222,14 @@ async def _run_upload_task(
                 base_url,
                 model,
                 owner_user_id,
+                owner_auth_subject,
             ),
         )
         _upload_status[task_id].update(
             {"status": "done", "message": "Knowledge base updated", "filename": filename, "document_id": document_id}
         )
+    except StaleRAGAccountError as exc:
+        _upload_status[task_id].update({"status": "failed", "error": str(exc), "message": str(exc)})
     except Exception as exc:
         logger.error("RAG async upload failed external_error_type=%s", type(exc).__name__)
         _upload_status[task_id].update({"status": "failed", "error": "Upload failed", "filename": filename})
@@ -237,6 +249,7 @@ async def rag_upload_async(
     task_id = str(uuid.uuid4())
     _upload_status[task_id] = {
         "owner_user_id": current_user.id,
+        "owner_auth_subject": current_user.auth_subject,
         "status": "pending",
         "message": "Queued",
         "filename": filename,
@@ -255,6 +268,7 @@ async def rag_upload_async(
             llm_config.base_url,
             llm_config.model,
             current_user.id,
+            current_user.auth_subject,
         )
     )
     return JSONResponse(status_code=202, content={"task_id": task_id, "status": "pending", "message": "Queued"})
@@ -268,7 +282,8 @@ async def rag_upload_status(
     if not task_id or task_id not in _upload_status:
         raise HTTPException(status_code=404, detail="Task not found")
     rec = _upload_status[task_id]
-    if int(rec.get("owner_user_id") or -1) != int(current_user.id):
+    if (int(rec.get("owner_user_id") or -1) != int(current_user.id)
+            or rec.get("owner_auth_subject") != current_user.auth_subject):
         raise HTTPException(status_code=404, detail="Task not found")
     if time.time() - (rec.get("created_at") or 0) > _STATUS_EXPIRE_SEC:
         _upload_status.pop(task_id, None)

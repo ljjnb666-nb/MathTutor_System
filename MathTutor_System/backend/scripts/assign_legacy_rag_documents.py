@@ -15,7 +15,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.models.base import SessionLocal  # noqa: E402
-from app.models.user import User  # noqa: E402
+from app.models.user import User, USER_DELETION_ACTIVE  # noqa: E402
 from app.services import rag_document_store as store  # noqa: E402
 
 
@@ -26,10 +26,12 @@ class LegacyMigrationError(RuntimeError):
 def find_target_user(db, *, username: str | None = None, user_id: int | None = None) -> User:
     if not username and user_id is None:
         raise LegacyMigrationError("Specify --username or --user-id.")
-    query = db.query(User)
+    query = db.query(User).populate_existing().with_for_update()
     user = query.filter(User.id == user_id).first() if user_id is not None else query.filter(User.username == username).first()
     if user is None:
         raise LegacyMigrationError("Target user not found.")
+    if not user.is_active or user.deletion_state != USER_DELETION_ACTIVE:
+        raise LegacyMigrationError("Target user is inactive or deleting.")
     return user
 
 
@@ -130,7 +132,7 @@ def _write_migrated_registry_entry(
     store.write_documents_registry(items)
 
 
-def assign_legacy_rag_documents(db, *, username: str | None = None, user_id: int | None = None, dry_run: bool = True) -> dict:
+def _assign_legacy_rag_documents(db, *, username: str | None = None, user_id: int | None = None, dry_run: bool = True) -> dict:
     user = find_target_user(db, username=username, user_id=user_id)
     registry_entries = ownerless_registry_entries()
     plan = []
@@ -168,6 +170,18 @@ def assign_legacy_rag_documents(db, *, username: str | None = None, user_id: int
             warnings.append({"source": source, "legacy_chunk_ids": legacy_ids, "message": f"Legacy cleanup failed: {exc}"})
         migrated += 1
     return {"dry_run": dry_run, "target_user_id": user.id, "documents": plan, "migrated": migrated, "warnings": warnings}
+
+
+def assign_legacy_rag_documents(db, *, username=None, user_id=None, dry_run=True):
+    # Same lock order as upload/deletion, held through registry and Chroma writes.
+    with store.rag_mutation_guard():
+        try:
+            result = _assign_legacy_rag_documents(db, username=username, user_id=user_id, dry_run=dry_run)
+            db.commit()
+            return result
+        except Exception:
+            db.rollback()
+            raise
 
 
 def main() -> int:

@@ -13,6 +13,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from tests.schema_history import drop_student_auth_subject
+
 from sqlalchemy import create_engine, inspect, text
 
 from app.models.base import Base
@@ -331,6 +333,9 @@ def test_fresh_create_all_schema_is_migration_compatible(request):
 
     Base.metadata.drop_all(engine, tables=[_LegacyAgentAction.__table__, _LegacyAgentArtifact.__table__])
     with engine.begin() as conn:
+        drop_student_auth_subject(conn)
+        conn.execute(text("ALTER TABLE users DROP COLUMN deletion_started_at"))
+        conn.execute(text("ALTER TABLE users DROP COLUMN deletion_state"))
         conn.execute(text("DROP INDEX ix_users_auth_subject"))
         conn.execute(text("ALTER TABLE users DROP COLUMN auth_subject"))
         conn.execute(

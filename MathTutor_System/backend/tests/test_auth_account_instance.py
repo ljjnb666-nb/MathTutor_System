@@ -223,7 +223,12 @@ def test_student_login_preserves_student_domain_and_cannot_enter_teacher(client,
     token = response.json()["access_token"]
     payload = decode_access_token(token)
     assert payload["type"] == "student"
-    assert payload["sub"] == "12"
+    student = instance_db.get(Student, 12)
+    owner = instance_db.get(User, student.user_id)
+    assert payload["sub"] == student.auth_subject
+    assert payload["sid"] == student.id
+    assert payload["owner_uid"] == owner.id
+    assert payload["owner_sub"] == owner.auth_subject
     assert "uid" not in payload
     response = client.get("/api/student/me", headers=bearer(token))
     assert response.status_code == 200

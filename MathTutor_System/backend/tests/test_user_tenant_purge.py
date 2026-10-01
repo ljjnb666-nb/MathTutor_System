@@ -437,7 +437,11 @@ def test_existing_teacher_and_student_credentials_revoked(database):
             }
         )
         credential = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
-        student_token = create_access_token({"sub": str(sid), "type": "student"})
+        student = db.get(Student, sid)
+        student_token = create_access_token({
+            "type": "student", "sub": student.auth_subject, "sid": sid,
+            "owner_uid": user.id, "owner_sub": user.auth_subject,
+        })
         assert get_current_user(credential, db).id == 2
         assert get_current_student_from_token(db, student_token).id == sid
         delete_user_and_related(db, 2, 1)
