@@ -116,14 +116,15 @@ def test_teacher_domain_does_not_grant_admin_role(client):
     assert response.status_code == 403
 
 
-def test_optional_auth_endpoint_cannot_create_user_as_colliding_admin(client, domain_db):
+def test_student_credential_cannot_reach_admin_user_creation(client, domain_db):
+    # PHASE 2B-4: reject at the teacher credential boundary before admin authorization.
     domain_db.get(User, 1).role = "admin"
     domain_db.commit()
     response = client.post(
         "/api/users/", headers=headers({"sub": "12", "type": "student"}),
         json={"username": "must-not-be-created", "password": "domain-test-password"},
     )
-    assert response.status_code == 403
+    assert_unauthorized(response)
     assert domain_db.query(User).count() == 1
 
 

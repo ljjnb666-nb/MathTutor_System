@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.api.endpoints.auth import get_current_user, get_current_user_optional
+from app.api.endpoints.auth import get_current_user
 from app.models.base import get_db
 from app.models.user import User
 from app.schemas.plan_dto import SubscriptionHistoryItem
@@ -42,13 +42,9 @@ def get_current_active_superuser(current_user: User = Depends(get_current_user))
 def create_user(
     body: UserCreate,
     db: Session = Depends(get_db),
-    current_user: User | None = Depends(get_current_user_optional),
+    _: User = Depends(get_current_active_superuser),
 ) -> User:
-    """创建新管理员（密码会 Hash 后存储）。无任何用户时允许未登录创建首个管理员；否则仅 admin 可创建。"""
-    user_count = db.query(User).count()
-    if user_count > 0:
-        if not current_user or current_user.role != "admin":
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough privileges")
+    """创建新用户（仅 admin 可调用，密码会 Hash 后存储）。首个管理员通过安全 bootstrap 创建。"""
     try:
         return create_user_with_default_subscription(db, body)
     except UserAdminServiceError as exc:
