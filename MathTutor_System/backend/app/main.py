@@ -1,29 +1,20 @@
 """FastAPI application entrypoint for MathTutor_System."""
 
 import logging
-import os
 from contextlib import asynccontextmanager
-from pathlib import Path
-
-_backend_dir = Path(__file__).resolve().parent.parent
-_env_file = _backend_dir / ".env"
-if _env_file.exists():
-    from dotenv import load_dotenv
-
-    load_dotenv(_env_file)
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 
+from app.core.config import CORS_ORIGINS, get_settings
 from app.api.router import api_router
-from app.core.config import CORS_ORIGINS
 from app.core.startup import initialize_application_data
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if os.getenv("LLM_HTTPS_PROXY") or os.getenv("HTTPS_PROXY"):
+    if get_settings().proxy_url:
         print("[Gemini] Proxy configured; LLM requests will use LLM_HTTPS_PROXY/HTTPS_PROXY.")
     initialize_application_data()
     yield

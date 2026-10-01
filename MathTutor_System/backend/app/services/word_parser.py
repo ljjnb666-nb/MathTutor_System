@@ -12,10 +12,12 @@ from io import BytesIO
 from typing import Any
 
 from docx import Document
+import httpx
 from openai import OpenAI
 from PIL import Image
 
-from app.core.config import AI_REQUEST_TIMEOUT, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL
+from app.core.config import get_settings
+from app.core.ai_runtime import LLMConfig, resolve_llm_arguments, assert_resolved_llm_config
 from app.core.llm_sanitize import external_error_type
 from app.services.exam_question_merge import (
     append_region as _append_region,
@@ -83,13 +85,16 @@ def parse_with_deepseek(
     base_url: str | None = None,
     model: str | None = None,
     provider: str | None = None,
+    llm_config: LLMConfig | None = None,
 ) -> list[dict[str, Any]]:
     """
     将试卷文本解析为题目 JSON 数组。
     - provider=gemini 时使用 Gemini REST API（直接调用，无需 OpenAI 兼容 Base URL）。
     - 否则使用 OpenAI 兼容接口（DeepSeek 等），base_url/api_key/model 来自设置或 .env。
     """
-    provider_lower = (provider or "").strip().lower()
+    config = llm_config or resolve_llm_arguments(get_settings(), provider=provider or "deepseek", api_key=api_key or "", base_url=base_url or "", model=model or "")
+    spec = assert_resolved_llm_config(config)
+    provider_lower = spec.transport
     system_prompt = (
         "You are an exam parser. Convert the input text into a strict JSON array. "
         "Identify questions by main question numbers (1., 2., ..., 20., etc.). "
@@ -103,29 +108,19 @@ def parse_with_deepseek(
     )
 
     if provider_lower == "gemini":
-        key = (api_key or "").strip()
-        if not key:
-            raise ValueError(
-                "未配置 API Key。请在前端「设置」中选择 Gemini 并填写 API Key 后保存，或在 .env 中设置 LLM_API_KEY。"
-            )
-        model_name = (model or "").strip() or "gemini-1.5-flash"
+        key, model_name = config.api_key, config.model
         try:
             from app.services.llm_service import gemini_rest_text_sync
             full_prompt = f"{system_prompt}\n\nInput:\n{text}"
-            raw = gemini_rest_text_sync(full_prompt, api_key=key, model=model_name, temperature=0.2, max_tokens=4096)
+            raw = gemini_rest_text_sync(full_prompt, api_key=key, model=model_name, temperature=0.2, max_tokens=4096, request_timeout=config.request_timeout, base_url=config.base_url, api_version=config.api_version, proxy_url=config.proxy_url)
         except Exception as e:
             logger.warning("word_parse_failed external_error_type=%s", external_error_type(e))
             raise ValueError("LLM_PROVIDER_ERROR: 试卷识别服务暂时不可用，请稍后重试。") from None
     else:
-        key = (api_key or "").strip() or DEEPSEEK_API_KEY
-        if not key:
-            raise ValueError(
-                "未配置 API Key。请在前端「设置」中选择模型提供商并填写 API Key 后保存，或在 .env 中设置对应 API Key。"
-            )
-        url = (base_url or "").strip() or DEEPSEEK_BASE_URL
-        model_name = (model or "").strip() or DEEPSEEK_MODEL
+        key, url, model_name = config.api_key, config.base_url, config.model
         try:
-            client = OpenAI(base_url=url, api_key=key, timeout=float(AI_REQUEST_TIMEOUT))
+            client = OpenAI(base_url=url, api_key=key, timeout=float(config.request_timeout), max_retries=config.max_retries,
+                http_client=httpx.Client(proxy=config.proxy_url or None, trust_env=False, follow_redirects=False))
             resp = client.chat.completions.create(
                 model=model_name,
                 messages=[
@@ -166,6 +161,7 @@ def parse_page_image_with_vision(
     base_url: str,
     model: str,
     provider: str | None = None,
+    llm_config: LLMConfig | None = None,
 ) -> list[dict[str, Any]]:
     """
     对单页试卷图片调用视觉模型，识别该页上的题目并返回与 parse_with_deepseek 同结构的列表。
@@ -183,24 +179,27 @@ def parse_page_image_with_vision(
     )
     full_prompt = f"{VISION_EXAM_SYSTEM_PROMPT}\n\n{vision_user_text}"
 
-    provider_lower = (provider or "").strip().lower()
+    config = llm_config or resolve_llm_arguments(get_settings(), provider=provider or "deepseek", api_key=api_key or "", base_url=base_url or "", model=model or "")
+    spec = assert_resolved_llm_config(config)
+    provider_lower = spec.transport
     if provider_lower == "gemini":
-        model_name = (model or "").strip() or "gemini-1.5-flash"
+        model_name = config.model
         try:
             from app.services.llm_service import gemini_rest_vision_sync
             raw = gemini_rest_vision_sync(
                 full_prompt, image_base64=b64, api_key=key, model=model_name,
                 mime_type="image/png", temperature=0.2, max_tokens=4096,
+                request_timeout=config.request_timeout, base_url=config.base_url, api_version=config.api_version, proxy_url=config.proxy_url,
             )
         except Exception as e:
             logger.warning("page_vision_failed external_error_type=%s", external_error_type(e))
             raise ValueError("LLM_PROVIDER_ERROR: 试卷识图服务暂时不可用，请稍后重试。") from None
     else:
-        url = (base_url or "").strip() or DEEPSEEK_BASE_URL
-        model_name = (model or "").strip() or DEEPSEEK_MODEL
+        url, model_name = config.base_url, config.model
         data_uri = f"data:image/png;base64,{b64}"
         try:
-            client = OpenAI(base_url=url, api_key=key, timeout=float(AI_REQUEST_TIMEOUT))
+            client = OpenAI(base_url=url, api_key=key, timeout=float(config.request_timeout), max_retries=config.max_retries,
+                http_client=httpx.Client(proxy=config.proxy_url or None, trust_env=False, follow_redirects=False))
             resp = client.chat.completions.create(
                 model=model_name,
                 messages=[

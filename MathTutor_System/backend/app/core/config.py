@@ -1,5 +1,4 @@
 """Typed application settings with legacy constant exports for compatibility."""
-import os
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -15,6 +14,11 @@ def _default_database_url() -> str:
     return f"sqlite:///{(BASE_DIR / 'math_tutor.db').as_posix()}"
 
 
+DEFAULT_AI_REQUEST_TIMEOUT = 120
+DEFAULT_AI_TEST_TIMEOUT = 30
+DEFAULT_AI_MAX_RETRIES = 2
+
+
 class AppSettings(BaseSettings):
     env: str = Field(default="development", alias="ENV")
     debug: bool = Field(default=True, alias="DEBUG")
@@ -22,20 +26,32 @@ class AppSettings(BaseSettings):
 
     database_url: str = Field(default_factory=_default_database_url, alias="DATABASE_URL")
 
-    llm_api_key: str = Field(default="", alias="LLM_API_KEY")
+    llm_api_key: str = Field(default="", alias="LLM_API_KEY", repr=False)
     llm_provider: str = Field(default="gemini", alias="LLM_PROVIDER")
-    llm_base_url: str = Field(default="", alias="LLM_BASE_URL")
+    llm_base_url: str = Field(default="", alias="LLM_BASE_URL", repr=False)
     llm_api_version: str = Field(default="", alias="LLM_API_VERSION")
     llm_model: str = Field(default="", alias="LLM_MODEL")
-    llm_https_proxy: str = Field(default="", alias="LLM_HTTPS_PROXY")
-    llm_http_proxy: str = Field(default="", alias="LLM_HTTP_PROXY")
+    llm_https_proxy: str = Field(default="", alias="LLM_HTTPS_PROXY", repr=False)
+    llm_http_proxy: str = Field(default="", alias="LLM_HTTP_PROXY", repr=False)
 
-    deepseek_api_key: str = Field(default="", alias="DEEPSEEK_API_KEY")
+    deepseek_api_key: str = Field(default="", alias="DEEPSEEK_API_KEY", repr=False)
     deepseek_base_url: str = Field(default="https://api.deepseek.com", alias="DEEPSEEK_BASE_URL")
-    deepseek_model: str = Field(default="deepseek-v4-flash", alias="DEEPSEEK_MODEL")
-    deepseek_embed_model: str = Field(default="deepseek-embedding-v2", alias="DEEPSEEK_EMBED_MODEL")
+    deepseek_model: str = Field(default="", alias="DEEPSEEK_MODEL")
+    deepseek_embed_model: str = Field(default="", alias="DEEPSEEK_EMBED_MODEL")
 
-    ai_request_timeout: int = Field(default=120, alias="AI_REQUEST_TIMEOUT")
+    allow_custom_llm_base_url: bool = Field(default=False, alias="ALLOW_CUSTOM_LLM_BASE_URL")
+    client_llm_allowed_hosts: str = Field(default="", alias="CLIENT_LLM_ALLOWED_HOSTS")
+    google_api_key: str = Field(default="", alias="GOOGLE_API_KEY", repr=False)
+    gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY", repr=False)
+    https_proxy: str = Field(default="", alias="HTTPS_PROXY", repr=False)
+    http_proxy: str = Field(default="", alias="HTTP_PROXY", repr=False)
+    embedding_provider: str = Field(default="", alias="EMBEDDING_PROVIDER")
+    embedding_api_key: str = Field(default="", alias="EMBEDDING_API_KEY", repr=False)
+    embedding_base_url: str = Field(default="", alias="EMBEDDING_BASE_URL", repr=False)
+    embedding_model: str = Field(default="", alias="EMBEDDING_MODEL")
+    ai_request_timeout: int = Field(default=DEFAULT_AI_REQUEST_TIMEOUT, gt=0, alias="AI_REQUEST_TIMEOUT")
+    ai_test_timeout: int = Field(default=DEFAULT_AI_TEST_TIMEOUT, gt=0, alias="AI_TEST_TIMEOUT")
+    ai_max_retries: int = Field(default=DEFAULT_AI_MAX_RETRIES, ge=0, le=5, alias="AI_MAX_RETRIES")
     rag_top_k: int = Field(default=3, alias="RAG_TOP_K")
     cors_origins_raw: str = Field(default="", alias="CORS_ORIGINS")
 
@@ -60,6 +76,18 @@ class AppSettings(BaseSettings):
         extra="ignore",
         populate_by_name=True,
     )
+
+    @property
+    def is_production(self) -> bool:
+        return self.env.strip().lower() == "production" or not self.debug
+
+    @property
+    def client_llm_config_allowed(self) -> bool:
+        return not self.is_production and self.allow_client_llm_config is not False
+
+    @property
+    def proxy_url(self) -> str:
+        return (self.llm_https_proxy or self.https_proxy).strip()
 
     @property
     def cors_origins(self) -> list[str]:
@@ -87,6 +115,11 @@ class AppSettings(BaseSettings):
 
 settings = AppSettings()
 
+
+def get_settings() -> AppSettings:
+    """Return the ingested application snapshot; consumers never re-read env."""
+    return settings
+
 ENV = settings.env.strip().lower()
 DEBUG = settings.debug
 IS_PRODUCTION = ENV == "production" or not DEBUG
@@ -98,11 +131,6 @@ ALLOW_CLIENT_LLM_CONFIG = (
         else True
     )
 )
-
-if settings.llm_https_proxy:
-    os.environ.setdefault("HTTPS_PROXY", settings.llm_https_proxy.strip())
-if settings.llm_http_proxy:
-    os.environ.setdefault("HTTP_PROXY", settings.llm_http_proxy.strip())
 
 DATABASE_URL = settings.database_url
 LLM_API_KEY = settings.llm_api_key.strip()

@@ -9,7 +9,6 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api.endpoints.auth import get_current_user
-from app.core.config import DEEPSEEK_BASE_URL, DEEPSEEK_MODEL
 from app.core.deps import LLMConfig, get_llm_config
 from app.core.subscription import get_current_subscription, require_feature
 from app.models.base import get_db
@@ -62,9 +61,10 @@ def api_generate_ppt(
         content = generate_lecture_content(
             topic=topic,
             grade=grade,
+            llm_config=llm_config,
             api_key=llm_config.api_key,
-            base_url=llm_config.base_url or DEEPSEEK_BASE_URL,
-            model=llm_config.model or DEEPSEEK_MODEL,
+            base_url=llm_config.base_url,
+            model=llm_config.model,
         )
         return content
     except ValueError as e:

@@ -53,7 +53,7 @@ def test_mask_secrets_masks_json_query_multiline_and_nested_serialized_errors():
     secrets = ["json-secret-value", "query-secret-value", "nested-secret-value", "line-secret-value"]
     text = (
         '{"token":"json-secret-value", "password":"also-secret-value"} '
-        "https://provider.test/path?access_token=query-secret-value&x=1\n"
+        "https://api.openai.com/v1/path?access_token=query-secret-value&x=1\n"
         'provider error: {\\"error\\":{\\"token\\":\\"nested-secret-value\\"}}\n'
         "password=line-secret-value"
     )
@@ -91,6 +91,9 @@ def _dummy_config():
         provider = "openai"
         base_url = "https://api.example.com"
         model = "test-model"
+        request_timeout = 73
+        max_retries = 2
+        proxy_url = ""
 
     cfg = _Cfg()
     cfg.api_key = "t" * 16  # non-empty marker; the LLM is mocked and never called
@@ -155,7 +158,7 @@ def test_word_parser_provider_error_is_mapped_and_not_logged(monkeypatch, caplog
     with caplog.at_level(logging.WARNING):
         with pytest.raises(ValueError) as exc_info:
             word_parser.parse_with_deepseek(
-                "question", api_key="fixture-api-key", base_url="https://provider.test", provider="openai"
+                "question", api_key="fixture-api-key", base_url="https://api.openai.com/v1", provider="openai"
             )
 
     assert str(exc_info.value).startswith("LLM_PROVIDER_ERROR:")
@@ -201,8 +204,14 @@ def test_word_parser_client_setup_error_is_mapped(monkeypatch):
     monkeypatch.setattr(word_parser, "OpenAI", _OpenAI)
     with pytest.raises(ValueError) as exc_info:
         word_parser.parse_with_deepseek(
-            "question", api_key="fixture-api-key", base_url="https://provider.test", provider="openai"
+            "question", api_key="fixture-api-key", base_url="https://api.openai.com/v1", provider="openai"
         )
 
     assert str(exc_info.value).startswith("LLM_PROVIDER_ERROR:")
     assert "setup-secret-tail" not in str(exc_info.value)
+
+
+@pytest.fixture(autouse=True)
+def public_runtime_dns(monkeypatch):
+    import socket
+    monkeypatch.setattr(socket, "getaddrinfo", lambda host, port, **kw: [(2, 1, 6, "", ("93.184.216.34", port))])

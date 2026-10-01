@@ -23,6 +23,9 @@ class OpenAIConfig:
     api_key = "".join(["fake", "-ke", "y"])  # 凭据形状测试值运行时拼接，完整字面量不落入源码
     base_url = "https://api.openai.com/v1"
     model = "fake-model"
+    request_timeout = 73
+    max_retries = 2
+    proxy_url = ""
 
 
 def test_build_chat_messages_adds_system_and_maps_roles():

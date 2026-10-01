@@ -66,6 +66,7 @@ export const PROVIDERS = [
   {
     label: 'Anthropic Claude',
     value: 'anthropic',
+    disabled: true, // ANTHROPIC_ADAPTER_NOT_IMPLEMENTED
     baseUrl: 'https://api.anthropic.com/v1',
     apiVersion: 'v1',
     docUrl: 'https://docs.anthropic.com/en/docs/about-claude/models/overview',

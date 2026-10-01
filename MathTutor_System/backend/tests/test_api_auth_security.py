@@ -1,3 +1,6 @@
+import pytest
+from app.core import config as app_config
+from app.core.config import AppSettings
 from io import BytesIO
 
 from fastapi.testclient import TestClient
@@ -43,9 +46,9 @@ def test_anonymous_llm_test_without_headers_is_unauthorized(monkeypatch):
 
 def test_anonymous_llm_test_with_server_env_key_is_unauthorized(monkeypatch):
     # SEC-LLMTEST-02: server credentials must not make the test endpoint public.
-    monkeypatch.setenv("LLM_API_KEY", SERVER_ENV_KEY)
-    monkeypatch.setenv("LLM_PROVIDER", "deepseek")
-    monkeypatch.setenv("LLM_MODEL", "deepseek-v4-flash")
+    monkeypatch.setattr(app_config.settings, "llm_api_key", SERVER_ENV_KEY)
+    monkeypatch.setattr(app_config.settings, "llm_provider", "deepseek")
+    monkeypatch.setattr(app_config.settings, "llm_model", "deepseek-v4-flash")
     calls = _record_provider_calls(monkeypatch)
 
     response = client.post("/api/llm/test")
@@ -57,7 +60,7 @@ def test_anonymous_llm_test_with_server_env_key_is_unauthorized(monkeypatch):
 
 def test_anonymous_llm_test_with_client_headers_when_allowed_is_unauthorized(monkeypatch):
     # SEC-LLMTEST-03: auth boundary precedes Browser Key mode handling entirely.
-    monkeypatch.setattr(deps, "ALLOW_CLIENT_LLM_CONFIG", True)
+    monkeypatch.setattr(app_config.settings, "allow_client_llm_config", True)
     calls = _record_provider_calls(monkeypatch)
 
     response = client.post(
@@ -77,7 +80,7 @@ def test_anonymous_llm_test_with_client_headers_when_allowed_is_unauthorized(mon
 
 def test_anonymous_llm_test_with_client_headers_when_disabled_is_unauthorized(monkeypatch):
     # SEC-LLMTEST-04: 401, not the 403 client-config-disabled policy response.
-    monkeypatch.setattr(deps, "ALLOW_CLIENT_LLM_CONFIG", False)
+    monkeypatch.setattr(app_config.settings, "allow_client_llm_config", False)
     calls = _record_provider_calls(monkeypatch)
 
     response = client.post("/api/llm/test", headers={"x-llm-api-key": CLIENT_SECRET})
@@ -127,3 +130,11 @@ def test_anonymous_generate_verify_requires_auth():
 
 def test_anonymous_teacher_agent_requires_auth():
     assert client.post("/api/teacher-agent/runs", json={"goal": "plan a lesson"}).status_code == 401
+
+
+@pytest.fixture(autouse=True)
+def isolated_runtime_settings(monkeypatch):
+    monkeypatch.setattr(app_config, "settings", AppSettings(_env_file=None,
+        ENV="development", DEBUG=True, LLM_API_KEY="", DEEPSEEK_API_KEY="", GOOGLE_API_KEY="", GEMINI_API_KEY="",
+        LLM_PROVIDER="gemini", LLM_MODEL="", LLM_BASE_URL="", ALLOW_CLIENT_LLM_CONFIG=True,
+        ALLOW_CUSTOM_LLM_BASE_URL=False, CLIENT_LLM_ALLOWED_HOSTS=""))

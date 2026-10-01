@@ -39,7 +39,7 @@ def test_sync_parse_active_then_deleting_before_write_rejects(database, uploads,
     monkeypatch.setattr(rag, "parse_file_from_bytes", parse)
     file = UploadFile(filename="file.pdf", file=BytesIO(b"fixture"))
     with pytest.raises(HTTPException) as error:
-        asyncio.run(rag.rag_upload(file=file, knowledge_point="", chunk_type="question", llm_config=None, db=None, current_user=uploads))
+        asyncio.run(rag.rag_upload(file=file, knowledge_point="", chunk_type="question", embedding_config=None, db=None, current_user=uploads))
     assert error.value.status_code == 409
 
 
@@ -54,7 +54,7 @@ def test_queued_async_upload_rejects_deleting_or_recreated_same_id(database, upl
     task_id = "old-upload"
     rag._upload_status[task_id] = {"owner_user_id": 2, "owner_auth_subject": uploads.auth_subject, "status": "pending"}
     def run():
-        asyncio.run(rag._run_upload_task(task_id, b"fixture", "file.pdf", "", "question", "openai", "", "", "", 2, uploads.auth_subject))
+        asyncio.run(rag._run_upload_task(task_id, b"fixture", "file.pdf", "", "question", None, 2, uploads.auth_subject))
     try:
         with ThreadPoolExecutor(max_workers=1) as pool:
             future = pool.submit(run)
@@ -85,17 +85,20 @@ def test_queued_async_upload_rejects_deleting_or_recreated_same_id(database, upl
 
 def test_async_endpoint_captures_id_and_subject(uploads, monkeypatch):
     captured = []
+    captured_configs = []
     def schedule(coroutine):
+        captured_configs.append(coroutine.cr_frame.f_locals["embedding_config"])
         captured.append(coroutine)
         coroutine.close()
     monkeypatch.setattr(asyncio, "create_task", schedule)
     file = UploadFile(filename="file.pdf", file=BytesIO(b"fixture"))
     config = SimpleNamespace(provider="openai", api_key="", base_url="", model="")
-    response = asyncio.run(rag.rag_upload_async(file=file, knowledge_point="", chunk_type="question", llm_config=config, db=None, current_user=uploads))
+    response = asyncio.run(rag.rag_upload_async(file=file, knowledge_point="", chunk_type="question", embedding_config=config, db=None, current_user=uploads))
     import json
     task_id = json.loads(response.body)["task_id"]
     try:
         assert response.status_code == 202 and len(captured) == 1
+        assert captured_configs == [config]
         assert rag._upload_status[task_id]["owner_user_id"] == 2
         assert rag._upload_status[task_id]["owner_auth_subject"] == uploads.auth_subject
         assert asyncio.run(rag.rag_upload_status(task_id, uploads))["status"] == "pending"

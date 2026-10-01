@@ -1,3 +1,5 @@
+from app.core import config as app_config
+from app.core.config import AppSettings
 from fastapi.testclient import TestClient
 import os
 import subprocess
@@ -37,8 +39,8 @@ def mock_public_dns(monkeypatch):
         return [(2, 1, 6, "", ("93.184.216.34", port))]
 
     monkeypatch.setattr(deps.socket, "getaddrinfo", fake_getaddrinfo)
-    monkeypatch.delenv("ALLOW_CUSTOM_LLM_BASE_URL", raising=False)
-    monkeypatch.delenv("CLIENT_LLM_ALLOWED_HOSTS", raising=False)
+    monkeypatch.setattr(app_config.settings, "allow_custom_llm_base_url", False)
+    monkeypatch.setattr(app_config.settings, "client_llm_allowed_hosts", "")
 
 
 @pytest.fixture
@@ -78,7 +80,7 @@ def test_llm_test_uses_client_headers_when_allowed(monkeypatch, authenticated_te
         assert llm_config.model == "deepseek-v4-flash"
         return "ok"
 
-    monkeypatch.setattr(deps, "ALLOW_CLIENT_LLM_CONFIG", True)
+    monkeypatch.setattr(app_config.settings, "allow_client_llm_config", True)
     monkeypatch.setattr(llm_endpoint, "call_llm_async", fake_call)
 
     response = client.post(
@@ -100,11 +102,11 @@ def test_llm_test_uses_client_headers_when_allowed(monkeypatch, authenticated_te
 
 
 def test_llm_test_uses_server_env_key_when_authenticated(monkeypatch, authenticated_teacher):
-    monkeypatch.setattr(deps, "ALLOW_CLIENT_LLM_CONFIG", False)
-    monkeypatch.setenv("LLM_API_KEY", SERVER_ENV_KEY)
-    monkeypatch.setenv("LLM_PROVIDER", "deepseek")
-    monkeypatch.setenv("LLM_MODEL", "deepseek-v4-flash")
-    monkeypatch.delenv("LLM_BASE_URL", raising=False)
+    monkeypatch.setattr(app_config.settings, "allow_client_llm_config", False)
+    monkeypatch.setattr(app_config.settings, "llm_api_key", SERVER_ENV_KEY)
+    monkeypatch.setattr(app_config.settings, "llm_provider", "deepseek")
+    monkeypatch.setattr(app_config.settings, "llm_model", "deepseek-v4-flash")
+    monkeypatch.setattr(app_config.settings, "llm_base_url", "")
     calls = _record_provider_calls(monkeypatch)
 
     response = client.post("/api/llm/test")
@@ -120,7 +122,7 @@ def test_llm_test_uses_server_env_key_when_authenticated(monkeypatch, authentica
 
 
 def test_llm_test_rejects_client_headers_when_disabled(monkeypatch, authenticated_teacher):
-    monkeypatch.setattr(deps, "ALLOW_CLIENT_LLM_CONFIG", False)
+    monkeypatch.setattr(app_config.settings, "allow_client_llm_config", False)
     calls = _record_provider_calls(monkeypatch)
 
     response = client.post("/api/llm/test", headers={"x-llm-api-key": CLIENT_SECRET})
@@ -131,8 +133,8 @@ def test_llm_test_rejects_client_headers_when_disabled(monkeypatch, authenticate
 
 
 def test_production_rejects_client_headers_even_when_flag_is_true(monkeypatch, authenticated_teacher):
-    monkeypatch.setattr(deps, "ALLOW_CLIENT_LLM_CONFIG", True)
-    monkeypatch.setattr(deps, "IS_PRODUCTION", True)
+    monkeypatch.setattr(app_config.settings, "allow_client_llm_config", True)
+    monkeypatch.setattr(app_config.settings, "env", "production")
     calls = _record_provider_calls(monkeypatch)
 
     response = client.post(
@@ -156,11 +158,11 @@ def test_runtime_status_requires_authentication():
 
 
 def test_runtime_status_exposes_only_safe_server_configuration(monkeypatch, authenticated_teacher):
-    monkeypatch.setenv("LLM_API_KEY", SERVER_ENV_KEY)
-    monkeypatch.setenv("LLM_PROVIDER", "deepseek")
-    monkeypatch.setenv("LLM_MODEL", "deepseek-v4-flash")
-    monkeypatch.setattr(deps, "ALLOW_CLIENT_LLM_CONFIG", True)
-    monkeypatch.setattr(deps, "IS_PRODUCTION", True)
+    monkeypatch.setattr(app_config.settings, "llm_api_key", SERVER_ENV_KEY)
+    monkeypatch.setattr(app_config.settings, "llm_provider", "deepseek")
+    monkeypatch.setattr(app_config.settings, "llm_model", "deepseek-v4-flash")
+    monkeypatch.setattr(app_config.settings, "allow_client_llm_config", True)
+    monkeypatch.setattr(app_config.settings, "env", "production")
 
     response = client.get("/api/llm/status")
     assert response.status_code == 200
@@ -199,9 +201,9 @@ def test_production_config_hard_disables_client_override_in_fresh_process():
 
 
 def test_runtime_status_does_not_echo_server_key_inside_a_label(monkeypatch, authenticated_teacher):
-    monkeypatch.setenv("LLM_API_KEY", SERVER_ENV_KEY)
-    monkeypatch.setenv("LLM_PROVIDER", "deepseek")
-    monkeypatch.setenv("LLM_MODEL", SERVER_ENV_KEY)
+    monkeypatch.setattr(app_config.settings, "llm_api_key", SERVER_ENV_KEY)
+    monkeypatch.setattr(app_config.settings, "llm_provider", "deepseek")
+    monkeypatch.setattr(app_config.settings, "llm_model", SERVER_ENV_KEY)
 
     response = client.get("/api/llm/status")
 
@@ -215,7 +217,7 @@ def test_runtime_status_does_not_echo_server_key_inside_a_label(monkeypatch, aut
 def test_llm_test_rejects_untrusted_client_base_url_without_echoing_secrets(
     monkeypatch, authenticated_teacher
 ):
-    monkeypatch.setattr(deps, "ALLOW_CLIENT_LLM_CONFIG", True)
+    monkeypatch.setattr(app_config.settings, "allow_client_llm_config", True)
 
     response = client.post(
         "/api/llm/test",
@@ -235,7 +237,7 @@ def test_llm_test_rejects_untrusted_client_base_url_without_echoing_secrets(
 
 
 def test_llm_test_rejects_custom_by_default(monkeypatch, authenticated_teacher):
-    monkeypatch.setattr(deps, "ALLOW_CLIENT_LLM_CONFIG", True)
+    monkeypatch.setattr(app_config.settings, "allow_client_llm_config", True)
 
     response = client.post(
         "/api/llm/test",
@@ -253,10 +255,10 @@ def test_llm_test_rejects_custom_by_default(monkeypatch, authenticated_teacher):
 
 
 def test_llm_test_missing_key_is_clear(monkeypatch, authenticated_teacher):
-    monkeypatch.setattr(deps, "ALLOW_CLIENT_LLM_CONFIG", False)
-    monkeypatch.delenv("LLM_API_KEY", raising=False)
-    monkeypatch.setenv("LLM_PROVIDER", "deepseek")
-    monkeypatch.setenv("LLM_MODEL", "deepseek-v4-flash")
+    monkeypatch.setattr(app_config.settings, "allow_client_llm_config", False)
+    monkeypatch.setattr(app_config.settings, "llm_api_key", "")
+    monkeypatch.setattr(app_config.settings, "llm_provider", "deepseek")
+    monkeypatch.setattr(app_config.settings, "llm_model", "deepseek-v4-flash")
     calls = _record_provider_calls(monkeypatch)
 
     response = client.post("/api/llm/test")
@@ -267,3 +269,11 @@ def test_llm_test_missing_key_is_clear(monkeypatch, authenticated_teacher):
     assert data["code"] == "missing_key"
     assert "API Key" in data["message"]
     assert calls == []
+
+
+@pytest.fixture(autouse=True)
+def isolated_runtime_settings(monkeypatch):
+    monkeypatch.setattr(app_config, "settings", AppSettings(_env_file=None,
+        ENV="development", DEBUG=True, LLM_API_KEY="", DEEPSEEK_API_KEY="", GOOGLE_API_KEY="", GEMINI_API_KEY="",
+        LLM_PROVIDER="gemini", LLM_MODEL="", LLM_BASE_URL="", ALLOW_CLIENT_LLM_CONFIG=True,
+        ALLOW_CUSTOM_LLM_BASE_URL=False, CLIENT_LLM_ALLOWED_HOSTS=""))

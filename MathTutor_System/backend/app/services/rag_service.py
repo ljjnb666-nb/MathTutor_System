@@ -7,6 +7,7 @@ from typing import Any
 from langchain_chroma import Chroma
 
 from app.core.deps import LLMConfig
+from app.core.ai_runtime import EmbeddingConfig
 from app.services.rag_document_store import (
     COLLECTION_NAME,
     PERSIST_DIR,
@@ -24,10 +25,7 @@ from app.services.rag_document_store import (
     rag_list_documents_no_auth,
     registry_add as _registry_add,
 )
-from app.services.rag_embedding_factory import (
-    create_embeddings as _create_embeddings,
-    create_embeddings_from_config as _create_embeddings_from_config,
-)
+from app.services.rag_embedding_factory import create_embeddings as _create_embeddings, build_embeddings
 from app.services.rag_text_utils import (
     HYBRID_CANDIDATES,
     format_context_with_sources,
@@ -45,16 +43,8 @@ RELAXED_SEARCH_K = 15
 
 
 class RAGService:
-    def __init__(self, llm_config: LLMConfig | None = None) -> None:
-        if llm_config is not None and (llm_config.api_key or "").strip():
-            self.embeddings = _create_embeddings_from_config(
-                llm_config.provider,
-                llm_config.api_key,
-                llm_config.base_url,
-                llm_config.model,
-            )
-        else:
-            self.embeddings = _create_embeddings()
+    def __init__(self, llm_config: LLMConfig | None = None, *, embedding_config: EmbeddingConfig | None = None) -> None:
+        self.embeddings = build_embeddings(embedding_config) if embedding_config is not None else _create_embeddings(llm_config)
         PERSIST_DIR.mkdir(parents=True, exist_ok=True)
         self.vector_store = Chroma(
             collection_name=COLLECTION_NAME,
@@ -354,8 +344,10 @@ def _owner_filter(owner_user_id: int | None, knowledge_point: str | None) -> dic
     return clauses[0] if len(clauses) == 1 else {"$and": clauses}
 
 
-def get_rag_service(llm_config: LLMConfig | None = None) -> RAGService:
+def get_rag_service(llm_config: LLMConfig | None = None, *, embedding_config: EmbeddingConfig | None = None) -> RAGService:
     global _rag_service
+    if embedding_config is not None:
+        return RAGService(embedding_config=embedding_config)
     if llm_config is not None and (llm_config.api_key or "").strip():
         return RAGService(llm_config=llm_config)
     if _rag_service is None:

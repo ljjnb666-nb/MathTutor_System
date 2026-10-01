@@ -3,9 +3,11 @@ import json
 import logging
 from typing import Any
 
+import httpx
 from openai import OpenAI
 
-from app.core.config import AI_REQUEST_TIMEOUT, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL
+from app.core.config import get_settings
+from app.core.ai_runtime import LLMConfig, resolve_llm_arguments, assert_resolved_llm_config
 from app.core.llm_sanitize import external_error_type
 from app.services.json_repair_utils import strip_json_markdown
 
@@ -51,32 +53,35 @@ def generate_lecture_content(
     api_key: str | None = None,
     base_url: str | None = None,
     model: str | None = None,
+    llm_config: LLMConfig | None = None,
 ) -> dict[str, Any]:
     """
     Generate structured lecture content JSON using an OpenAI-compatible provider.
     Request-level config takes precedence over env fallback.
     """
-    key = (api_key or "").strip() or DEEPSEEK_API_KEY
-    if not key:
-        raise ValueError(
-            "未配置 API Key。请在前端「设置」中选择 DeepSeek 并填写 API Key 后保存，或在 .env 中设置 DEEPSEEK_API_KEY。"
-        )
-
-    url = (base_url or "").strip() or DEEPSEEK_BASE_URL
-    model_name = (model or "").strip() or DEEPSEEK_MODEL
+    config = llm_config or resolve_llm_arguments(get_settings(), api_key=api_key or "", base_url=base_url or "", model=model or "")
+    spec = assert_resolved_llm_config(config)
+    key, url, model_name = config.api_key, config.base_url, config.model
     user_content = f"Topic: {topic}\nGrade level: {grade}"
 
     try:
-        client = OpenAI(base_url=url, api_key=key, timeout=float(AI_REQUEST_TIMEOUT))
-        resp = client.chat.completions.create(
-            model=model_name,
-            messages=[
-                {"role": "system", "content": LECTURE_SYSTEM_PROMPT},
-                {"role": "user", "content": user_content},
-            ],
-            temperature=0.5,
-        )
-        raw = (resp.choices[0].message.content or "").strip()
+        if spec.transport == "gemini":
+            from app.services.gemini_rest_service import gemini_rest_text_sync
+            raw = gemini_rest_text_sync(f"{LECTURE_SYSTEM_PROMPT}\n{user_content}", key, model_name,
+                request_timeout=config.request_timeout, base_url=config.base_url,
+                api_version=config.api_version, proxy_url=config.proxy_url)
+        else:
+            client = OpenAI(base_url=url, api_key=key, timeout=float(config.request_timeout), max_retries=config.max_retries,
+                http_client=httpx.Client(proxy=config.proxy_url or None, trust_env=False, follow_redirects=False))
+            resp = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": LECTURE_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_content},
+                ],
+                temperature=0.5,
+            )
+            raw = (resp.choices[0].message.content or "").strip()
         cleaned = clean_json_string(raw)
         data = json.loads(cleaned)
         if not isinstance(data, dict):

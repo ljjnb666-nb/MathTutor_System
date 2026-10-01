@@ -13,7 +13,8 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.api.endpoints.auth import get_current_user
-from app.core.deps import LLMConfig, get_llm_config
+from app.core.deps import get_embedding_config
+from app.core.ai_runtime import AIConfigError, EmbeddingConfig
 from app.core.subscription import get_current_subscription, require_feature
 from app.models.base import get_db
 from app.models.user import User
@@ -135,9 +136,9 @@ async def rag_upload(
     file: UploadFile = File(...),
     knowledge_point: str = Form(""),
     chunk_type: str = Form("question"),
-    llm_config: LLMConfig = Depends(get_llm_config),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    embedding_config: EmbeddingConfig = Depends(get_embedding_config),
 ):
     _require_rag(current_user, db)
     owner_user_id, owner_auth_subject = current_user.id, current_user.auth_subject
@@ -148,7 +149,7 @@ async def rag_upload(
             raise HTTPException(status_code=400, detail="Parsed document is empty")
         document_id = write_rag_for_account_instance(
             owner_user_id, owner_auth_subject,
-            lambda: get_rag_service(llm_config=llm_config).add_document(
+            lambda: get_rag_service(embedding_config=embedding_config).add_document(
                 text,
                 filename,
                 owner_user_id=owner_user_id,
@@ -161,6 +162,8 @@ async def rag_upload(
         raise HTTPException(status_code=409, detail=str(exc)) from None
     except HTTPException:
         raise
+    except AIConfigError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="RAG_UPLOAD_ERROR: 文档无法处理，请检查文件格式后重试。") from None
     except Exception as exc:
@@ -173,17 +176,14 @@ def _do_upload_sync(
     filename: str,
     knowledge_point: str,
     chunk_type: str,
-    provider: str,
-    api_key: str,
-    base_url: str,
-    model: str,
+    embedding_config: EmbeddingConfig,
     owner_user_id: int,
     owner_auth_subject: str,
 ) -> str | None:
     text = parse_file_from_bytes(file_bytes, filename)
     if not text.strip():
         raise ValueError("Parsed document is empty")
-    rag = get_rag_service(LLMConfig(provider=provider, api_key=api_key, base_url=base_url, model=model))
+    rag = get_rag_service(embedding_config=embedding_config)
     return write_rag_for_account_instance(owner_user_id, owner_auth_subject, lambda: rag.add_document(
         text,
         filename,
@@ -199,10 +199,7 @@ async def _run_upload_task(
     filename: str,
     knowledge_point: str,
     chunk_type: str,
-    provider: str,
-    api_key: str,
-    base_url: str,
-    model: str,
+    embedding_config: EmbeddingConfig,
     owner_user_id: int,
     owner_auth_subject: str,
 ) -> None:
@@ -217,10 +214,7 @@ async def _run_upload_task(
                 filename,
                 knowledge_point,
                 chunk_type,
-                provider,
-                api_key,
-                base_url,
-                model,
+                embedding_config,
                 owner_user_id,
                 owner_auth_subject,
             ),
@@ -230,6 +224,8 @@ async def _run_upload_task(
         )
     except StaleRAGAccountError as exc:
         _upload_status[task_id].update({"status": "failed", "error": str(exc), "message": str(exc)})
+    except AIConfigError as exc:
+        _upload_status[task_id].update({"status": "failed", "error": str(exc), "message": exc.message})
     except Exception as exc:
         logger.error("RAG async upload failed external_error_type=%s", type(exc).__name__)
         _upload_status[task_id].update({"status": "failed", "error": "Upload failed", "filename": filename})
@@ -240,9 +236,9 @@ async def rag_upload_async(
     file: UploadFile = File(...),
     knowledge_point: str = Form(""),
     chunk_type: str = Form("question"),
-    llm_config: LLMConfig = Depends(get_llm_config),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    embedding_config: EmbeddingConfig = Depends(get_embedding_config),
 ):
     _require_rag(current_user, db)
     filename, file_bytes = await _read_validated_rag_upload(file)
@@ -263,10 +259,7 @@ async def rag_upload_async(
             filename,
             (knowledge_point or "").strip(),
             (chunk_type or "question").strip() or "question",
-            llm_config.provider,
-            llm_config.api_key,
-            llm_config.base_url,
-            llm_config.model,
+            embedding_config,
             current_user.id,
             current_user.auth_subject,
         )

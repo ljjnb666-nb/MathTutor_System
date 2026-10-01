@@ -45,11 +45,8 @@ from app.services.question_json_parser import (
 logger = logging.getLogger(__name__)
 
 
-MAX_RETRIES = 2
 # 并发生成时提高 temperature 保证多样性（0.7–0.9）
 PARALLEL_TEMPERATURE = 0.8
-# LLM 单次请求超时（秒），试卷/多题生成时建议 120+ 避免长输出超时
-LLM_REQUEST_TIMEOUT = 120
 
 
 async def _generate_single(

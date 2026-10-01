@@ -241,7 +241,8 @@ server {
 
 - **DATABASE_URL**：默认 SQLite（`backend/math_tutor.db`），可改为其他数据库。
 - **LLM_API_KEY / LLM_PROVIDER / LLM_MODEL**：智能出题回退配置（未在前端设置时使用）。
-- **DEEPSEEK_API_KEY、DEEPSEEK_BASE_URL、DEEPSEEK_MODEL**：Word 解析、Magic PPT 等未传请求头时的回退配置。
+- **DEEPSEEK_API_KEY、DEEPSEEK_BASE_URL、DEEPSEEK_MODEL**：服务器 `LLM_PROVIDER=deepseek` 时的兼容配置；所有 AI 入口统一解析，浏览器配置必须提供自己的 Key。
+- **EMBEDDING_PROVIDER / EMBEDDING_API_KEY / EMBEDDING_BASE_URL / EMBEDDING_MODEL**：独立 RAG 向量配置，详见 [AI runtime 配置](MathTutor_System/docs/ai-runtime-config.md)。
 - **LLM_HTTPS_PROXY 或 HTTPS_PROXY**：部分地区访问 Google Gemini 时需配置代理。
 - **AI_REQUEST_TIMEOUT**：AI 请求超时秒数，默认 120。
 - **ENV=production、DEBUG=0**：生产标识与调试开关。
