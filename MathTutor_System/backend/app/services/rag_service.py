@@ -10,8 +10,12 @@ from app.core.deps import LLMConfig
 from app.services.rag_document_store import (
     COLLECTION_NAME,
     PERSIST_DIR,
+    _delete_and_verify,
     rag_delete_by_source_no_auth,
     rag_delete_document,
+    rag_delete_ownerless_source,
+    rag_mutation_guard,
+    validate_owner_user_id,
     rag_delete_owned_by_source,
     rag_get_chunks,
     rag_get_chunks_by_source_no_auth,
@@ -81,6 +85,15 @@ class RAGService:
             logger.warning("RAG: no valid chunks after filtering source=%s", source)
             return None
 
+        if owner_user_id is not None:
+            validate_owner_user_id(owner_user_id)
+        with rag_mutation_guard():
+            return self._add_document_locked(chunks, source, owner_user_id, doc_id, kp, ct, metadata)
+
+    def _add_document_locked(
+        self, chunks: list[str], source: str, owner_user_id: int | None,
+        doc_id: str, kp: str, ct: str, metadata: dict | None,
+    ) -> str:
         old_document_ids = []
         if owner_user_id is not None:
             old_document_ids = [
@@ -305,36 +318,25 @@ class RAGService:
 
     def _delete_document_chunks_only(self, owner_user_id: int, document_id: str) -> int:
         try:
-            coll = getattr(self.vector_store, "_collection", None)
-            if coll is None:
-                return 0
-            data = coll.get(
-                where={"$and": [{"owner_user_id": int(owner_user_id)}, {"document_id": document_id}]},
-                include=["metadatas"],
-            )
-            ids = data.get("ids") or []
-            if ids:
-                coll.delete(ids=ids)
-            return len(ids)
+            with rag_mutation_guard():
+                coll = getattr(self.vector_store, "_collection", None)
+                if coll is None:
+                    return 0
+                return _delete_and_verify(
+                    coll,
+                    {"$and": [{"owner_user_id": owner_user_id}, {"document_id": document_id}]},
+                    lambda meta: type(meta.get("owner_user_id")) is int
+                    and meta["owner_user_id"] == owner_user_id
+                    and meta.get("document_id") == document_id,
+                )
         except Exception as exc:
             logger.warning("RAG temporary document cleanup failed external_error_type=%s", type(exc).__name__)
             return 0
 
     def delete_by_source(self, source: str) -> int:
-        if not (source and str(source).strip()):
-            return 0
-        try:
+        with rag_mutation_guard():
             coll = getattr(self.vector_store, "_collection", None)
-            if coll is None:
-                return 0
-            data = coll.get(where={"source": source.strip()}, include=[])
-            ids = data.get("ids") or []
-            if ids:
-                coll.delete(ids=ids)
-            return len(ids)
-        except Exception as exc:
-            logger.warning("RAG delete_by_source failed external_error_type=%s", type(exc).__name__)
-            raise
+            return rag_delete_ownerless_source(source, collection=coll)
 
 
 _rag_service: RAGService | None = None
