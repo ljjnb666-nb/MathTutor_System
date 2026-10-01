@@ -4,6 +4,7 @@ Set TUTORPRO_TEST_POSTGRES_URL to an isolated test database URL to enable this
 integration test. The suite intentionally does not fall back to a mock or SQLite.
 """
 import os
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import create_engine, inspect, text
@@ -43,8 +44,9 @@ def test_postgresql_database_cascades_user_delete_through_practice_graph():
 
         with engine.begin() as connection:
             user_id = connection.execute(
-                text("INSERT INTO users (username, hashed_password, is_active, role, created_at) "
-                     "VALUES ('pg-delete-owner', 'x', true, 'teacher', CURRENT_TIMESTAMP) RETURNING id")
+                text("INSERT INTO users (auth_subject, username, hashed_password, is_active, role, created_at) "
+                     "VALUES (:subject, 'pg-delete-owner', 'x', true, 'teacher', CURRENT_TIMESTAMP) RETURNING id"),
+                {"subject": str(uuid4())},
             ).scalar_one()
             run_id = connection.execute(
                 text("INSERT INTO agent_runs (user_id, goal, status, context_snapshot_json, created_at, updated_at) "

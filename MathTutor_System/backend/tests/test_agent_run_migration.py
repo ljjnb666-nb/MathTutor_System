@@ -39,6 +39,8 @@ def test_agent_runs_migration_upgrade_downgrade_retry_preserves_users(request):
     engine = create_engine(db_url)
     Base.metadata.create_all(engine, tables=[User.__table__])
     with engine.begin() as conn:
+        conn.execute(text("DROP INDEX ix_users_auth_subject"))
+        conn.execute(text("ALTER TABLE users DROP COLUMN auth_subject"))
         conn.execute(
             text(
                 "insert into users (id, username, hashed_password, is_active, role, created_at) "

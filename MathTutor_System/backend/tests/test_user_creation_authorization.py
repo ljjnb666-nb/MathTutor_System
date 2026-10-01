@@ -12,6 +12,8 @@ from app.models.student import Student
 from app.models.subscription import Subscription
 from app.models.user import User
 
+SUBJECT = "3d9eea70-843e-43d6-a4ae-a9aab091acd1"
+
 
 @pytest.fixture
 def creation_db():
@@ -36,7 +38,7 @@ def client(creation_db):
 
 
 def seed_user(db, role):
-    user = User(username="12", hashed_password=get_password_hash("creation-test-password"), role=role, is_active=True)
+    user = User(username="12", auth_subject=SUBJECT, hashed_password=get_password_hash("creation-test-password"), role=role, is_active=True)
     db.add(user)
     db.flush()
     db.add(Subscription(user_id=user.id, plan_id=db.query(Plan).one().id, status="active"))
@@ -67,7 +69,7 @@ def test_fresh_database_cannot_bootstrap_through_http(client, creation_db, paylo
 
 
 @pytest.mark.parametrize("payload,role,status", [(None, "admin", 401),
-    ({"sub": "12", "type": "teacher"}, "teacher", 403),
+    ({"sub": SUBJECT, "uid": 1, "username": "12", "type": "teacher"}, "teacher", 403),
     ({"sub": "12", "type": "student"}, "admin", 401)],
     ids=["anonymous-existing-db", "non-admin-teacher", "student-admin-collision"])
 def test_denied_creation_has_no_user_or_subscription_mutation(client, creation_db, payload, role, status):
@@ -87,18 +89,31 @@ def test_denied_creation_has_no_user_or_subscription_mutation(client, creation_d
     assert creation_db.query(User).filter(User.username == "new-user").first() is None
 
 
-@pytest.mark.parametrize("payload", [{"sub": "12", "type": "teacher"}, {"sub": "12"}],
-                         ids=["typed-admin", "legacy-admin"])
-def test_admin_creation_preserves_default_subscription(client, creation_db, payload):
+def test_admin_creation_preserves_default_subscription(client, creation_db):
     # 2B4-AUTH-06/07: real authentication and existing service with a free plan.
-    seed_user(creation_db, "admin")
-    response = create_request(client, payload)
+    admin = seed_user(creation_db, "admin")
+    response = create_request(client, {"sub": admin.auth_subject, "uid": admin.id, "username": admin.username, "type": "teacher"})
     assert response.status_code == 201
     user = creation_db.query(User).filter(User.username == "new-user").one()
     assert response.json()["id"] == user.id
     assert user.role == "admin"
+    from uuid import UUID
+    assert UUID(user.auth_subject).version == 4
+    assert user.auth_subject != admin.auth_subject
     assert counts(creation_db) == (2, 2)
     sub = creation_db.query(Subscription).filter(Subscription.user_id == user.id).one()
     assert sub.plan_id == creation_db.query(Plan).filter(Plan.code == "free").one().id
     assert sub.status == "active"
     assert sub.period_end is None
+
+
+@pytest.mark.parametrize("payload", [{"sub": "12"}, {"sub": "12", "type": "teacher"}])
+def test_legacy_admin_creation_is_rejected_without_instance_binding(client, creation_db, payload):
+    # PHASE 2B-5A intentionally ends the 2B-4 legacy admin session compatibility.
+    seed_user(creation_db, "admin")
+    before = counts(creation_db)
+    response = create_request(client, payload)
+    assert response.status_code == 401
+    assert response.headers.get("www-authenticate") == "Bearer"
+    assert counts(creation_db) == before
+    assert creation_db.query(User).filter(User.username == "new-user").first() is None

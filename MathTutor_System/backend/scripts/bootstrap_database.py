@@ -11,6 +11,7 @@ migration.
 
 from pathlib import Path
 import sys
+from uuid import UUID
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 if str(BACKEND_DIR) not in sys.path:
@@ -18,7 +19,7 @@ if str(BACKEND_DIR) not in sys.path:
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import inspect
+from sqlalchemy import inspect, text
 from sqlalchemy.engine import Inspector
 
 from app.core.db_seed import seed_default_data
@@ -28,6 +29,7 @@ from app.models.base import Base, engine
 
 BASELINE_REVISION = "388fe57f097c"
 AGENT_RUNS_REVISION = "7f1f4d9a2c10"
+PRE_AUTH_SUBJECT_REVISION = "f2b9c7a41d63"
 OWNER_TABLES = ("questions", "question_bank", "exams")
 POST_AGENT_RUNS_TABLES = frozenset(("agent_artifacts", "agent_actions"))
 
@@ -80,7 +82,7 @@ def _agent_runs_matches_previous_head(inspector: Inspector) -> bool:
     return not _agent_runs_signature_problems(inspector)
 
 
-def _base_schema_signature_problems(inspector: Inspector, *, previous_head: bool) -> list[str]:
+def _base_schema_signature_problems(inspector: Inspector, *, previous_head: bool, pre_auth_subject: bool = False) -> list[str]:
     """应用基础 schema（agent_runs 除外）缺失的表/列清单；空列表表示签名匹配。
 
     期望签名从 Base.metadata 派生，避免校验器与 ORM 漂移：
@@ -100,6 +102,9 @@ def _base_schema_signature_problems(inspector: Inspector, *, previous_head: bool
             # before reconciliation has a chance to apply that migration.
             continue
         expected_columns = {column.name for column in table.columns}
+        # auth_subject was introduced after both supported historical signatures.
+        if name == "users" and (previous_head or pre_auth_subject):
+            expected_columns.discard("auth_subject")
         if previous_head and name in OWNER_TABLES:
             expected_columns.discard("owner_user_id")
         if name not in tables:
@@ -128,6 +133,53 @@ def _owner_head_signature_problems(inspector: Inspector) -> list[str]:
     return problems
 
 
+def _auth_subject_signature_problems(inspector: Inspector) -> list[str]:
+    columns = {column["name"]: column for column in inspector.get_columns("users")}
+    column = columns.get("auth_subject")
+    if column is None:
+        return ["users: auth_subject column is missing"]
+    problems = []
+    if column["nullable"] or getattr(column["type"], "length", None) != 36:
+        problems.append("users: auth_subject must be NOT NULL VARCHAR(36)")
+    indexes = inspector.get_indexes("users")
+    if not any(index["name"] == "ix_users_auth_subject" and index.get("unique")
+               and index["column_names"] == ["auth_subject"] for index in indexes):
+        problems.append("users: unique index ix_users_auth_subject is missing")
+    with engine.connect() as connection:
+        subjects = connection.execute(text("SELECT auth_subject FROM users")).scalars().all()
+    try:
+        valid = all(isinstance(subject, str) and str(UUID(subject)) == subject for subject in subjects)
+    except ValueError:
+        valid = False
+    if not valid or len(set(subjects)) != len(subjects):
+        problems.append("users: auth_subject data contains NULL, invalid UUID, or duplicate values")
+    return problems
+
+
+def _practice_head_signature_problems(inspector: Inspector) -> list[str]:
+    """Positive verification of the f2b9c7a41d63 indexes and cascade FK signature."""
+    problems = []
+    tables = set(inspector.get_table_names())
+    for name in ("agent_runs", "agent_artifacts", "agent_actions"):
+        if name not in tables:
+            problems.append(f"missing table: {name}")
+            continue
+        table = Base.metadata.tables[name]
+        indexes = {index["name"] for index in inspector.get_indexes(name)}
+        for index in table.indexes:
+            if index.name not in indexes:
+                problems.append(f"{name}: missing index {index.name}")
+        foreign_keys = inspector.get_foreign_keys(name)
+        for fk in table.foreign_keys:
+            if not any(item["constrained_columns"] == [fk.parent.name]
+                       and item["referred_table"] == fk.column.table.name
+                       and item["referred_columns"] == [fk.column.name]
+                       and item.get("options", {}).get("ondelete") == fk.ondelete
+                       for item in foreign_keys):
+                problems.append(f"{name}: missing cascade foreign key for {fk.parent.name}")
+    return problems
+
+
 def _reconcile() -> None:
     config = _build_alembic_config()
     inspector = inspect(engine)
@@ -145,6 +197,9 @@ def _reconcile() -> None:
         command.upgrade(config, "head")
         return
 
+    if "users" not in tables:
+        raise BootstrapDatabaseError("Cannot reconcile legacy database: users is missing. Manual migration required.")
+
     # 无 alembic_version 的历史数据库（create_superuser / Base.metadata 直接建库）。
     owner_column_states = {}
     for table in OWNER_TABLES:
@@ -160,10 +215,13 @@ def _reconcile() -> None:
         # STATE D：由新 Base.metadata 建库，schema 已等同于 head -> 仅补标记，不重放迁移。
         # owner 列 + agent_runs 签名正确不代表完整：全部应用表/列与 owner 索引/FK 元数据
         # 也必须齐全，否则不得补 head 标记。
+        has_auth_subject = "auth_subject" in {column["name"] for column in inspector.get_columns("users")}
         problems = (
             _agent_runs_signature_problems(inspector)
             + _owner_head_signature_problems(inspector)
-            + _base_schema_signature_problems(inspector, previous_head=False)
+            + _base_schema_signature_problems(inspector, previous_head=False, pre_auth_subject=not has_auth_subject)
+            + _practice_head_signature_problems(inspector)
+            + (_auth_subject_signature_problems(inspector) if has_auth_subject else [])
         )
         if problems:
             raise BootstrapDatabaseError(
@@ -171,7 +229,11 @@ def _reconcile() -> None:
                 + "; ".join(problems)
                 + "). Manual migration required."
             )
-        command.stamp(config, "head")
+        if has_auth_subject:
+            command.stamp(config, "head")
+        else:
+            command.stamp(config, PRE_AUTH_SUBJECT_REVISION)
+            command.upgrade(config, "head")
         return
 
     if any(owner_column_states.values()):
@@ -186,6 +248,8 @@ def _reconcile() -> None:
     # 无 owner 列的无版本库：只能证明"早于 owner 迁移"，具体补哪个历史版本
     # 仍需正向验证完整应用基础 schema（agent_runs 除外）后才允许标记。
     previous_head_problems = _base_schema_signature_problems(inspector, previous_head=True)
+    if "users" in tables and "auth_subject" in {column["name"] for column in inspector.get_columns("users")}:
+        previous_head_problems.append("users: auth_subject is present in a mixed historical schema")
     if "agent_runs" in tables:
         # STATE C：表存在不足以证明 7f1f4d9a2c10 已应用；签名完全一致才补标记后升级。
         if not _agent_runs_matches_previous_head(inspector):
