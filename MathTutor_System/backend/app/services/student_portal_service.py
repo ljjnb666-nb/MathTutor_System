@@ -1,5 +1,6 @@
 """Business logic for the student-facing portal."""
 from datetime import UTC, date, datetime, timedelta
+from uuid import UUID
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
@@ -31,10 +32,27 @@ def _auth_error(detail: str) -> StudentPortalServiceError:
     return StudentPortalServiceError(401, detail, authenticate_header=True)
 
 
-def _validate_student_owner(db: Session, student: Student) -> None:
-    owner = db.query(User).filter(User.id == student.user_id).populate_existing().first()
+def _validate_student_owner(db: Session, student: Student, *, auth_subject: str | None = None) -> User:
+    query = db.query(User).filter(User.id == student.user_id)
+    if auth_subject is not None:
+        query = query.filter(User.auth_subject == auth_subject)
+    owner = query.populate_existing().first()
     if owner is None or not owner.is_active or owner.deletion_state != USER_DELETION_ACTIVE:
         raise _auth_error("学生所属账号已禁用")
+    return owner
+
+
+def _canonical_subject(value) -> bool:
+    if not isinstance(value, str):
+        return False
+    try:
+        return str(UUID(value)) == value
+    except ValueError:
+        return False
+
+
+def _positive_id(value) -> bool:
+    return type(value) is int and 0 < value <= 2**63 - 1
 
 
 def get_current_student_from_token(db: Session, token: str | None) -> Student:
@@ -47,37 +65,38 @@ def get_current_student_from_token(db: Session, token: str | None) -> Student:
         raise _auth_error("无效的 Token")
 
     sub = payload.get("sub")
-    if not sub:
-        raise _auth_error("无效的 Token 载荷")
-    try:
-        student_id = int(sub)
-    except (TypeError, ValueError):
+    sid = payload.get("sid")
+    owner_uid = payload.get("owner_uid")
+    owner_sub = payload.get("owner_sub")
+    if (not _canonical_subject(sub) or not _canonical_subject(owner_sub)
+            or not _positive_id(sid) or not _positive_id(owner_uid)):
         raise _auth_error("无效的 Token 载荷")
 
-    student = db.get(Student, student_id)
-    if not student:
+    student = db.query(Student).filter(Student.auth_subject == sub).populate_existing().first()
+    if not student or student.id != sid or student.user_id != owner_uid:
         raise _auth_error("学生不存在")
     if not student.login_code or not student.login_code.strip():
         raise _auth_error("该账号未开通学生端登录")
-    if student.user_id is None:
-        raise _auth_error("学生不存在")
-    _validate_student_owner(db, student)
+    _validate_student_owner(db, student, auth_subject=owner_sub)
     return student
 
 
 def login_student(db: Session, login_code: str, password: str | None) -> Token:
-    student = db.query(Student).filter(Student.login_code == login_code.strip()).first()
+    student = db.query(Student).filter(Student.login_code == login_code.strip()).populate_existing().first()
     if not student or student.user_id is None:
         raise _auth_error("登录码或密码错误")
 
-    _validate_student_owner(db, student)
+    owner = _validate_student_owner(db, student)
     if student.hashed_password and student.hashed_password.strip():
         if not password or not password.strip():
             raise _auth_error("请输入密码")
         if not verify_password(password, student.hashed_password):
             raise _auth_error("登录码或密码错误")
 
-    access_token = create_access_token(data={"sub": str(student.id), "type": "student"})
+    access_token = create_access_token(data={
+        "type": "student", "sub": student.auth_subject, "sid": student.id,
+        "owner_uid": owner.id, "owner_sub": owner.auth_subject,
+    })
     return Token(access_token=access_token, token_type="bearer")
 
 

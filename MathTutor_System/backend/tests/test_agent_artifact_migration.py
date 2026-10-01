@@ -4,6 +4,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from tests.schema_history import drop_student_auth_subject
+
 from sqlalchemy import create_engine, inspect, text
 
 from app.models.agent_run import AgentRun
@@ -101,6 +103,7 @@ def test_agent_artifact_action_migration_upgrade_downgrade_retry_preserves_exist
     engine = create_engine(db_url)
     Base.metadata.create_all(engine, tables=[User.__table__, Student.__table__, AgentRun.__table__])
     with engine.begin() as conn:
+        drop_student_auth_subject(conn)
         conn.execute(text("ALTER TABLE users DROP COLUMN deletion_started_at"))
         conn.execute(text("ALTER TABLE users DROP COLUMN deletion_state"))
         conn.execute(text("DROP INDEX ix_users_auth_subject"))
@@ -188,6 +191,7 @@ def test_fresh_bootstrap_schema_matches_migrated_schema(request):
     Base.metadata.create_all(main_engine, tables=main_engine_tables)
     # This fixture represents the pre-auth-subject revision, not current metadata.
     with main_engine.begin() as connection:
+        drop_student_auth_subject(connection)
         connection.execute(text("ALTER TABLE users DROP COLUMN deletion_started_at"))
         connection.execute(text("ALTER TABLE users DROP COLUMN deletion_state"))
         connection.execute(text("DROP INDEX ix_users_auth_subject"))

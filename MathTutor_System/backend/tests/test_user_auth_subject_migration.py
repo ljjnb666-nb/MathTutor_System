@@ -7,6 +7,8 @@ import tempfile
 from uuid import UUID, uuid4
 
 import pytest
+from tests.schema_history import drop_student_auth_subject
+
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
@@ -19,7 +21,8 @@ from app.models.user import User
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 PRE_AUTH = "f2b9c7a41d63"
 AUTH_HEAD = "a6c8e2f91b40"
-HEAD = "d9b5d0137a20"
+LIFECYCLE_HEAD = "d9b5d0137a20"
+HEAD = "e1b5d0198a30"
 
 
 def run_alembic(url, *args):
@@ -33,6 +36,7 @@ def run_alembic(url, *args):
 def build_pre_auth(engine):
     Base.metadata.create_all(engine)
     with engine.begin() as connection:
+        drop_student_auth_subject(connection)
         connection.execute(text("ALTER TABLE users DROP COLUMN deletion_started_at"))
         connection.execute(text("ALTER TABLE users DROP COLUMN deletion_state"))
         connection.execute(text("DROP INDEX ix_users_auth_subject"))
@@ -139,7 +143,8 @@ def test_alembic_has_exactly_one_head():
     config.set_main_option("script_location", str(BACKEND_DIR / "migrations"))
     scripts = ScriptDirectory.from_config(config)
     assert scripts.get_heads() == [HEAD]
-    assert scripts.get_revision(HEAD).down_revision == AUTH_HEAD
+    assert scripts.get_revision(HEAD).down_revision == LIFECYCLE_HEAD
+    assert scripts.get_revision(LIFECYCLE_HEAD).down_revision == AUTH_HEAD
     assert scripts.get_revision(AUTH_HEAD).down_revision == PRE_AUTH
 
 

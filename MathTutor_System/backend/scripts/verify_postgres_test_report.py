@@ -10,6 +10,8 @@ def main(path: str) -> None:
           or "test_user_deletion_postgres" in case.get("classname", "")]
     required = {
         "migration": lambda c: "migration" in c.get("classname", ""),
+        "student_auth_migration": lambda c: "test_student_auth_subject_migration" in c.get("classname", "")
+            and "test_student_auth_migration_backfill" in c.get("name", ""),
         "sql_tenant_purge": lambda c: "test_user_tenant_purge" in c.get("classname", ""),
         "cross_store_lifecycle": lambda c: "test_user_deletion_lifecycle" in c.get("classname", ""),
         "upload_delete_race": lambda c: "test_user_deletion_postgres" in c.get("classname", ""),

@@ -4,6 +4,8 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from tests.schema_history import drop_student_auth_subject
+
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
@@ -14,7 +16,8 @@ from tests.test_user_auth_subject_migration import run_alembic
 from tests.test_bootstrap_db_reconciliation import _run_bootstrap
 
 PREVIOUS = "a6c8e2f91b40"
-HEAD = "d9b5d0137a20"
+LIFECYCLE_HEAD = "d9b5d0137a20"
+HEAD = "e1b5d0198a30"
 
 
 @pytest.fixture(params=["sqlite", "postgres"])
@@ -49,6 +52,7 @@ def previous_schema(engine):
         db.add_all([User(id=i, username=f"user-{i}", hashed_password="preserved", is_active=i == 1) for i in (1, 2)])
         db.commit()
     with engine.begin() as connection:
+        drop_student_auth_subject(connection)
         connection.execute(text("ALTER TABLE users DROP COLUMN deletion_started_at"))
         connection.execute(text("ALTER TABLE users DROP COLUMN deletion_state"))
 
@@ -81,7 +85,8 @@ def test_pre_deletion_unversioned_bootstrap_runs_actual_migration(tmp_path):
     before = core(engine)
     result = _run_bootstrap(path)
     assert result.returncode == 0, result.stderr
-    assert f"{PREVIOUS} -> {HEAD}" in result.stderr
+    assert f"{PREVIOUS} -> {LIFECYCLE_HEAD}" in result.stderr
+    assert f"{LIFECYCLE_HEAD} -> {HEAD}" in result.stderr
     assert core(engine) == before
     with engine.connect() as connection:
         assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar() == HEAD

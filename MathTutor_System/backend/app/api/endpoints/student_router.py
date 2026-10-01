@@ -44,7 +44,7 @@ def get_current_student(
     credentials: HTTPAuthorizationCredentials | None = Depends(security_bearer),
     db: Session = Depends(get_db),
 ) -> Student:
-    """从 Bearer Token 解析学生 JWT（type=student, sub=student_id），返回当前学生；失败 401。"""
+    """按不可变 Student subject 解析 JWT，并校验学生与 owner 实例；失败 401。"""
     try:
         token = credentials.credentials if credentials else None
         return get_current_student_from_token(db, token)
