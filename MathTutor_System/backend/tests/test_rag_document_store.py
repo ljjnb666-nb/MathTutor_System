@@ -16,6 +16,7 @@ class FakeCollection:
 
     def delete(self, ids):
         self.deleted_ids = ids
+        self.payload = {"ids": [], "metadatas": []}
 
 
 def _fresh_registry(name: str, request) -> Path:
@@ -174,7 +175,7 @@ def test_rag_delete_by_source_no_auth_removes_registry_entry(monkeypatch, reques
     registry = _fresh_registry("registry_delete.json", request)
     monkeypatch.setattr(store, "REGISTRY_FILE", registry)
     store.write_documents_registry([{"source": "a.pdf", "chunk_count": 2}])
-    collection = FakeCollection({"ids": ["1", "2"]})
+    collection = FakeCollection({"ids": ["1", "2"], "metadatas": [{"source": "a.pdf"}, {"source": "a.pdf"}]})
     monkeypatch.setattr(store, "get_collection_only", lambda: collection)
 
     deleted_count = store.rag_delete_by_source_no_auth("a.pdf")

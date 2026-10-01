@@ -20,7 +20,7 @@ class FakeCollection:
         merged = {}
         for clause in clauses:
             merged.update(clause or {})
-        if merged.get("document_id") == "doc-a" and merged.get("owner_user_id") == 1:
+        if merged.get("document_id") == "doc-a" and merged.get("owner_user_id") == 1 and not self.deleted_ids:
             return {
                 "ids": ["doc-a:0", "doc-a:1"],
                 "documents": ["chunk a", "chunk b"],

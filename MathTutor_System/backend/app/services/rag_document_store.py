@@ -5,6 +5,9 @@ import json
 import logging
 import threading
 import uuid
+from collections.abc import Callable
+from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 
 from app.core.config import BASE_DIR
@@ -15,10 +18,52 @@ COLLECTION_NAME = "math_tutor_knowledge"
 PERSIST_DIR = BASE_DIR / "data" / "vector_store"
 REGISTRY_FILE = PERSIST_DIR / "documents_registry.json"
 _REGISTRY_LOCK = threading.RLock()
+_RAG_MUTATION_LOCK = threading.RLock()
 
 
 class DocumentRegistryError(RuntimeError):
     pass
+
+
+class RAGTenantPurgeError(RuntimeError):
+    pass
+
+
+@dataclass(frozen=True)
+class RAGTenantPurgeResult:
+    owner_user_id: int
+    deleted_chunk_count: int
+    removed_registry_count: int
+    remaining_chunk_count: int
+    remaining_registry_count: int
+
+
+@contextmanager
+def rag_mutation_guard():
+    """Fence storage mutations in the current single-process deployment.
+
+    This is reentrant for upload cleanup; it is not a distributed lock.
+    """
+    with _RAG_MUTATION_LOCK:
+        yield
+
+
+def validate_owner_user_id(owner_user_id: int) -> None:
+    if type(owner_user_id) is not int or owner_user_id <= 0:
+        raise ValueError("owner_user_id must be a positive integer.")
+
+
+def _is_ownerless(owner) -> bool:
+    return owner is None or (type(owner) is str and owner == "") or (type(owner) is int and owner == 0)
+
+
+def _validate_registry(items) -> None:
+    if not isinstance(items, list) or any(not isinstance(item, dict) for item in items):
+        raise DocumentRegistryError("Document registry has an invalid documents structure.")
+    for item in items:
+        owner = item.get("owner_user_id")
+        if not _is_ownerless(owner) and not (type(owner) is int and owner > 0):
+            raise DocumentRegistryError("Document registry has invalid owner metadata.")
 
 
 def get_collection_only():
@@ -49,11 +94,14 @@ def read_documents_registry(registry_file: Path | None = None, *, strict: bool =
     """Read the local document registry without touching ChromaDB."""
     target = registry_file or REGISTRY_FILE
     try:
-        if not target.exists():
+        try:
+            raw = target.read_text(encoding="utf-8")
+        except FileNotFoundError:
             return []
-        data = json.loads(target.read_text(encoding="utf-8"))
-        items = data.get("documents")
-        return list(items) if isinstance(items, list) else []
+        data = json.loads(raw)
+        items = data.get("documents") if isinstance(data, dict) else None
+        _validate_registry(items)
+        return list(items)
     except Exception as exc:
         if strict:
             raise DocumentRegistryError("Document registry is unavailable.") from exc
@@ -64,11 +112,16 @@ def read_documents_registry(registry_file: Path | None = None, *, strict: bool =
 def write_documents_registry(items: list[dict], registry_file: Path | None = None) -> None:
     """Atomically write the local document registry."""
     target = registry_file or REGISTRY_FILE
-    with _REGISTRY_LOCK:
+    with rag_mutation_guard(), _REGISTRY_LOCK:
+        read_documents_registry(target, strict=True)
+        _validate_registry(items)
         target.parent.mkdir(parents=True, exist_ok=True)
         tmp = target.with_name(f"{target.name}.{uuid.uuid4().hex}.tmp")
-        tmp.write_text(json.dumps({"documents": items}, ensure_ascii=False, indent=2), encoding="utf-8")
-        tmp.replace(target)
+        try:
+            tmp.write_text(json.dumps({"documents": items}, ensure_ascii=False, indent=2), encoding="utf-8")
+            tmp.replace(target)
+        finally:
+            tmp.unlink(missing_ok=True)
 
 
 def registry_add(
@@ -83,19 +136,23 @@ def registry_add(
     created_at: str = "",
 ) -> str:
     """Add or replace one document entry in the registry."""
-    with _REGISTRY_LOCK:
-        items = read_documents_registry()
+    if owner_user_id is not None:
+        validate_owner_user_id(owner_user_id)
+    with rag_mutation_guard(), _REGISTRY_LOCK:
+        items = read_documents_registry(strict=True)
         source_key = (source or "").strip()
         doc_id = (document_id or "").strip() or str(uuid.uuid4())
         if owner_user_id is None:
-            items = [item for item in items if (item.get("source") or "").strip() != source_key]
+            items = [item for item in items if not (
+                (item.get("source") or "").strip() == source_key and _is_ownerless(item.get("owner_user_id"))
+            )]
         else:
             items = [
                 item
                 for item in items
                 if not (
                     (item.get("source") or "").strip() == source_key
-                    and int(item.get("owner_user_id") or -1) == int(owner_user_id)
+                    and item.get("owner_user_id") == owner_user_id
                 )
             ]
         clean_points = sorted(set(k.strip() for k in (knowledge_points or []) if (k or "").strip()))
@@ -119,24 +176,38 @@ def registry_add(
 
 
 def registry_remove(source: str, *, owner_user_id: int | None = None, document_id: str | None = None) -> None:
-    """Remove one source or document id from the registry."""
+    """Remove a document (preferred) or source for one owner; None means ownerless only."""
+    if owner_user_id is not None:
+        validate_owner_user_id(owner_user_id)
     key = (source or "").strip()
     doc_id = (document_id or "").strip()
     if not key and not doc_id:
         return
-    with _REGISTRY_LOCK:
-        items = []
-        for item in read_documents_registry():
-            item_owner = item.get("owner_user_id")
-            item_source = (item.get("source") or "").strip()
-            item_doc_id = (item.get("document_id") or "").strip()
-            matches_owner = owner_user_id is None or int(item_owner or -1) == int(owner_user_id)
-            matches_source = bool(key) and item_source == key
-            matches_doc_id = bool(doc_id) and item_doc_id == doc_id
-            if matches_owner and (matches_doc_id or matches_source):
-                continue
-            items.append(item)
-        write_documents_registry(items)
+    def matches(item):
+        matches_owner = _is_ownerless(item.get("owner_user_id")) if owner_user_id is None else item.get("owner_user_id") == owner_user_id
+        matches_key = (item.get("document_id") or "").strip() == doc_id if doc_id else (item.get("source") or "").strip() == key
+        return matches_owner and matches_key
+
+    _registry_remove_matching(matches)
+
+
+def _registry_remove_matching(matches: Callable[[dict], bool]) -> int:
+    with rag_mutation_guard(), _REGISTRY_LOCK:
+        items = read_documents_registry(strict=True)
+        preserved = [item for item in items if not matches(item)]
+        removed = len(items) - len(preserved)
+        if removed:
+            write_documents_registry(preserved)
+        return removed
+
+
+def registry_remove_ownerless_source(source: str) -> int:
+    key = (source or "").strip()
+    return _registry_remove_matching(
+        lambda item: bool(key)
+        and _is_ownerless(item.get("owner_user_id"))
+        and (item.get("source") or "").strip() == key
+    )
 
 
 def rag_list_documents_from_registry() -> list[dict]:
@@ -179,40 +250,100 @@ def rag_get_chunks(owner_user_id: int, document_id: str) -> list[str]:
         return []
 
 
+def _matching_chunk_ids(coll, where: dict, matches: Callable[[dict], bool], *, ownerless_only: bool = False) -> list[str]:
+    data = coll.get(where=where, include=["metadatas"])
+    ids = data.get("ids")
+    metadatas = data.get("metadatas")
+    if not isinstance(ids, list) or not isinstance(metadatas, list) or len(ids) != len(metadatas):
+        raise RAGTenantPurgeError("Chroma returned incomplete chunk metadata.")
+    if any(not isinstance(row_id, str) or not row_id for row_id in ids) or len(set(ids)) != len(ids):
+        raise RAGTenantPurgeError("Chroma returned invalid chunk IDs.")
+    selected = []
+    for row_id, meta in zip(ids, metadatas):
+        if not isinstance(meta, dict):
+            raise RAGTenantPurgeError("Chroma returned invalid chunk metadata.")
+        if not matches(meta):
+            raise RAGTenantPurgeError("Chroma returned metadata outside the requested scope.")
+        if not ownerless_only or _is_ownerless(meta.get("owner_user_id")):
+            selected.append(row_id)
+    return selected
+
+
+def _delete_and_verify(coll, where: dict, matches: Callable[[dict], bool], *, ownerless_only: bool = False) -> int:
+    ids = _matching_chunk_ids(coll, where, matches, ownerless_only=ownerless_only)
+    if ids:
+        coll.delete(ids=ids)
+    if _matching_chunk_ids(coll, where, matches, ownerless_only=ownerless_only):
+        raise RAGTenantPurgeError("Chroma deletion did not empty the requested scope.")
+    return len(ids)
+
+
+def _delete_storage_scope(
+    where: dict, matches: Callable[[dict], bool], *, collection=None, ownerless_only: bool = False,
+) -> tuple[int, int]:
+    """Chroma first, then registry, with verification and retry convergence."""
+    with rag_mutation_guard(), _REGISTRY_LOCK:
+        items = read_documents_registry(strict=True)
+        def registry_matches(item):
+            return matches(item) and (not ownerless_only or _is_ownerless(item.get("owner_user_id")))
+        preserved = [item for item in items if not registry_matches(item)]
+        removed = len(items) - len(preserved)
+        coll = collection if collection is not None else get_collection_only()
+        deleted = _delete_and_verify(coll, where, matches, ownerless_only=ownerless_only)
+        if removed:
+            write_documents_registry(preserved)
+        if any(registry_matches(item) for item in read_documents_registry(strict=True)):
+            raise RAGTenantPurgeError("Registry deletion did not empty the requested scope.")
+        if _matching_chunk_ids(coll, where, matches, ownerless_only=ownerless_only):
+            raise RAGTenantPurgeError("Chroma scope is nonempty after registry cleanup.")
+        return deleted, removed
+
+
+def rag_purge_owner(owner_user_id: int) -> RAGTenantPurgeResult:
+    """Purge only this numeric owner, without embeddings or account lifecycle changes.
+
+    PHASE_2B_5D_MUST_CLOSE: SQL deletion must wait for verified RAG purge,
+    and fence in-flight uploads to prevent numeric User.id reuse leaking data.
+    """
+    validate_owner_user_id(owner_user_id)
+    def matches(meta):
+        return type(meta.get("owner_user_id")) is int and meta["owner_user_id"] == owner_user_id
+
+    deleted, removed = _delete_storage_scope(_owned_where(owner_user_id), matches)
+    return RAGTenantPurgeResult(owner_user_id, deleted, removed, 0, 0)
+
+
 def rag_delete_document(owner_user_id: int, document_id: str) -> int:
-    """Delete one owned document by document_id."""
+    """Delete and verify an owned document, including registry-only remnants."""
+    validate_owner_user_id(owner_user_id)
     doc_id = (document_id or "").strip()
     if not doc_id:
         return 0
-    try:
-        coll = get_collection_only()
-        data = coll.get(where=_owned_where(owner_user_id, document_id=doc_id), include=["metadatas"])
-        ids = data.get("ids") or []
-        metadatas = data.get("metadatas") or []
-        owned_ids = [
-            row_id
-            for row_id, metadata in zip(ids, metadatas)
-            if int((metadata or {}).get("owner_user_id") or -1) == int(owner_user_id)
-        ]
-        if owned_ids:
-            coll.delete(ids=owned_ids)
-            registry_remove("", owner_user_id=owner_user_id, document_id=doc_id)
-        return len(owned_ids)
-    except Exception as exc:
-        logger.warning("RAG delete_document failed external_error_type=%s", type(exc).__name__)
-        raise
+    def matches(meta):
+        return (
+            type(meta.get("owner_user_id")) is int
+            and meta["owner_user_id"] == owner_user_id
+            and meta.get("document_id") == doc_id
+        )
+
+    deleted, _ = _delete_storage_scope(_owned_where(owner_user_id, document_id=doc_id), matches)
+    return deleted
 
 
 def rag_delete_owned_by_source(owner_user_id: int, source: str) -> int:
+    validate_owner_user_id(owner_user_id)
     source_key = (source or "").strip()
     if not source_key:
         return 0
-    coll = get_collection_only()
-    data = coll.get(where=_owned_where(owner_user_id, source=source_key), include=["metadatas"])
-    ids = data.get("ids") or []
-    if ids:
-        coll.delete(ids=ids)
-    return len(ids)
+    def matches(meta):
+        return (
+            type(meta.get("owner_user_id")) is int
+            and meta["owner_user_id"] == owner_user_id
+            and meta.get("source") == source_key
+        )
+
+    deleted, _ = _delete_storage_scope(_owned_where(owner_user_id, source=source_key), matches)
+    return deleted
 
 
 def rag_list_documents_no_auth() -> list[dict]:
@@ -262,17 +393,19 @@ def rag_get_chunks_by_source_no_auth(source: str) -> list[str]:
 
 
 def rag_delete_by_source_no_auth(source: str) -> int:
-    """Legacy no-auth delete by source. Do not expose through user APIs."""
+    """Legacy ownerless-only mutation; never delete owned tenant data."""
     if not (source and str(source).strip()):
         return 0
-    try:
-        coll = get_collection_only()
-        data = coll.get(where={"source": source.strip()}, include=[])
-        ids = data.get("ids") or []
-        if ids:
-            coll.delete(ids=ids)
-            registry_remove(source.strip())
-        return len(ids)
-    except Exception as exc:
-        logger.warning("RAG delete_by_source failed external_error_type=%s", type(exc).__name__)
-        raise
+    return rag_delete_ownerless_source(source.strip())
+
+
+def rag_delete_ownerless_source(source: str, *, collection=None) -> int:
+    """Shared storage implementation for low-level and service legacy deletion."""
+    source_key = (source or "").strip()
+    if not source_key:
+        return 0
+    deleted, _ = _delete_storage_scope(
+        {"source": source_key}, lambda meta: meta.get("source") == source_key,
+        collection=collection, ownerless_only=True,
+    )
+    return deleted
