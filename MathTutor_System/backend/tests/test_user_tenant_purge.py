@@ -5,7 +5,7 @@ import os
 from uuid import uuid4
 import pytest
 from sqlalchemy import create_engine, event, select, text
-from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import sessionmaker
 from app.models.base import Base
 from app.models import (
@@ -351,23 +351,27 @@ def test_late_failure_rolls_back_complete_tenant_and_session_is_reusable(
         tenant(db, 3)
         before = snapshot(database)
         statements, listener = observe_mutations(db)
-        original_delete = db.delete
 
-        def fail_at_user(user):
+        def fail_at_user(
+            connection, cursor, statement, parameters, context, executemany
+        ):
+            if not statement.startswith("DELETE FROM users "):
+                return
             assert len(statements) >= 10
             if failure == "runtime":
                 raise RuntimeError("late failure")
             if failure == "dbapi":
                 raise DBAPIError("injected", {}, RuntimeError("db error"))
             if failure == "integrity":
-                db.execute(
-                    Student.__table__.insert().values(
-                        user_id=999999, name="bad", grade="8", class_name="1"
+                # A real late FK reference survives the earlier Order purge.
+                # The final users DELETE itself must fail with IntegrityError.
+                connection.execute(
+                    Order.__table__.insert().values(
+                        user_id=2, plan_id=1, amount=10, out_trade_no="late-reference"
                     )
                 )
-            original_delete(user)
 
-        monkeypatch.setattr(db, "delete", fail_at_user)
+        event.listen(db.get_bind(), "before_cursor_execute", fail_at_user)
         if failure == "commit":
 
             def fail_commit():
@@ -385,10 +389,13 @@ def test_late_failure_rolls_back_complete_tenant_and_session_is_reusable(
                 delete_user_and_related(db, 2, 1)
             if failure == "integrity":
                 assert error.value.status_code == 409
+                assert isinstance(error.value.__cause__, IntegrityError)
+                assert error.value.__cause__.statement.startswith("DELETE FROM users ")
             assert not db.in_transaction()
             assert snapshot(database) == before
             assert db.get(Student, sid) is not None
         finally:
+            event.remove(db.get_bind(), "before_cursor_execute", fail_at_user)
             event.remove(db.get_bind(), "before_cursor_execute", listener)
 
 
@@ -451,3 +458,83 @@ def test_purge_with_preloaded_student_relationships(database):
         delete_user_and_related(db, 2, 1)
         assert snapshot(database)["students"] == []
         assert snapshot(database)["mistake_records"] == []
+
+
+@pytest.mark.parametrize("side", ["user", "child"])
+def test_rb01_all_relationships_preloaded_purge_is_durable_and_session_reusable(
+    database, side, monkeypatch
+):
+    from sqlalchemy import inspect
+
+    with database() as db:
+        tenant(db, 2)
+        tenant(db, 3)
+        before = snapshot(database)
+        target = db.get(User, 2)
+
+        def forbid_orm_delete(instance):
+            pytest.fail("Tenant purge must not use ORM instance deletion")
+
+        monkeypatch.setattr(db, "delete", forbid_orm_delete)
+        if side == "user":
+            for name in (
+                "students",
+                "chat_sessions",
+                "schedules",
+                "subscription",
+                "subscription_histories",
+            ):
+                assert getattr(target, name)
+                assert name not in inspect(target).unloaded
+        else:
+            loaded_children = []
+            for model, relationship in (
+                (Student, "owner"),
+                (ChatSession, "user"),
+                (Schedule, "owner"),
+                (Subscription, "user"),
+                (SubscriptionHistory, "user"),
+            ):
+                child = db.query(model).filter(model.user_id == 2).one()
+                loaded_children.append(child)
+                assert getattr(child, relationship) is target
+                assert relationship not in inspect(child).unloaded
+        delete_user_and_related(db, 2, 1)
+        assert [user.id for user in db.query(User).order_by(User.id).all()] == [1, 3]
+        assert not db.get(User, 2)
+        after = snapshot(database)
+        for table in Base.metadata.sorted_tables:
+            if table.name == "plans":
+                assert after[table.name] == before[table.name]
+            else:
+                # Both full tenant graphs are seeded in order: target first,
+                # other second. Users additionally include the admin.
+                expected = (
+                    before[table.name][1:]
+                    if table.name != "users"
+                    else [before["users"][0], before["users"][2]]
+                )
+                assert after[table.name] == expected
+
+
+def test_rb01_unexpected_user_delete_count_rolls_back(database, monkeypatch):
+    from sqlalchemy.orm import Query
+
+    with database() as db:
+        tenant(db, 2)
+        tenant(db, 3)
+        before = snapshot(database)
+        original_delete = Query.delete
+
+        def unexpected_user_count(query, *args, **kwargs):
+            if query.column_descriptions[0]["entity"] is User:
+                assert kwargs["synchronize_session"] == "fetch"
+                return 0
+            return original_delete(query, *args, **kwargs)
+
+        monkeypatch.setattr(Query, "delete", unexpected_user_count)
+        with pytest.raises(RuntimeError, match="exactly one user"):
+            delete_user_and_related(db, 2, 1)
+        assert not db.in_transaction()
+        assert db.get(User, 2) is not None
+        assert snapshot(database) == before

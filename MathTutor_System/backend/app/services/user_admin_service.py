@@ -342,8 +342,7 @@ def delete_user_and_related(db: Session, user_id: int, current_user_id: int) -> 
         db.query(MistakeRecord).filter(
             MistakeRecord.student_id.in_(student_ids)
         ).delete(synchronize_session=False)
-        # Mark loaded students deleted too: User.students may already be loaded,
-        # and ORM user deletion must not try to detach those hard-deleted rows.
+        # Keep loaded Student instances consistent with their hard deletion.
         db.query(Student).filter(Student.user_id == user_id).delete(
             synchronize_session="fetch"
         )
@@ -351,7 +350,13 @@ def delete_user_and_related(db: Session, user_id: int, current_user_id: int) -> 
             db.query(model).filter(model.user_id == user_id).delete(
                 synchronize_session=False
             )
-        db.delete(user)
+        # Keep the entire purge SQL-based: ORM instance deletion would replay
+        # loaded relationship dependencies against already-deleted child rows.
+        deleted = db.query(User).filter(User.id == user_id).delete(
+            synchronize_session="fetch"
+        )
+        if deleted != 1:
+            raise RuntimeError("Tenant purge expected to delete exactly one user")
         db.commit()
     except IntegrityError as exc:
         db.rollback()
