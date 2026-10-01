@@ -2,7 +2,6 @@ from datetime import timedelta
 
 import pytest
 from sqlalchemy import create_engine, event, inspect
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 from app.models.base import Base
@@ -14,6 +13,9 @@ from app.models.plan import Plan
 from app.models.schedule import Schedule
 from app.models.student import Student
 from app.models.question_bank import QuestionBank
+from app.models.question import Question
+from app.models.exam import Exam
+from app.models.mistake import MistakeRecord
 from app.models.subscription import Subscription
 from app.models.subscription_history import SubscriptionHistory
 from app.models.user import User
@@ -46,6 +48,9 @@ def make_db():
             SubscriptionHistory.__table__,
             Student.__table__,
             QuestionBank.__table__,
+            Question.__table__,
+            Exam.__table__,
+            MistakeRecord.__table__,
             ChatSession.__table__,
             ChatMessage.__table__,
             Order.__table__,
@@ -113,7 +118,7 @@ def test_batch_extend_subscription_extends_from_future_period_end():
     assert db.query(SubscriptionHistory).filter(SubscriptionHistory.user_id == 1).count() == 1
 
 
-def test_delete_user_and_related_removes_owned_records_and_unassigns_students():
+def test_delete_user_and_related_removes_owned_records_and_deletes_students():
     db = make_db()
     _, basic = add_plans(db)
     add_user(db, 1, "admin", role="admin")
@@ -125,6 +130,7 @@ def test_delete_user_and_related_removes_owned_records_and_unassigns_students():
     db.add(session)
     db.flush()
     db.add(ChatMessage(session_id=session.id, role="user", content="hello"))
+    db.add(MistakeRecord(student_id=student.id, topic="algebra", source="exam", content="mistake"))
     db.add(Subscription(user_id=2, plan_id=basic.id, status="active"))
     db.add(SubscriptionHistory(user_id=2, plan_id=basic.id))
     db.add(Order(user_id=2, plan_id=basic.id, amount=10, out_trade_no="order-1"))
@@ -148,7 +154,8 @@ def test_delete_user_and_related_removes_owned_records_and_unassigns_students():
     assert db.query(SubscriptionHistory).count() == 0
     assert db.query(Order).count() == 0
     assert db.query(Schedule).count() == 0
-    assert db.get(Student, 1).user_id is None
+    assert db.get(Student, 1) is None
+    assert db.query(MistakeRecord).count() == 0
 
 
 def _add_practice_graph(db, user_id: int, *, artifact_status="draft", action_status=None):
@@ -259,7 +266,7 @@ def test_delete_user_keeps_other_teachers_practice_data():
     assert db.get(AgentAction, action_b_id) is not None
 
 
-def test_question_bank_owner_delete_contract_remains_no_action():
+def test_question_bank_owner_fk_remains_no_action_but_tenant_purge_deletes_owned_row_first():
     db = make_db()
     add_user(db, 1, "admin", role="admin")
     add_user(db, 2, "teacher")
@@ -285,8 +292,7 @@ def test_question_bank_owner_delete_contract_remains_no_action():
         if fk["constrained_columns"] == ["owner_user_id"]
     )
     assert question_fk["options"].get("ondelete") is None
-    with pytest.raises(IntegrityError):
-        delete_user_and_related(db, user_id=2, current_user_id=1)
-    db.rollback()
-    assert db.get(User, 2) is not None
-    assert db.get(QuestionBank, question.id) is not None
+    question_id = question.id
+    delete_user_and_related(db, user_id=2, current_user_id=1)
+    assert db.get(User, 2) is None
+    assert db.get(QuestionBank, question_id) is None

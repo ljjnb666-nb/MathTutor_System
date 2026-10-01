@@ -1,9 +1,17 @@
 """Business logic for admin user and subscription management."""
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.security import get_password_hash
+from app.models.agent_artifact import AgentAction, AgentArtifact
+from app.models.agent_run import AgentRun
+from app.models.exam import Exam
+from app.models.mistake import MistakeRecord
+from app.models.question import Question
+from app.models.question_bank import QuestionBank
 from app.models.chat_session import ChatMessage, ChatSession
 from app.models.order import Order
 from app.models.plan import Plan
@@ -244,16 +252,115 @@ def get_subscription_history(db: Session, user_id: int) -> list[SubscriptionHist
 def delete_user_and_related(db: Session, user_id: int, current_user_id: int) -> None:
     if current_user_id == user_id:
         raise UserAdminServiceError(400, "不能删除当前登录账号")
-    user = _get_user_or_error(db, user_id)
+    conflict_detail = (
+        "该用户存在跨租户或归属不明的数据引用，删除已取消，请先修复数据关系"
+    )
+    try:
+        # No autoflush before all guards pass. PostgreSQL parent-row locks also
+        # block new FK references during preflight, especially CASCADE edges.
+        with db.no_autoflush:
+            user = db.query(User).filter(User.id == user_id).with_for_update().first()
+            if user is None:
+                raise UserAdminServiceError(404, "用户不存在")
+            student_ids = [
+                row.id
+                for row in db.query(Student.id)
+                .filter(Student.user_id == user_id)
+                .with_for_update()
+                .all()
+            ]
+            run_ids = [
+                row.id
+                for row in db.query(AgentRun.id)
+                .filter(AgentRun.user_id == user_id)
+                .with_for_update()
+                .all()
+            ]
+            artifact_ids = [
+                row.id
+                for row in db.query(AgentArtifact.id)
+                .filter(AgentArtifact.user_id == user_id)
+                .with_for_update()
+                .all()
+            ]
 
-    session_ids = [row.id for row in db.query(ChatSession.id).filter(ChatSession.user_id == user_id).all()]
-    if session_ids:
-        db.query(ChatMessage).filter(ChatMessage.session_id.in_(session_ids)).delete(synchronize_session=False)
-    db.query(ChatSession).filter(ChatSession.user_id == user_id).delete(synchronize_session=False)
-    db.query(SubscriptionHistory).filter(SubscriptionHistory.user_id == user_id).delete(synchronize_session=False)
-    db.query(Subscription).filter(Subscription.user_id == user_id).delete(synchronize_session=False)
-    db.query(Order).filter(Order.user_id == user_id).delete(synchronize_session=False)
-    db.query(Schedule).filter(Schedule.user_id == user_id).delete(synchronize_session=False)
-    db.query(Student).filter(Student.user_id == user_id).update({Student.user_id: None}, synchronize_session=False)
-    db.delete(user)
-    db.commit()
+            for model, owner in (
+                (Question, Question.owner_user_id),
+                (QuestionBank, QuestionBank.owner_user_id),
+                (Exam, Exam.owner_user_id),
+                (ChatSession, ChatSession.user_id),
+                (Schedule, Schedule.user_id),
+                (AgentArtifact, AgentArtifact.user_id),
+            ):
+                if (
+                    db.query(model.id)
+                    .filter(
+                        model.student_id.in_(student_ids),
+                        or_(owner.is_(None), owner != user_id),
+                    )
+                    .first()
+                    is not None
+                ):
+                    raise UserAdminServiceError(409, conflict_detail)
+
+            for model, reference, target_ids in (
+                (AgentArtifact, AgentArtifact.agent_run_id, run_ids),
+                (AgentAction, AgentAction.agent_run_id, run_ids),
+                (AgentAction, AgentAction.artifact_id, artifact_ids),
+            ):
+                if (
+                    db.query(model.id)
+                    .filter(
+                        reference.in_(target_ids),
+                        model.user_id != user_id,
+                    )
+                    .first()
+                    is not None
+                ):
+                    raise UserAdminServiceError(409, conflict_detail)
+
+        # Explicit authority-based deletion; student_id is only assignment
+        # context for owner resources, never a reason to delete those resources.
+        for model in (AgentAction, AgentArtifact, AgentRun):
+            db.query(model).filter(model.user_id == user_id).delete(
+                synchronize_session=False
+            )
+        session_ids = db.query(ChatSession.id).filter(ChatSession.user_id == user_id)
+        db.query(ChatMessage).filter(ChatMessage.session_id.in_(session_ids)).delete(
+            synchronize_session=False
+        )
+        db.query(ChatSession).filter(ChatSession.user_id == user_id).delete(
+            synchronize_session=False
+        )
+        db.query(Schedule).filter(Schedule.user_id == user_id).delete(
+            synchronize_session=False
+        )
+        for model in (Question, QuestionBank, Exam):
+            db.query(model).filter(model.owner_user_id == user_id).delete(
+                synchronize_session=False
+            )
+        db.query(MistakeRecord).filter(
+            MistakeRecord.student_id.in_(student_ids)
+        ).delete(synchronize_session=False)
+        # Keep loaded Student instances consistent with their hard deletion.
+        db.query(Student).filter(Student.user_id == user_id).delete(
+            synchronize_session="fetch"
+        )
+        for model in (SubscriptionHistory, Subscription, Order):
+            db.query(model).filter(model.user_id == user_id).delete(
+                synchronize_session=False
+            )
+        # Keep the entire purge SQL-based: ORM instance deletion would replay
+        # loaded relationship dependencies against already-deleted child rows.
+        deleted = db.query(User).filter(User.id == user_id).delete(
+            synchronize_session="fetch"
+        )
+        if deleted != 1:
+            raise RuntimeError("Tenant purge expected to delete exactly one user")
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise UserAdminServiceError(409, conflict_detail) from exc
+    except Exception:
+        db.rollback()
+        raise
