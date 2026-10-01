@@ -101,6 +101,8 @@ def test_agent_artifact_action_migration_upgrade_downgrade_retry_preserves_exist
     engine = create_engine(db_url)
     Base.metadata.create_all(engine, tables=[User.__table__, Student.__table__, AgentRun.__table__])
     with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE users DROP COLUMN deletion_started_at"))
+        conn.execute(text("ALTER TABLE users DROP COLUMN deletion_state"))
         conn.execute(text("DROP INDEX ix_users_auth_subject"))
         conn.execute(text("ALTER TABLE users DROP COLUMN auth_subject"))
         conn.execute(
@@ -186,6 +188,8 @@ def test_fresh_bootstrap_schema_matches_migrated_schema(request):
     Base.metadata.create_all(main_engine, tables=main_engine_tables)
     # This fixture represents the pre-auth-subject revision, not current metadata.
     with main_engine.begin() as connection:
+        connection.execute(text("ALTER TABLE users DROP COLUMN deletion_started_at"))
+        connection.execute(text("ALTER TABLE users DROP COLUMN deletion_state"))
         connection.execute(text("DROP INDEX ix_users_auth_subject"))
         connection.execute(text("ALTER TABLE users DROP COLUMN auth_subject"))
     _run_alembic("stamp", BASE_REVISION, db_url=migrated_url)

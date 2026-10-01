@@ -18,7 +18,8 @@ from app.models.user import User
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 PRE_AUTH = "f2b9c7a41d63"
-HEAD = "a6c8e2f91b40"
+AUTH_HEAD = "a6c8e2f91b40"
+HEAD = "d9b5d0137a20"
 
 
 def run_alembic(url, *args):
@@ -32,6 +33,8 @@ def run_alembic(url, *args):
 def build_pre_auth(engine):
     Base.metadata.create_all(engine)
     with engine.begin() as connection:
+        connection.execute(text("ALTER TABLE users DROP COLUMN deletion_started_at"))
+        connection.execute(text("ALTER TABLE users DROP COLUMN deletion_state"))
         connection.execute(text("DROP INDEX ix_users_auth_subject"))
         connection.execute(text("ALTER TABLE users DROP COLUMN auth_subject"))
         connection.execute(text(
@@ -136,7 +139,8 @@ def test_alembic_has_exactly_one_head():
     config.set_main_option("script_location", str(BACKEND_DIR / "migrations"))
     scripts = ScriptDirectory.from_config(config)
     assert scripts.get_heads() == [HEAD]
-    assert scripts.get_revision(HEAD).down_revision == PRE_AUTH
+    assert scripts.get_revision(HEAD).down_revision == AUTH_HEAD
+    assert scripts.get_revision(AUTH_HEAD).down_revision == PRE_AUTH
 
 
 @pytest.mark.skipif(not os.getenv("TUTORPRO_TEST_POSTGRES_URL"), reason="NOT_RUN_ENV_UNAVAILABLE")

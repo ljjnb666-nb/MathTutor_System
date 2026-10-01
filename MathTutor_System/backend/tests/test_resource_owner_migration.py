@@ -331,6 +331,8 @@ def test_fresh_create_all_schema_is_migration_compatible(request):
 
     Base.metadata.drop_all(engine, tables=[_LegacyAgentAction.__table__, _LegacyAgentArtifact.__table__])
     with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE users DROP COLUMN deletion_started_at"))
+        conn.execute(text("ALTER TABLE users DROP COLUMN deletion_state"))
         conn.execute(text("DROP INDEX ix_users_auth_subject"))
         conn.execute(text("ALTER TABLE users DROP COLUMN auth_subject"))
         conn.execute(

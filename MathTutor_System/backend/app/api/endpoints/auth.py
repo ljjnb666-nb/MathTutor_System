@@ -8,7 +8,7 @@ from uuid import UUID
 
 from app.core.security import create_access_token, decode_access_token, verify_password
 from app.models.base import get_db
-from app.models.user import User
+from app.models.user import User, USER_DELETION_ACTIVE
 from app.schemas.user_dto import Token, UserResponse
 
 router = APIRouter()
@@ -36,7 +36,7 @@ def _resolve_teacher_user(payload: dict, db: Session) -> User | None:
     if not isinstance(username, str) or not username:
         return None
     user = db.query(User).filter(User.auth_subject == subject).first()
-    if not user or user.id != uid or user.username != username or not user.is_active:
+    if not user or user.id != uid or user.username != username or not user.is_active or user.deletion_state != USER_DELETION_ACTIVE:
         return None
     return user
 
@@ -106,7 +106,7 @@ def login(
             detail="用户名或密码错误",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    if not user.is_active:
+    if not user.is_active or user.deletion_state != USER_DELETION_ACTIVE:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="用户已禁用",

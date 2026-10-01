@@ -8,6 +8,7 @@ from app.core.security import create_access_token, decode_access_token, get_pass
 from app.models.exam import Exam
 from app.models.mistake import MistakeRecord
 from app.models.student import Student
+from app.models.user import User, USER_DELETION_ACTIVE
 from app.schemas.exam_dto import GradeResponse
 from app.schemas.user_dto import Token
 from app.services.exam_grading_service import compute_results_from_student_answers, grade_exam_core
@@ -28,6 +29,12 @@ class StudentPortalServiceError(Exception):
 
 def _auth_error(detail: str) -> StudentPortalServiceError:
     return StudentPortalServiceError(401, detail, authenticate_header=True)
+
+
+def _validate_student_owner(db: Session, student: Student) -> None:
+    owner = db.query(User).filter(User.id == student.user_id).populate_existing().first()
+    if owner is None or not owner.is_active or owner.deletion_state != USER_DELETION_ACTIVE:
+        raise _auth_error("学生所属账号已禁用")
 
 
 def get_current_student_from_token(db: Session, token: str | None) -> Student:
@@ -54,6 +61,7 @@ def get_current_student_from_token(db: Session, token: str | None) -> Student:
         raise _auth_error("该账号未开通学生端登录")
     if student.user_id is None:
         raise _auth_error("学生不存在")
+    _validate_student_owner(db, student)
     return student
 
 
@@ -62,6 +70,7 @@ def login_student(db: Session, login_code: str, password: str | None) -> Token:
     if not student or student.user_id is None:
         raise _auth_error("登录码或密码错误")
 
+    _validate_student_owner(db, student)
     if student.hashed_password and student.hashed_password.strip():
         if not password or not password.strip():
             raise _auth_error("请输入密码")

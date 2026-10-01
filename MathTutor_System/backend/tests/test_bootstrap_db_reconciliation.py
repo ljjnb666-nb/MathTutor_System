@@ -132,6 +132,8 @@ def _build_previous_head_schema(db_path: Path, *, keep_version_table: bool) -> N
     engine = create_engine(db_url)
     Base.metadata.create_all(engine)
     with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE users DROP COLUMN deletion_started_at"))
+        conn.execute(text("ALTER TABLE users DROP COLUMN deletion_state"))
         conn.execute(text("DROP INDEX ix_users_auth_subject"))
         conn.execute(text("ALTER TABLE users DROP COLUMN auth_subject"))
     engine.dispose()
@@ -349,6 +351,8 @@ def _build_pre_auth_head(db_path):
     engine = create_engine(f"sqlite:///{db_path.as_posix()}")
     Base.metadata.create_all(engine)
     with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE users DROP COLUMN deletion_started_at"))
+        conn.execute(text("ALTER TABLE users DROP COLUMN deletion_state"))
         conn.execute(text("DROP INDEX ix_users_auth_subject"))
         conn.execute(text("ALTER TABLE users DROP COLUMN auth_subject"))
         conn.execute(text("INSERT INTO users (id, username, hashed_password, role, is_active, created_at) "
