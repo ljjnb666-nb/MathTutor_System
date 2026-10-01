@@ -264,6 +264,7 @@ def test_architecture_no_env_or_adapter_model_authority():
 
 
 def test_all_ai_entrypoints_use_http_resolver():
+    from fastapi import routing
     from app.main import app
 
     targets = {
@@ -276,7 +277,10 @@ def test_all_ai_entrypoints_use_http_resolver():
         "/api/rag/upload",
     }
     found = set()
-    for route in app.routes:
+    # Newer FastAPI versions keep included routers lazy; inspect their effective
+    # routes through the same public iterator used by OpenAPI generation.
+    iter_routes = getattr(routing, "iter_route_contexts", iter)
+    for route in iter_routes(app.routes):
         if getattr(route, "path", None) in targets and "POST" in route.methods:
             assert any(
                 d.call
