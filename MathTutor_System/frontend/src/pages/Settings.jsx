@@ -284,7 +284,7 @@ export default function Settings() {
                 label="默认 Provider"
                 value={providerValue}
                 onChange={handleProviderChange}
-                options={PROVIDERS.map((item) => [item.value, item.label])}
+                options={PROVIDERS.filter((item) => !item.disabled).map((item) => [item.value, item.label])}
               />
               <SelectField
                 label="默认模型"

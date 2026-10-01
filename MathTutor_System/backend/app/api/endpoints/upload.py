@@ -11,7 +11,6 @@ from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
 from pypdf import PdfReader
 
 from app.api.endpoints.auth import get_current_user
-from app.core.config import DEEPSEEK_BASE_URL, DEEPSEEK_MODEL
 from app.core.deps import LLMConfig, get_llm_config
 from app.models.user import User
 from app.services.docx_to_pdf import convert_docx_to_pdf
@@ -76,8 +75,8 @@ async def parse_word_exam(
     filename = _validate_exam_upload(file, content)
 
     api_key = (llm_config.api_key or "").strip()
-    base_url = llm_config.base_url or DEEPSEEK_BASE_URL
-    model = llm_config.model or DEEPSEEK_MODEL
+    base_url = llm_config.base_url
+    model = llm_config.model
 
     def _text_fallback_docx() -> list:
         file_stream = BytesIO(content)
@@ -88,7 +87,7 @@ async def parse_word_exam(
                 detail="文档中未解析出有效文本，请检查文件内容",
             )
         return parse_with_deepseek(
-            text, api_key=api_key, base_url=base_url, model=model, provider=llm_config.provider
+            text, api_key=api_key, base_url=base_url, model=model, provider=llm_config.provider, llm_config=llm_config
         )
 
     def _text_fallback_pdf(pdf_bytes: bytes) -> list:
@@ -99,7 +98,7 @@ async def parse_word_exam(
                 detail="PDF 中未解析出有效文本，请检查文件内容",
             )
         return parse_with_deepseek(
-            text, api_key=api_key, base_url=base_url, model=model, provider=llm_config.provider
+            text, api_key=api_key, base_url=base_url, model=model, provider=llm_config.provider, llm_config=llm_config
         )
 
     try:
@@ -126,7 +125,7 @@ async def parse_word_exam(
             try:
                 page_q = parse_page_image_with_vision(
                     img_bytes, api_key=api_key, base_url=base_url, model=model,
-                    provider=llm_config.provider,
+                    provider=llm_config.provider, llm_config=llm_config,
                 )
                 attach_question_images_from_page(img_bytes, page_q)
                 pages_questions.append(page_q)

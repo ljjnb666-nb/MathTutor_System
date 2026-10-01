@@ -5,7 +5,7 @@ from typing import Any, AsyncGenerator
 
 import httpx
 
-from app.core.config import AI_REQUEST_TIMEOUT
+from app.core.ai_runtime import assert_resolved_llm_config
 from app.services.gemini_rest_service import (
     gemini_rest_with_proxy as _gemini_rest_with_proxy,
     resolve_gemini_proxy as _resolve_gemini_proxy,
@@ -13,8 +13,6 @@ from app.services.gemini_rest_service import (
 from app.services.llm_output_service import get_message_content_safe as _get_message_content_safe
 
 logger = logging.getLogger(__name__)
-
-MAX_RETRIES = 2
 
 
 def build_chat_messages(
@@ -62,49 +60,25 @@ async def chat_completion_async(
     """
     Free-form chat completion. JSON mode is intentionally disabled.
     """
-    if not (llm_config.api_key or "").strip():
-        raise ValueError("未配置 API Key，请在「设置」中填写或于 .env 中设置 LLM_API_KEY")
-
     lc_messages = build_chat_messages(messages, system_prompt)
     if not lc_messages:
         raise ValueError("对话消息不能为空")
 
-    provider = (llm_config.provider or "gemini").strip().lower()
+    spec = assert_resolved_llm_config(llm_config)
+    provider = spec.transport
     api_key = (llm_config.api_key or "").strip()
     base_url = (llm_config.base_url or "").strip()
     model = (llm_config.model or "").strip()
-    timeout = getattr(llm_config, "request_timeout", None) or AI_REQUEST_TIMEOUT
+    timeout = llm_config.request_timeout
 
     last_error: Exception | None = None
-    for attempt in range(MAX_RETRIES + 1):
+    for attempt in range(llm_config.max_retries + 1):
         try:
             if provider == "gemini":
-                proxy = _resolve_gemini_proxy()
-                if proxy:
-                    out = await _gemini_rest_with_proxy(
-                        messages_to_proxy_prompt(lc_messages),
-                        api_key,
-                        model or "gemini-1.5-flash",
-                        temperature,
-                        max_tokens,
-                        proxy,
-                    )
-                    return (out or "").strip() or "（无回复）"
-
-                from langchain_google_genai import ChatGoogleGenerativeAI
-
-                llm = ChatGoogleGenerativeAI(
-                    model=model or "gemini-1.5-flash",
-                    api_key=api_key,
-                    temperature=temperature,
-                    max_output_tokens=max_tokens,
-                )
-                if hasattr(llm, "ainvoke"):
-                    msg = await llm.ainvoke(lc_messages)
-                else:
-                    msg = await asyncio.to_thread(llm.invoke, lc_messages)
-                out = _get_message_content_safe(msg)
-                return (str(out).strip() if out is not None else "") or "（无回复）"
+                out = await _gemini_rest_with_proxy(messages_to_proxy_prompt(lc_messages),
+                    api_key, model, temperature, max_tokens, _resolve_gemini_proxy(llm_config.proxy_url),
+                    request_timeout=timeout, base_url=llm_config.base_url, api_version=llm_config.api_version)
+                return (out or "").strip() or "（无回复）"
 
             try:
                 from langchain_openai import ChatOpenAI
@@ -114,14 +88,15 @@ async def chat_completion_async(
             is_deepseek = base_url and "deepseek" in base_url.lower()
             kwargs: dict[str, Any] = {
                 "api_key": api_key,
-                "model": model or "gpt-4o-mini",
+                "model": model,
                 "temperature": 1.0 if is_deepseek else temperature,
                 "max_tokens": max_tokens,
                 "request_timeout": timeout,
+                "max_retries": 0,
             }
             if base_url:
                 kwargs["base_url"] = base_url.rstrip("/")
-            kwargs["http_async_client"] = httpx.AsyncClient(follow_redirects=False)
+            kwargs["http_async_client"] = httpx.AsyncClient(proxy=llm_config.proxy_url or None, trust_env=False, follow_redirects=False)
             llm = ChatOpenAI(**kwargs)
             if hasattr(llm, "ainvoke"):
                 msg = await llm.ainvoke(lc_messages)
@@ -163,18 +138,16 @@ async def chat_completion_stream_async(
     max_tokens: int = 4096,
 ) -> AsyncGenerator[str, None]:
     """Stream chat completion chunks. Gemini falls back to non-streaming."""
-    if not (llm_config.api_key or "").strip():
-        raise ValueError("未配置 API Key，请在「设置」中填写或于 .env 中设置 LLM_API_KEY")
-
     lc_messages = build_chat_messages(messages, system_prompt)
     if not lc_messages:
         raise ValueError("对话消息不能为空")
 
-    provider = (llm_config.provider or "gemini").strip().lower()
+    spec = assert_resolved_llm_config(llm_config)
+    provider = spec.transport
     api_key = (llm_config.api_key or "").strip()
     base_url = (llm_config.base_url or "").strip()
     model = (llm_config.model or "").strip()
-    timeout = getattr(llm_config, "request_timeout", None) or AI_REQUEST_TIMEOUT
+    timeout = llm_config.request_timeout
 
     if provider == "gemini":
         yield await chat_completion_async(messages, system_prompt, llm_config)
@@ -189,14 +162,15 @@ async def chat_completion_stream_async(
         is_deepseek = base_url and "deepseek" in base_url.lower()
         kwargs: dict[str, Any] = {
             "api_key": api_key,
-            "model": model or "gpt-4o-mini",
+            "model": model,
             "temperature": 1.0 if is_deepseek else temperature,
             "max_tokens": max_tokens,
             "request_timeout": timeout,
+            "max_retries": llm_config.max_retries,
         }
         if base_url:
             kwargs["base_url"] = base_url.rstrip("/")
-        kwargs["http_async_client"] = httpx.AsyncClient(follow_redirects=False)
+        kwargs["http_async_client"] = httpx.AsyncClient(proxy=llm_config.proxy_url or None, trust_env=False, follow_redirects=False)
         llm = ChatOpenAI(**kwargs)
         if hasattr(llm, "astream"):
             async for chunk in llm.astream(lc_messages):

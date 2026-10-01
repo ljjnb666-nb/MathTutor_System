@@ -72,11 +72,13 @@ describe('httpClient LLM headers', () => {
       baseUrlsByProvider: { openai: 'https://client.example' },
     }))
 
-    expect(buildClientLlmHeaders({ env: { DEV: true } })).toEqual({
-      'x-llm-provider': 'openai',
-      'x-llm-base-url': 'https://api.openai.com/v1',
-      'x-llm-api-version': 'v1',
-      'x-llm-model': 'client-model',
-    })
+    expect(buildClientLlmHeaders({ env: { DEV: true } })).toBeNull()
+  })
+
+  it('sends no routing overrides when a saved key is whitespace', () => {
+    localStorage.setItem('app_settings', JSON.stringify({
+      provider: 'openai', model: 'local-only-model', apiKey: '   ',
+    }))
+    expect(buildClientLlmHeaders({ env: { DEV: true } })).toBeNull()
   })
 })

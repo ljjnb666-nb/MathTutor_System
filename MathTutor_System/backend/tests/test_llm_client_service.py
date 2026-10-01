@@ -17,6 +17,7 @@ def test_openai_kwargs_enables_json_mode_for_non_deepseek():
         base_url="https://api.openai.com/v1",
         temperature=0.2,
         max_tokens=100,
+        request_timeout=73,
         json_mode=True,
     )
 
@@ -34,6 +35,7 @@ def test_openai_kwargs_disables_json_mode_and_forces_temperature_for_deepseek():
         base_url="https://api.deepseek.com",
         temperature=0.2,
         max_tokens=100,
+        request_timeout=73,
         json_mode=True,
     )
 
@@ -51,6 +53,7 @@ async def test_openai_kwargs_disables_redirects_for_async_client():
         base_url="https://api.openai.com/v1",
         temperature=0.2,
         max_tokens=100,
+        request_timeout=73,
         json_mode=False,
         async_mode=True,
     )

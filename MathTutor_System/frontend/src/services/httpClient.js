@@ -49,7 +49,7 @@ export function buildClientLlmHeaders(importMetaOrEnv = DEFAULT_CLIENT_LLM_ENV) 
 
 export function buildLlmHeadersFromConfig(config) {
   if (import.meta.env.PROD) return null
-  if (!config) return null
+  if (!config?.apiKey?.trim()) return null
   const headers = {}
   if (config.provider) headers['x-llm-provider'] = config.provider
   if (config.model) headers['x-llm-model'] = config.model

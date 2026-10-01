@@ -4,9 +4,10 @@ import os
 import re
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from app.core.config import get_settings
+from app.core.ai_runtime import PROVIDERS, AIConfigError
 
-GEMINI_REST_BASE = "https://generativelanguage.googleapis.com/v1beta"
+logger = logging.getLogger(__name__)
 
 
 def get_proxy_exit_ip_sync(proxy_url: str) -> str:
@@ -14,7 +15,7 @@ def get_proxy_exit_ip_sync(proxy_url: str) -> str:
     import httpx
 
     try:
-        with httpx.Client(proxy=proxy_url, timeout=10.0, trust_env=True) as client:
+        with httpx.Client(proxy=proxy_url, timeout=10.0, trust_env=False) as client:
             response = client.get("https://api.ipify.org")
             response.raise_for_status()
             return (response.text or "").strip() or "未知"
@@ -51,12 +52,8 @@ def get_windows_system_proxy() -> str:
         return ""
 
 
-def gemini_proxy_from_env() -> str:
-    return (os.getenv("LLM_HTTPS_PROXY") or os.getenv("HTTPS_PROXY") or "").strip()
-
-
-def resolve_gemini_proxy() -> str:
-    proxy = gemini_proxy_from_env()
+def resolve_gemini_proxy(proxy_url: str | None = None) -> str:
+    proxy = get_settings().proxy_url if proxy_url is None else proxy_url
     if proxy:
         return proxy
     if os.name == "nt":
@@ -97,12 +94,17 @@ def gemini_rest_sync(
     temperature: float,
     max_tokens: int,
     proxy_url: str,
+    *, request_timeout: int | None = None, base_url: str = "", api_version: str = "",
 ) -> str:
     """Call Gemini REST for text generation, retrying SOCKS5 as HTTP on the same host/port."""
     import httpx
 
-    model_id = (model or "gemini-1.5-flash").strip()
-    url = f"{GEMINI_REST_BASE}/models/{model_id}:generateContent"
+    if not model.strip():
+        raise AIConfigError("LLM_CONFIG_MISSING_MODEL", "请明确选择模型后重试。")
+    model_id = model.strip()
+    spec = PROVIDERS["gemini"]
+    url = f"{(base_url or spec.canonical_base_url).rstrip('/')}/{api_version or spec.api_version}/models/{model_id}:generateContent"
+    timeout = request_timeout if request_timeout is not None else get_settings().ai_request_timeout
     headers = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
     body = {
         "contents": [{"parts": [{"text": prompt}]}],
@@ -110,7 +112,7 @@ def gemini_rest_sync(
     }
 
     def do_request(proxy: str | None) -> httpx.Response:
-        with httpx.Client(proxy=proxy or None, timeout=120.0, trust_env=True) as client:
+        with httpx.Client(proxy=proxy or None, timeout=timeout, trust_env=False) as client:
             return client.post(url, headers=headers, json=body)
 
     proxy_to_use: str | None = proxy_url.strip() or None
@@ -152,9 +154,10 @@ def gemini_rest_text_sync(
     model: str,
     temperature: float = 0.2,
     max_tokens: int = 4096,
+    *, request_timeout: int | None = None, base_url: str = "", api_version: str = "", proxy_url: str | None = None,
 ) -> str:
-    proxy_url = resolve_gemini_proxy()
-    return gemini_rest_sync(prompt, api_key, model, temperature, max_tokens, proxy_url)
+    proxy_url = resolve_gemini_proxy(proxy_url)
+    return gemini_rest_sync(prompt, api_key, model, temperature, max_tokens, proxy_url, request_timeout=request_timeout, base_url=base_url, api_version=api_version)
 
 
 def gemini_rest_vision_sync(
@@ -165,11 +168,16 @@ def gemini_rest_vision_sync(
     mime_type: str = "image/png",
     temperature: float = 0.2,
     max_tokens: int = 4096,
+    *, request_timeout: int | None = None, base_url: str = "", api_version: str = "", proxy_url: str | None = None,
 ) -> str:
     import httpx
 
-    model_id = (model or "gemini-1.5-flash").strip()
-    url = f"{GEMINI_REST_BASE}/models/{model_id}:generateContent"
+    if not model.strip():
+        raise AIConfigError("LLM_CONFIG_MISSING_MODEL", "请明确选择模型后重试。")
+    model_id = model.strip()
+    spec = PROVIDERS["gemini"]
+    url = f"{(base_url or spec.canonical_base_url).rstrip('/')}/{api_version or spec.api_version}/models/{model_id}:generateContent"
+    timeout = request_timeout if request_timeout is not None else get_settings().ai_request_timeout
     headers = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
     body = {
         "contents": [
@@ -182,8 +190,8 @@ def gemini_rest_vision_sync(
         ],
         "generationConfig": _build_generation_config(model_id, temperature, max_tokens),
     }
-    proxy_url = resolve_gemini_proxy()
-    with httpx.Client(proxy=proxy_url or None, timeout=120.0, trust_env=True) as client:
+    proxy_url = resolve_gemini_proxy(proxy_url)
+    with httpx.Client(proxy=proxy_url or None, timeout=timeout, trust_env=False) as client:
         response = client.post(url, headers=headers, json=body)
         if response.status_code != 200:
             err_body = response.text[:400] if response.text else ""
@@ -204,13 +212,15 @@ async def gemini_rest_with_proxy(
     temperature: float,
     max_tokens: int,
     proxy_url: str,
+    *, request_timeout: int | None = None, base_url: str = "", api_version: str = "",
 ) -> str:
     """Run the synchronous REST call in a worker thread and add region-limit diagnostics."""
     if not proxy_url:
-        proxy_url = resolve_gemini_proxy()
+        proxy_url = resolve_gemini_proxy(proxy_url)
     try:
         return await asyncio.to_thread(
-            gemini_rest_sync, prompt, api_key, model, temperature, max_tokens, proxy_url
+            gemini_rest_sync, prompt, api_key, model, temperature, max_tokens, proxy_url,
+            request_timeout=request_timeout, base_url=base_url, api_version=api_version
         )
     except ValueError as exc:
         err_msg = str(exc)
@@ -220,7 +230,8 @@ async def gemini_rest_with_proxy(
                 logger.warning("Gemini region restriction persists; retrying with Windows system proxy")
                 try:
                     return await asyncio.to_thread(
-                        gemini_rest_sync, prompt, api_key, model, temperature, max_tokens, sys_proxy
+                        gemini_rest_sync, prompt, api_key, model, temperature, max_tokens, sys_proxy,
+                        request_timeout=request_timeout, base_url=base_url, api_version=api_version
                     )
                 except ValueError:
                     pass
@@ -230,7 +241,7 @@ async def gemini_rest_with_proxy(
                 "Gemini 接口返回：当前地区不可用（User location is not supported）。"
                 f"当前代理出口 IP: {exit_ip}。"
                 "若您已选美国节点仍报错，多半是 Gemini API Key 或 Google 账号所在地区受限（与请求 IP 无关）。"
-                "建议：在前端「设置」中切换为「OpenRouter」，选择 google/gemini-2.5-flash 等模型，在 openrouter.ai 申请 Key 即可免代理、无地区限制；"
+                "建议：在前端「设置」中切换为「OpenRouter」，选择 Gemini 模型，在 openrouter.ai 申请 Key 即可免代理、无地区限制；"
                 "或用支持地区的账号在 aistudio.google.com 重新申请官方 Key。"
             ) from exc
         raise

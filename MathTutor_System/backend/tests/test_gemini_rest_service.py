@@ -1,11 +1,14 @@
+import pytest
+from app.core import config as app_config
+from app.core.config import AppSettings
 import httpx
 
 from app.services import gemini_rest_service
 
 
 def test_resolve_gemini_proxy_prefers_env(monkeypatch):
-    monkeypatch.setenv("LLM_HTTPS_PROXY", "http://127.0.0.1:7897")
-    monkeypatch.setenv("HTTPS_PROXY", "http://example.invalid:8080")
+    monkeypatch.setattr(app_config.settings, "llm_https_proxy", "http://127.0.0.1:7897")
+    monkeypatch.setattr(app_config.settings, "https_proxy", "http://example.invalid:8080")
 
     assert gemini_rest_service.resolve_gemini_proxy() == "http://127.0.0.1:7897"
 
@@ -60,3 +63,11 @@ def test_gemini_rest_sync_retries_socks5_as_http(monkeypatch):
 
     assert result == "ok"
     assert proxies_seen == ["socks5://127.0.0.1:7897", "http://127.0.0.1:7897"]
+
+
+@pytest.fixture(autouse=True)
+def isolated_runtime_settings(monkeypatch):
+    monkeypatch.setattr(app_config, "settings", AppSettings(_env_file=None,
+        ENV="development", DEBUG=True, LLM_API_KEY="", DEEPSEEK_API_KEY="", GOOGLE_API_KEY="", GEMINI_API_KEY="",
+        LLM_PROVIDER="gemini", LLM_MODEL="", LLM_BASE_URL="", ALLOW_CLIENT_LLM_CONFIG=True,
+        ALLOW_CUSTOM_LLM_BASE_URL=False, CLIENT_LLM_ALLOWED_HOSTS=""))

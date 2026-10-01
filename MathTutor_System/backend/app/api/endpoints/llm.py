@@ -1,7 +1,7 @@
 import asyncio
-import os
 import re
 import time
+from dataclasses import replace
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -9,6 +9,8 @@ from pydantic import BaseModel
 from app.api.endpoints.auth import get_current_user
 from app.core.llm_sanitize import mask_secrets
 from app.core.deps import LLMConfig, client_llm_config_allowed, get_llm_config
+from app.core.config import get_settings
+from app.core.ai_runtime import AIConfigError, resolve_server_llm_config
 from app.models.user import User
 from app.services.llm_client_service import call_llm_async
 
@@ -36,13 +38,20 @@ class LLMRuntimeStatus(BaseModel):
 @router.get("/status", response_model=LLMRuntimeStatus)
 def get_llm_runtime_status(_current_user: User = Depends(get_current_user)) -> LLMRuntimeStatus:
     """Expose safe server configuration state without credential details."""
-    server_key = os.getenv("LLM_API_KEY", "").strip()
+    settings = get_settings()
+    try:
+        config = resolve_server_llm_config(settings, require_key=False)
+        configured = bool(config.api_key)
+        provider, model, server_key = config.provider, config.model, config.api_key
+    except AIConfigError:
+        configured = False
+        provider, model, server_key = settings.llm_provider, settings.llm_model, settings.llm_api_key
     return LLMRuntimeStatus(
-        configured=bool(server_key),
-        provider=_safe_runtime_label(os.getenv("LLM_PROVIDER", "gemini"), server_key).lower() or "gemini",
-        model=_safe_runtime_label(os.getenv("LLM_MODEL", ""), server_key),
+        configured=configured,
+        provider=_safe_runtime_label(provider, server_key),
+        model=_safe_runtime_label(model, server_key),
         config_source="server",
-        client_config_allowed=client_llm_config_allowed(),
+        client_config_allowed=settings.client_llm_config_allowed,
     )
 
 
@@ -67,8 +76,8 @@ async def test_llm_connection(
     if not (llm_config.api_key or "").strip():
         return LLMTestResponse(
             ok=False,
-            provider=llm_config.provider or None,
-            model=llm_config.model or None,
+            provider=_safe_runtime_label(llm_config.provider, llm_config.api_key) or None,
+            model=_safe_runtime_label(llm_config.model, llm_config.api_key) or None,
             key_source=llm_config.source,
             code="missing_key",
             message="未配置 API Key，请在设置中保存有效配置，或由管理员配置后端密钥。",
@@ -78,24 +87,25 @@ async def test_llm_connection(
     if not (llm_config.model or "").strip():
         return LLMTestResponse(
             ok=False,
-            provider=llm_config.provider or None,
+            provider=_safe_runtime_label(llm_config.provider, llm_config.api_key) or None,
             key_source=llm_config.source,
             code="model_not_found",
             message="未配置模型，请在设置中选择模型。",
         )
 
+    llm_config = replace(llm_config, request_timeout=get_settings().ai_test_timeout)
     started = time.perf_counter()
     try:
         await asyncio.wait_for(
             call_llm_async("请只回复：ok", llm_config, temperature=0, max_tokens=8),
-            timeout=30,
+            timeout=get_settings().ai_test_timeout,
         )
     except Exception as exc:
         code, message = _classify_llm_error(exc)
         return LLMTestResponse(
             ok=False,
-            provider=llm_config.provider or None,
-            model=llm_config.model or None,
+            provider=_safe_runtime_label(llm_config.provider, llm_config.api_key) or None,
+            model=_safe_runtime_label(llm_config.model, llm_config.api_key) or None,
             latency_ms=int((time.perf_counter() - started) * 1000),
             key_source=llm_config.source,
             code=code,
@@ -104,8 +114,8 @@ async def test_llm_connection(
 
     return LLMTestResponse(
         ok=True,
-        provider=llm_config.provider or None,
-        model=llm_config.model or None,
+        provider=_safe_runtime_label(llm_config.provider, llm_config.api_key) or None,
+        model=_safe_runtime_label(llm_config.model, llm_config.api_key) or None,
         latency_ms=int((time.perf_counter() - started) * 1000),
         key_source=llm_config.source,
         message="模型连接正常",

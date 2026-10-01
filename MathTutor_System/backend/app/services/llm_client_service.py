@@ -8,6 +8,7 @@ import httpx
 
 from app.services.gemini_rest_service import (
     gemini_rest_with_proxy as _gemini_rest_with_proxy,
+    gemini_rest_sync as _gemini_rest_sync,
     resolve_gemini_proxy as _resolve_gemini_proxy,
 )
 from app.services.llm_output_service import (
@@ -16,11 +17,10 @@ from app.services.llm_output_service import (
     normalize_llm_output as _normalize_llm_output,
 )
 
+from app.core.ai_runtime import assert_resolved_llm_config
+
 logger = logging.getLogger(__name__)
 
-MAX_RETRIES = 2
-DEFAULT_MODEL_OPENAI = "gpt-4.1-mini"
-DEFAULT_MODEL_GEMINI = "gemini-2.5-flash"
 
 
 def _content_or_serialized(raw: Any, msg: Any) -> str:
@@ -53,24 +53,27 @@ def _openai_kwargs(
     temperature: float,
     max_tokens: int,
     json_mode: bool,
+    request_timeout: int,
+    proxy_url: str = "",
     async_mode: bool = False,
 ) -> dict[str, Any]:
     is_deepseek = bool(base_url and "deepseek" in base_url.lower())
     kwargs: dict[str, Any] = {
         "api_key": api_key,
-        "model": model or DEFAULT_MODEL_OPENAI,
+        "model": model,
         "temperature": 1.0 if is_deepseek else temperature,
         "max_tokens": max_tokens,
-        "request_timeout": 120,
+        "request_timeout": request_timeout,
+        "max_retries": 0,
     }
     if json_mode and not is_deepseek:
         kwargs["model_kwargs"] = {"response_format": {"type": "json_object"}}
     if base_url:
         kwargs["base_url"] = base_url.rstrip("/")
     if async_mode:
-        kwargs["http_async_client"] = httpx.AsyncClient(follow_redirects=False)
+        kwargs["http_async_client"] = httpx.AsyncClient(proxy=proxy_url or None, trust_env=False, follow_redirects=False)
     else:
-        kwargs["http_client"] = httpx.Client(follow_redirects=False)
+        kwargs["http_client"] = httpx.Client(proxy=proxy_url or None, trust_env=False, follow_redirects=False)
     return kwargs
 
 
@@ -94,31 +97,20 @@ def _auth_error_message(last_error: Exception | None, *, async_mode: bool) -> st
 
 def call_llm(prompt: str, llm_config: Any, *, temperature: float = 0.3) -> str:
     """Synchronous JSON-oriented LLM call."""
-    if not (llm_config.api_key or "").strip():
-        raise ValueError("未配置 API Key，请在「设置」中填写或于 .env 中设置 LLM_API_KEY")
-
-    provider = (llm_config.provider or "gemini").strip().lower()
+    spec = assert_resolved_llm_config(llm_config)
+    provider = spec.transport
     api_key = (llm_config.api_key or "").strip()
     base_url = (llm_config.base_url or "").strip()
     model = (llm_config.model or "").strip()
 
     last_error: Exception | None = None
-    for attempt in range(MAX_RETRIES + 1):
+    for attempt in range(llm_config.max_retries + 1):
         try:
             if provider == "gemini":
-                from langchain_google_genai import ChatGoogleGenerativeAI
-
-                gemini_kwargs: dict[str, Any] = {
-                    "model": model or DEFAULT_MODEL_GEMINI,
-                    "api_key": api_key,
-                    "temperature": temperature,
-                    "max_output_tokens": 8192,
-                }
-                proxy = _resolve_gemini_proxy()
-                if proxy:
-                    gemini_kwargs["client_args"] = {"proxy": proxy}
-                llm = ChatGoogleGenerativeAI(**gemini_kwargs)
-                return _extract_normalized_message(llm.invoke(prompt))
+                out = _gemini_rest_sync(prompt, api_key, model, temperature, 8192,
+                    _resolve_gemini_proxy(llm_config.proxy_url), request_timeout=llm_config.request_timeout,
+                    base_url=llm_config.base_url, api_version=llm_config.api_version)
+                return _normalize_llm_output(out)
 
             try:
                 from langchain_openai import ChatOpenAI
@@ -133,6 +125,8 @@ def call_llm(prompt: str, llm_config: Any, *, temperature: float = 0.3) -> str:
                     temperature=temperature,
                     max_tokens=8192,
                     json_mode=True,
+                    request_timeout=llm_config.request_timeout,
+                    proxy_url=llm_config.proxy_url,
                     async_mode=False,
                 )
             )
@@ -160,50 +154,23 @@ async def call_llm_async(
     max_tokens: int = 8192,
 ) -> str:
     """Async JSON-oriented LLM call for concurrent generation."""
-    if not (llm_config.api_key or "").strip():
-        raise ValueError("未配置 API Key，请在「设置」中填写或于 .env 中设置 LLM_API_KEY")
-
-    provider = (llm_config.provider or "gemini").strip().lower()
+    spec = assert_resolved_llm_config(llm_config)
+    provider = spec.transport
     api_key = (llm_config.api_key or "").strip()
     base_url = (llm_config.base_url or "").strip()
     model = (llm_config.model or "").strip()
 
     last_error: Exception | None = None
-    for attempt in range(MAX_RETRIES + 1):
+    for attempt in range(llm_config.max_retries + 1):
         try:
             if provider == "gemini":
-                proxy = _resolve_gemini_proxy()
-                if proxy:
-                    out = await _gemini_rest_with_proxy(
-                        prompt,
-                        api_key,
-                        model or DEFAULT_MODEL_GEMINI,
-                        temperature,
-                        max_tokens,
-                        proxy,
-                    )
-                    try:
-                        return _normalize_llm_output(out)
-                    except KeyError:
-                        return out
-
-                from langchain_google_genai import ChatGoogleGenerativeAI
-
-                llm = ChatGoogleGenerativeAI(
-                    model=model or DEFAULT_MODEL_GEMINI,
-                    api_key=api_key,
-                    temperature=temperature,
-                    max_output_tokens=max_tokens,
-                )
+                out = await _gemini_rest_with_proxy(prompt, api_key, model, temperature, max_tokens,
+                    _resolve_gemini_proxy(llm_config.proxy_url), request_timeout=llm_config.request_timeout,
+                    base_url=llm_config.base_url, api_version=llm_config.api_version)
                 try:
-                    if hasattr(llm, "ainvoke"):
-                        msg = await llm.ainvoke(prompt)
-                    else:
-                        msg = await asyncio.to_thread(llm.invoke, prompt)
-                    return _extract_normalized_message(msg)
+                    return _normalize_llm_output(out)
                 except KeyError:
-                    logger.warning("LLM 返回解析 KeyError（Gemini），返回空题目列表")
-                    return '{"questions":[]}'
+                    return out
 
             try:
                 from langchain_openai import ChatOpenAI
@@ -218,6 +185,8 @@ async def call_llm_async(
                     temperature=temperature,
                     max_tokens=max_tokens,
                     json_mode=True,
+                    request_timeout=llm_config.request_timeout,
+                    proxy_url=llm_config.proxy_url,
                     async_mode=True,
                 )
             )
