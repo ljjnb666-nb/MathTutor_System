@@ -17,6 +17,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from uuid import UUID
 from pathlib import Path
 
 import pytest
@@ -130,6 +131,9 @@ def _build_previous_head_schema(db_path: Path, *, keep_version_table: bool) -> N
     db_url = f"sqlite:///{db_path.as_posix()}"
     engine = create_engine(db_url)
     Base.metadata.create_all(engine)
+    with engine.begin() as conn:
+        conn.execute(text("DROP INDEX ix_users_auth_subject"))
+        conn.execute(text("ALTER TABLE users DROP COLUMN auth_subject"))
     engine.dispose()
     _drop_tables(db_path, "agent_actions", "agent_artifacts")
     engine = create_engine(db_url)
@@ -339,3 +343,68 @@ def test_boot_db_09_missing_application_column_fails_closed(case_dir):
     assert proc.returncode != 0
     assert "plans: missing columns: features" in proc.stderr
     assert not _alembic_version_exists(db_path), "列签名不匹配时不得创建/写入 alembic_version"
+
+
+def _build_pre_auth_head(db_path):
+    engine = create_engine(f"sqlite:///{db_path.as_posix()}")
+    Base.metadata.create_all(engine)
+    with engine.begin() as conn:
+        conn.execute(text("DROP INDEX ix_users_auth_subject"))
+        conn.execute(text("ALTER TABLE users DROP COLUMN auth_subject"))
+        conn.execute(text("INSERT INTO users (id, username, hashed_password, role, is_active, created_at) "
+                          "VALUES (1, 'preserved-user', 'preserved-hash', 'teacher', 1, CURRENT_TIMESTAMP)"))
+    return engine
+
+
+@pytest.mark.parametrize("versioned", [False, True])
+def test_pre_auth_head_is_migrated_not_stamped_over(case_dir, versioned):
+    db_path = case_dir / "pre_auth.sqlite"
+    engine = _build_pre_auth_head(db_path)
+    engine.dispose()
+    if versioned:
+        _run_alembic("stamp", "f2b9c7a41d63", db_url=f"sqlite:///{db_path.as_posix()}")
+    proc = _run_bootstrap(db_path)
+    assert proc.returncode == 0, proc.stderr
+    assert "f2b9c7a41d63 -> a6c8e2f91b40" in proc.stderr
+    assert _read_version(db_path) == HEAD_REVISION
+    engine = create_engine(f"sqlite:///{db_path.as_posix()}")
+    try:
+        with engine.connect() as conn:
+            row = conn.execute(text("SELECT username, hashed_password, auth_subject FROM users WHERE id=1")).one()
+        assert row[0:2] == ("preserved-user", "preserved-hash")
+        assert UUID(row.auth_subject).version == 4
+        assert not next(c for c in inspect(engine).get_columns("users") if c["name"] == "auth_subject")["nullable"]
+    finally:
+        engine.dispose()
+
+
+@pytest.mark.parametrize("corruption", ["nullable", "missing-unique", "null-data", "duplicate-data", "invalid-uuid"])
+def test_partial_auth_subject_state_fails_closed_without_stamping(case_dir, corruption):
+    db_path = case_dir / "partial_auth.sqlite"
+    if corruption == "missing-unique":
+        engine = create_engine(f"sqlite:///{db_path.as_posix()}")
+        Base.metadata.create_all(engine)
+        with engine.begin() as conn:
+            conn.execute(text("DROP INDEX ix_users_auth_subject"))
+    else:
+        engine = _build_pre_auth_head(db_path)
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN auth_subject VARCHAR(36)"))
+            conn.execute(text("UPDATE users SET auth_subject='3d9eea70-843e-43d6-a4ae-a9aab091acd1'"))
+            if corruption != "duplicate-data":
+                conn.execute(text("CREATE UNIQUE INDEX ix_users_auth_subject ON users(auth_subject)"))
+            if corruption == "null-data":
+                conn.execute(text("UPDATE users SET auth_subject=NULL"))
+            if corruption == "invalid-uuid":
+                conn.execute(text("UPDATE users SET auth_subject='invalid'"))
+            if corruption == "duplicate-data":
+                conn.execute(text("INSERT INTO users (id, username, hashed_password, role, is_active, created_at, auth_subject) "
+                                  "SELECT 2, 'duplicate', hashed_password, role, is_active, created_at, auth_subject FROM users WHERE id=1"))
+    engine.dispose()
+    proc = _run_bootstrap(db_path)
+    assert proc.returncode != 0
+    assert "BootstrapDatabaseError" in proc.stderr
+    assert "Manual migration required" in proc.stderr
+    if corruption in ("null-data", "duplicate-data", "invalid-uuid"):
+        assert "auth_subject data" in proc.stderr
+    assert not _alembic_version_exists(db_path)

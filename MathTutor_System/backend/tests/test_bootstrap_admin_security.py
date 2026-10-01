@@ -13,6 +13,7 @@ SEC-BOOT：首次部署管理员 bootstrap 安全回归测试。
   SEC-BOOT-09  已有数据库 + 已有 admin + 未设置密码 → 正常启动且不改动 admin
 """
 import os
+from uuid import UUID
 import secrets
 import shutil
 import subprocess
@@ -97,7 +98,7 @@ def _fetch_users(db_path: Path) -> list[dict]:
     try:
         with engine.connect() as conn:
             rows = conn.execute(
-                text("select username, hashed_password, role, is_active from users")
+                text("select username, hashed_password, role, is_active, auth_subject from users")
             ).mappings().all()
             return [dict(row) for row in rows]
     finally:
@@ -160,6 +161,7 @@ def test_sec_boot_03_valid_password_creates_admin(bootstrap_tmp):
 
     assert proc.returncode == 0
     users = _fetch_users(db_path)
+    assert UUID(users[0]["auth_subject"]).version == 4
     assert len(users) == 1
     assert users[0]["username"] == "admin"
     assert users[0]["role"] == "admin"

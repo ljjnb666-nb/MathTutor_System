@@ -4,6 +4,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from uuid import UUID
 
 from app.core.security import create_access_token, decode_access_token, verify_password
 from app.models.base import get_db
@@ -12,6 +13,32 @@ from app.schemas.user_dto import Token, UserResponse
 
 router = APIRouter()
 security_bearer = HTTPBearer(auto_error=False)
+
+
+def _resolve_teacher_user(payload: dict, db: Session) -> User | None:
+    """Bind a teacher credential to its account instance before resolving identity."""
+    # Admin authorization comes from User.role, never from the credential type.
+    if payload.get("type") != "teacher":
+        return None
+    subject = payload.get("sub")
+    if not isinstance(subject, str):
+        return None
+    try:
+        if str(UUID(subject)) != subject:
+            return None
+    except ValueError:
+        return None
+    uid = payload.get("uid")
+    username = payload.get("username")
+    # Require a positive JSON integer in the database ID range; bool is not an ID.
+    if type(uid) is not int or not 0 < uid <= 2**63 - 1:
+        return None
+    if not isinstance(username, str) or not username:
+        return None
+    user = db.query(User).filter(User.auth_subject == subject).first()
+    if not user or user.id != uid or user.username != username or not user.is_active:
+        return None
+    return user
 
 
 def get_current_user_optional(
@@ -24,16 +51,7 @@ def get_current_user_optional(
     payload = decode_access_token(credentials.credentials)
     if not payload:
         return None
-    # Missing type remains compatible with legacy teacher sessions.
-    if payload.get("type") is not None and payload.get("type") != "teacher":
-        return None
-    username = payload.get("sub")
-    if not username:
-        return None
-    user = db.query(User).filter(User.username == username).first()
-    if not user or not user.is_active:
-        return None
-    return user
+    return _resolve_teacher_user(payload, db)
 
 
 def get_current_user(
@@ -55,32 +73,11 @@ def get_current_user(
                 detail="无效或过期的 Token",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        # Credential domain must be checked before resolving a teacher User.
-        # Admin authorization still comes from User.role, not the token type.
-        if payload.get("type") is not None and payload.get("type") != "teacher":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="无效的 Token 载荷",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        username = payload.get("sub")
-        if not username:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="无效的 Token 载荷",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        user = db.query(User).filter(User.username == username).first()
+        user = _resolve_teacher_user(payload, db)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="用户不存在",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        if not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="用户已禁用",
+                detail="无效的认证信息",
                 headers={"WWW-Authenticate": "Bearer"},
             )
         return user
@@ -115,7 +112,9 @@ def login(
             detail="用户已禁用",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token = create_access_token(data={"sub": user.username, "type": "teacher"})
+    access_token = create_access_token(data={
+        "sub": user.auth_subject, "uid": user.id, "username": user.username, "type": "teacher",
+    })
     return Token(access_token=access_token, token_type="bearer")
 
 
