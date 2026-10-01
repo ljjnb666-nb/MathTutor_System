@@ -24,6 +24,9 @@ def get_current_user_optional(
     payload = decode_access_token(credentials.credentials)
     if not payload:
         return None
+    # Missing type remains compatible with legacy teacher sessions.
+    if payload.get("type") is not None and payload.get("type") != "teacher":
+        return None
     username = payload.get("sub")
     if not username:
         return None
@@ -50,6 +53,14 @@ def get_current_user(
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="无效或过期的 Token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        # Credential domain must be checked before resolving a teacher User.
+        # Admin authorization still comes from User.role, not the token type.
+        if payload.get("type") is not None and payload.get("type") != "teacher":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="无效的 Token 载荷",
                 headers={"WWW-Authenticate": "Bearer"},
             )
         username = payload.get("sub")
@@ -104,7 +115,7 @@ def login(
             detail="用户已禁用",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token = create_access_token(data={"sub": user.username})
+    access_token = create_access_token(data={"sub": user.username, "type": "teacher"})
     return Token(access_token=access_token, token_type="bearer")
 
 
