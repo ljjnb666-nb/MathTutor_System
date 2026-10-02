@@ -1,3 +1,4 @@
+import mathFixture from '../../../test-fixtures/math-rendering-cases.json'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -121,4 +122,11 @@ describe('MistakeBook', () => {
     expect(smartGen.setQuestions).toHaveBeenCalledWith([{ content: '巩固题' }])
     expect(navigate).toHaveBeenCalledWith('/smart-gen', { state: { fromMistakeBook: true } })
   })
+})
+
+it('renders mathematical mistake content, options and solution', async () => {
+ api.getMistakes.mockResolvedValue({data: [{id: 10, ...mathFixture.question, solution: mathFixture.question.analysis, status: 'pending'}]})
+ const {container} = renderPage()
+ await waitFor(() => expect(container.querySelectorAll('.katex')).toHaveLength(6))
+ expect(container.querySelector('.katex-display')).not.toBeNull()
 })

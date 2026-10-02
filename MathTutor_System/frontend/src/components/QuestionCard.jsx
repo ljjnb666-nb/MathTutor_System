@@ -85,10 +85,10 @@ function cloneEditData(data) {
   const opts = Array.isArray(data.options) ? [...data.options] : []
   while (opts.length < 4) opts.push('')
   return {
-    content: (data.content ?? data.body ?? '').trim(),
+    content: data.content ?? data.body ?? '',
     options: opts.slice(0, 4),
-    answer: (data.answer ?? '').trim(),
-    analysis: (data.analysis ?? '').trim(),
+    answer: data.answer ?? '',
+    analysis: data.analysis ?? '',
     question_type: data.question_type,
     difficulty: data.difficulty,
     knowledge_point: data.knowledge_point,

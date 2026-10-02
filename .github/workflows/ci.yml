@@ -71,4 +71,5 @@ jobs:
           cache: npm
           cache-dependency-path: MathTutor_System/frontend-student/package-lock.json
       - run: npm ci
+      - run: npm test -- --run
       - run: npm run build
