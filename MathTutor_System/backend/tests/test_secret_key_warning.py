@@ -4,11 +4,12 @@ import logging
 
 import pytest
 
+import app.core.config as config_module
 import app.core.security as security_module
 
 # Derive values from the module itself; no credential-looking literals in tests.
-_DEFAULT = security_module._DEFAULT_SECRET
-_CUSTOM = "".join(["custom-dev-key-", "x" * 24])
+_DEFAULT = config_module._DEFAULT_SECRET_KEY
+_CUSTOM = "".join(["custom-dev-key-", "x" * 40])
 
 
 def _reload_with_env(monkeypatch, env):
@@ -16,6 +17,7 @@ def _reload_with_env(monkeypatch, env):
         monkeypatch.delenv(key, raising=False)
     for key, value in env.items():
         monkeypatch.setenv(key, value)
+    importlib.reload(config_module)
     return importlib.reload(security_module)
 
 
@@ -48,4 +50,5 @@ def _restore_module(monkeypatch):
     yield
     for key in ("SECRET_KEY", "ENV", "DEBUG"):
         monkeypatch.delenv(key, raising=False)
+    importlib.reload(config_module)
     importlib.reload(security_module)

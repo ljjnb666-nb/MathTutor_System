@@ -87,11 +87,14 @@ def login_student(db: Session, login_code: str, password: str | None) -> Token:
         raise _auth_error("登录码或密码错误")
 
     owner = _validate_student_owner(db, student)
-    if student.hashed_password and student.hashed_password.strip():
-        if not password or not password.strip():
-            raise _auth_error("请输入密码")
-        if not verify_password(password, student.hashed_password):
-            raise _auth_error("登录码或密码错误")
+    # SEC-01：登录码 + 密码必须同时存在；历史「只有登录码」的学生一律无法登录，
+    # 且不得向调用方透露「登录码存在但未设密码」。
+    if not student.hashed_password or not student.hashed_password.strip():
+        raise _auth_error("登录码或密码错误")
+    if not password or not password.strip():
+        raise _auth_error("请输入密码")
+    if not verify_password(password, student.hashed_password):
+        raise _auth_error("登录码或密码错误")
 
     access_token = create_access_token(data={
         "type": "student", "sub": student.auth_subject, "sid": student.id,
@@ -105,7 +108,11 @@ def update_student_password(db: Session, student: Student, old_password: str, ne
         raise StudentPortalServiceError(400, "您尚未设置密码，无法修改。请联系老师在学生管理中为您设置密码。")
     if not verify_password(old_password, student.hashed_password):
         raise StudentPortalServiceError(400, "当前密码错误")
-    student.hashed_password = get_password_hash(new_password)
+    # 旧密码只做校验不套用新规则；新密码必须满足统一 policy。
+    try:
+        student.hashed_password = get_password_hash(new_password)
+    except ValueError as exc:
+        raise StudentPortalServiceError(400, str(exc)) from None
     db.commit()
     return {"detail": "密码已修改"}
 

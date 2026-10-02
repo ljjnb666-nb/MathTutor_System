@@ -52,18 +52,36 @@ def ensure_login_code_unique(
         )
 
 
+CREDENTIAL_PASSWORD_REQUIRED_DETAIL = "启用学生端登录时必须同时设置密码（至少 8 位）。"
+
+
+def _hash_credential_password(password: str | None) -> str | None:
+    """Hash a student portal password, mapping policy violations to a stable 400."""
+    if not password or not password.strip():
+        return None
+    try:
+        return get_password_hash(password)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+
+
 def create_student_for_user(db: Session, body: StudentCreate, current_user: User) -> Student:
     sub = get_current_subscription(current_user, db)
     require_plan_capacity(current_user, sub, db)
     ensure_login_code_unique(db, body.login_code)
+    hashed_password = _hash_credential_password(body.password)
+    enables_login = bool(body.login_code and body.login_code.strip())
+    # SEC-01：登录码 + 密码必须同时存在，不允许 code-only 凭证诞生。
+    if enables_login and hashed_password is None:
+        raise HTTPException(status_code=400, detail=CREDENTIAL_PASSWORD_REQUIRED_DETAIL)
     row = Student(
         user_id=current_user.id,
         name=body.name,
         grade=body.grade,
         class_name=body.class_name,
         tags=body.tags or [],
-        login_code=body.login_code.strip() if body.login_code and body.login_code.strip() else None,
-        hashed_password=get_password_hash(body.password) if body.password and body.password.strip() else None,
+        login_code=body.login_code.strip() if enables_login else None,
+        hashed_password=hashed_password,
     )
     db.add(row)
     db.commit()
@@ -79,10 +97,18 @@ def update_student_for_user(
 ) -> Student:
     row = get_student_or_404(db, student_id, current_user)
     data = body.model_dump(exclude_unset=True, exclude={"password"})
+    has_password = bool(row.hashed_password and row.hashed_password.strip())
     if "login_code" in data:
         ensure_login_code_unique(db, data.get("login_code"), exclude_student_id=student_id)
-    if body.password is not None and body.password.strip():
-        row.hashed_password = get_password_hash(body.password)
+    new_password_hash = _hash_credential_password(body.password)
+    if "login_code" in data:
+        enables_login = bool(data.get("login_code") and str(data.get("login_code")).strip())
+        # 启用/保持登录码时，学生必须最终持有密码：已设密码允许只改登录码；
+        # 无密码学生必须本次同时设置，否则拒绝且不做任何修改。
+        if enables_login and not has_password and new_password_hash is None:
+            raise HTTPException(status_code=400, detail=CREDENTIAL_PASSWORD_REQUIRED_DETAIL)
+    if new_password_hash is not None:
+        row.hashed_password = new_password_hash
     for key, value in data.items():
         if key == "login_code":
             row.login_code = value.strip() if value else None

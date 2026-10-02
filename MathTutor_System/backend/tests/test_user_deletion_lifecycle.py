@@ -207,11 +207,11 @@ def test_unexpected_final_sql_failure_keeps_barrier_and_rolls_back(database, rea
 def test_teacher_student_credentials_and_admin_mutations_freeze(database, active_flag):
     with database() as db:
         user = db.get(User, 2)
-        user.hashed_password = get_password_hash("pass")
-        student = Student(user_id=2, name="S", grade="8", class_name="1", login_code="code")
+        user.hashed_password = get_password_hash("-".join(["deletion", "pass", "123"]))
+        student = Student(user_id=2, name="S", grade="8", class_name="1", login_code="code", hashed_password=get_password_hash("-".join(["portal", "pass", "123"])))
         db.add(student)
         db.commit()
-        token = login_student(db, "code", None).access_token
+        token = login_student(db, "code", "-".join(["portal", "pass", "123"])).access_token
         payload = {"type": "teacher", "sub": user.auth_subject, "uid": 2, "username": user.username}
         assert auth._resolve_teacher_user(payload, db) is user
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=create_access_token(data=payload))
@@ -226,9 +226,9 @@ def test_teacher_student_credentials_and_admin_mutations_freeze(database, active
             auth.get_current_user(credentials, db)
         assert error.value.status_code == 401
         with pytest.raises(HTTPException) as error:
-            auth.login(OAuth2PasswordRequestForm(username=user.username, password="pass"), db)
+            auth.login(OAuth2PasswordRequestForm(username=user.username, password="-".join(["deletion", "pass", "123"])), db)
         assert error.value.status_code == 401
-        for operation in (lambda: login_student(db, "code", None), lambda: get_current_student_from_token(db, token)):
+        for operation in (lambda: login_student(db, "code", "-".join(["portal", "pass", "123"])), lambda: get_current_student_from_token(db, token)):
             with pytest.raises(StudentPortalServiceError) as error:
                 operation()
             assert error.value.status_code == 401

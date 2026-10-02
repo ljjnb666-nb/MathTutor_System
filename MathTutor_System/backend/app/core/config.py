@@ -18,10 +18,14 @@ DEFAULT_AI_REQUEST_TIMEOUT = 120
 DEFAULT_AI_TEST_TIMEOUT = 30
 DEFAULT_AI_MAX_RETRIES = 2
 
+# Development-only fallback; production startup rejects it (see app.core.security).
+_DEFAULT_SECRET_KEY = "-".join(["math-tutor", "dev-secret", "change-in", "production"])
+
 
 class AppSettings(BaseSettings):
     env: str = Field(default="development", alias="ENV")
     debug: bool = Field(default=True, alias="DEBUG")
+    secret_key: str = Field(default=_DEFAULT_SECRET_KEY, alias="SECRET_KEY", repr=False)
     allow_client_llm_config: bool | None = Field(default=None, alias="ALLOW_CLIENT_LLM_CONFIG")
 
     database_url: str = Field(default_factory=_default_database_url, alias="DATABASE_URL")
@@ -123,6 +127,7 @@ def get_settings() -> AppSettings:
 ENV = settings.env.strip().lower()
 DEBUG = settings.debug
 IS_PRODUCTION = ENV == "production" or not DEBUG
+SECRET_KEY = settings.secret_key
 ALLOW_CLIENT_LLM_CONFIG = (
     not IS_PRODUCTION
     and (

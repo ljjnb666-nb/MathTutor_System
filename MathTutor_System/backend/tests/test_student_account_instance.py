@@ -3,7 +3,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.core.security import create_access_token, decode_access_token
+from app.core.security import create_access_token, decode_access_token, get_password_hash
 from app.models import Student, User
 from app.schemas.student_dto import StudentUpdate
 from app.services.student_portal_service import (
@@ -15,8 +15,16 @@ from tests.test_user_tenant_purge import database
 from tests.test_user_deletion_lifecycle import real_store, assert_empty
 
 
+FIXTURE_STUDENT_PASSWORD = "-".join(["portal", "pass", "123"])
+
+
 def add_student(db, owner=2, code="code-a"):
-    student = Student(user_id=owner, name="Student", grade="8", class_name="1", login_code=code)
+    # SEC-01: code-only credentials can no longer authenticate, so every fixture
+    # student now carries the paired password its logins use.
+    student = Student(
+        user_id=owner, name="Student", grade="8", class_name="1",
+        login_code=code, hashed_password=get_password_hash(FIXTURE_STUDENT_PASSWORD),
+    )
     db.add(student)
     db.commit()
     return student
@@ -33,7 +41,7 @@ def test_rb01_student_01_token_contract(database):
     with database() as db:
         student = add_student(db)
         owner = db.get(User, 2)
-        token = login_student(db, student.login_code, None).access_token
+        token = login_student(db, student.login_code, FIXTURE_STUDENT_PASSWORD).access_token
         payload = decode_access_token(token)
         assert {key: payload[key] for key in ("type", "sub", "sid", "owner_uid", "owner_sub")} == {
             "type": "student", "sub": student.auth_subject, "sid": student.id,
@@ -53,7 +61,7 @@ def test_rb01_student_03_04_05_direct_delete_highest_id_reused(database, new_own
     with database() as db:
         first = add_student(db)
         old_id, old_subject = first.id, first.auth_subject
-        old_token = login_student(db, first.login_code, None).access_token
+        old_token = login_student(db, first.login_code, FIXTURE_STUDENT_PASSWORD).access_token
         assert db.query(Student).count() == 1  # highest row; automatic SQLite reuse is intentional
         delete_student_for_user(db, old_id, db.get(User, 2))
         second = add_student(db, owner=new_owner, code="code-b")
@@ -66,7 +74,7 @@ def test_rb01_student_03_04_05_direct_delete_highest_id_reused(database, new_own
         assert second.id == old_id
         assert second.auth_subject != old_subject
         assert_rejected(db, old_token)
-        new_token = login_student(db, second.login_code, None).access_token
+        new_token = login_student(db, second.login_code, FIXTURE_STUDENT_PASSWORD).access_token
         assert get_current_student_from_token(db, new_token).auth_subject == second.auth_subject
 
 
@@ -75,26 +83,26 @@ def test_rb01_student_06_full_user_delete_then_both_ids_reused(database, real_st
         student = add_student(db)
         owner = db.get(User, 2)
         uid, usub, sid, ssub = owner.id, owner.auth_subject, student.id, student.auth_subject
-        old_token = login_student(db, student.login_code, None).access_token
+        old_token = login_student(db, student.login_code, FIXTURE_STUDENT_PASSWORD).access_token
         delete_user_lifecycle(db, uid, 1)
         assert db.get(User, uid) is None and db.get(Student, sid) is None
         assert_empty(real_store)
         replacement_owner = User(id=uid, username="replacement", hashed_password="x")
         db.add(replacement_owner)
         db.commit()
-        replacement = Student(id=sid, user_id=uid, name="New student", grade="8", class_name="1", login_code="new-code")
+        replacement = Student(id=sid, user_id=uid, name="New student", grade="8", class_name="1", login_code="new-code", hashed_password=get_password_hash(FIXTURE_STUDENT_PASSWORD))
         db.add(replacement)
         db.commit()
         assert replacement_owner.auth_subject != usub and replacement.auth_subject != ssub
         assert_rejected(db, old_token)
-        assert get_current_student_from_token(db, login_student(db, "new-code", None).access_token).id == sid
+        assert get_current_student_from_token(db, login_student(db, "new-code", FIXTURE_STUDENT_PASSWORD).access_token).id == sid
 
 
 @pytest.mark.parametrize("field", ["owner_sub", "sid", "owner_uid"], ids=["RB01-STUDENT-07", "RB01-STUDENT-08", "RB01-STUDENT-09"])
 def test_rb01_consistency_mismatch(database, field):
     with database() as db:
         student = add_student(db)
-        payload = decode_access_token(login_student(db, student.login_code, None).access_token)
+        payload = decode_access_token(login_student(db, student.login_code, FIXTURE_STUDENT_PASSWORD).access_token)
         payload[field] = str(uuid4()) if field == "owner_sub" else payload[field] + 1
         assert_rejected(db, create_access_token(payload))
 
@@ -103,7 +111,7 @@ def test_rb01_consistency_mismatch(database, field):
 def test_rb01_student_10_owner_deleting_denies_old_token_and_login(database, active_flag):
     with database() as db:
         student = add_student(db)
-        token = login_student(db, student.login_code, None).access_token
+        token = login_student(db, student.login_code, FIXTURE_STUDENT_PASSWORD).access_token
         owner = db.get(User, 2)
         owner.deletion_state = "deleting"
         owner.is_active = active_flag  # corrupted active flag must still fail closed
@@ -112,14 +120,14 @@ def test_rb01_student_10_owner_deleting_denies_old_token_and_login(database, act
         db.commit()
         assert_rejected(db, token)
         with pytest.raises(StudentPortalServiceError) as error:
-            login_student(db, student.login_code, None)
+            login_student(db, student.login_code, FIXTURE_STUDENT_PASSWORD)
         assert error.value.status_code == 401
 
 
 def test_owner_reassignment_and_same_id_owner_reincarnation_reject(database):
     with database() as db:
         student = add_student(db)
-        token = login_student(db, student.login_code, None).access_token
+        token = login_student(db, student.login_code, FIXTURE_STUDENT_PASSWORD).access_token
         student.user_id = 3
         db.commit()
         assert_rejected(db, token)
@@ -132,7 +140,7 @@ def test_owner_reassignment_and_same_id_owner_reincarnation_reject(database):
         student.user_id = 2  # same student instance, new owner instance with recycled ID
         db.commit()
         assert_rejected(db, token)
-        assert get_current_student_from_token(db, login_student(db, student.login_code, None).access_token).id == student.id
+        assert get_current_student_from_token(db, login_student(db, student.login_code, FIXTURE_STUDENT_PASSWORD).access_token).id == student.id
 
 
 @pytest.mark.parametrize("field,value", [
@@ -147,7 +155,7 @@ def test_owner_reassignment_and_same_id_owner_reincarnation_reject(database):
 def test_malformed_claims_rejected(database, field, value):
     with database() as db:
         student = add_student(db)
-        payload = decode_access_token(login_student(db, student.login_code, None).access_token)
+        payload = decode_access_token(login_student(db, student.login_code, FIXTURE_STUDENT_PASSWORD).access_token)
         payload[field] = value
         assert_rejected(db, create_access_token(payload))
 
