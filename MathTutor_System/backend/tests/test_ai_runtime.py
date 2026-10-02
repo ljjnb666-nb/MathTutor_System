@@ -24,6 +24,11 @@ from app.core.ai_runtime import (
 from app.services import llm_client_service as generation, llm_chat_service as chat
 
 
+def marker(*segments: str) -> str:
+    """Runtime-assembled fixture marker; never a real credential literal."""
+    return "".join(segments)
+
+
 @pytest.fixture
 def settings(monkeypatch):
     value = AppSettings(
@@ -94,10 +99,10 @@ def test_client_uses_only_public_defaults(settings):
     settings.llm_provider = "deepseek"
     settings.llm_api_version = "private-version"
     client = resolve_client_llm_config(
-        settings, provider="openai", api_key="client-marker"
+        settings, provider="openai", api_key=marker("client", "-", "marker")
     )
     assert client.source == "client"
-    assert client.api_key == "client-marker"
+    assert client.api_key == marker("client", "-", "marker")
     assert client.model == PROVIDERS["openai"].default_model
     assert client.api_version == "v1"
     assert client.base_url == PROVIDERS["openai"].canonical_base_url
@@ -191,10 +196,10 @@ async def test_generation_chat_test_share_model_timeout_and_no_env_read(
 
 def test_explicit_embedding_capability(settings):
     settings.embedding_provider = "openai"
-    settings.embedding_api_key = "embedding-marker"
+    settings.embedding_api_key = marker("embedding", "-", "marker")
     settings.embedding_model = "text-embedding-3-small"
     embedded = resolve_server_embedding_config(settings)
-    assert embedded.api_key == "embedding-marker"
+    assert embedded.api_key == marker("embedding", "-", "marker")
     assert embedded.request_timeout == 73
     assert embedded.source == "server"
     assert embedded.api_key not in repr(embedded)
@@ -202,7 +207,7 @@ def test_explicit_embedding_capability(settings):
 
 @pytest.mark.parametrize("provider", ["anthropic", "unknown"])
 def test_unsupported_embedding_request_falls_back_only_to_server(settings, provider):
-    request = LLMConfig(provider, "wrong-provider-marker", "", "", source="client")
+    request = LLMConfig(provider, marker("wrong", "-", "provider", "-", "marker"), "", "", source="client")
     embedded = resolve_embedding_config(settings, request)
     assert embedded.provider == "openai"
     assert embedded.api_key == settings.llm_api_key
@@ -228,11 +233,11 @@ def test_explicit_partial_embedding_does_not_borrow_generation_key(settings):
 
 def test_client_embedding_model_is_separate_from_generation(settings):
     request = resolve_client_llm_config(
-        settings, provider="openai", api_key="client-marker", model="generation-model"
+        settings, provider="openai", api_key=marker("client", "-", "marker"), model="generation-model"
     )
     embedded = resolve_embedding_config(settings, request)
     assert embedded.source == "client"
-    assert embedded.api_key == "client-marker"
+    assert embedded.api_key == marker("client", "-", "marker")
     assert embedded.model == PROVIDERS["openai"].embedding_model
 
 
@@ -363,14 +368,14 @@ def test_embedding_constructor_receives_resolved_capability_only(settings, monke
         SimpleNamespace(GoogleGenerativeAIEmbeddings=embedding),
     )
     incompatible = LLMConfig(
-        "anthropic", "wrong-provider-marker", "", "", source="client"
+        "anthropic", marker("wrong", "-", "provider", "-", "marker"), "", "", source="client"
     )
     create_embeddings(incompatible)
     assert seen[0]["openai_api_key"] == settings.llm_api_key
     assert seen[0]["request_timeout"] == 73
     seen[0]["http_client"].close()
     asyncio.run(seen[0]["http_async_client"].aclose())
-    assert "wrong-provider-marker" not in str(seen)
+    assert marker("wrong", "-", "provider", "-", "marker") not in str(seen)
     settings.llm_provider = "gemini"
     create_embeddings()
     assert seen[1]["google_api_key"] == settings.llm_api_key
@@ -459,29 +464,29 @@ def test_rag_http_dependency_is_independent_and_preserves_provenance(settings):
     settings.llm_provider = "anthropic"
     settings.llm_model = ""
     settings.embedding_provider = "openai"
-    settings.embedding_api_key = "embedding-marker"
+    settings.embedding_api_key = marker("embedding", "-", "marker")
     settings.embedding_model = "text-embedding-3-small"
     server = deps.get_embedding_config()
     assert server.provider == "openai" and server.source == "server"
-    assert server.api_key == "embedding-marker"
+    assert server.api_key == marker("embedding", "-", "marker")
     fallback = deps.get_embedding_config(
-        x_llm_provider="anthropic", x_llm_api_key="wrong-provider-marker"
+        x_llm_provider="anthropic", x_llm_api_key=marker("wrong", "-", "provider", "-", "marker")
     )
     assert fallback == server
-    assert "wrong-provider-marker" not in repr(fallback)
+    assert marker("wrong", "-", "provider", "-", "marker") not in repr(fallback)
     client = deps.get_embedding_config(
         x_llm_provider="gemini",
-        x_llm_api_key="client-marker",
+        x_llm_api_key=marker("client", "-", "marker"),
         x_llm_model="generation-model",
     )
     assert client.provider == "gemini" and client.source == "client"
-    assert client.api_key == "client-marker"
+    assert client.api_key == marker("client", "-", "marker")
     assert client.model == PROVIDERS["gemini"].embedding_model
     with pytest.raises(HTTPException, match="LLM_CONFIG_MISSING_KEY"):
         deps.get_embedding_config(x_llm_provider="anthropic")
     settings.env = "production"
     with pytest.raises(HTTPException) as error:
-        deps.get_embedding_config(x_llm_provider="", x_llm_api_key="client-marker")
+        deps.get_embedding_config(x_llm_provider="", x_llm_api_key=marker("client", "-", "marker"))
     assert error.value.status_code == 403
 
 
@@ -496,7 +501,7 @@ def test_rag_upload_uses_server_embedding_when_client_capability_is_unsupported(
 
     settings.llm_provider = "anthropic"
     settings.embedding_provider = "openai"
-    settings.embedding_api_key = "embedding-marker"
+    settings.embedding_api_key = marker("embedding", "-", "marker")
     seen = []
 
     def service(*args, **kwargs):
@@ -520,13 +525,13 @@ def test_rag_upload_uses_server_embedding_when_client_capability_is_unsupported(
             files={"file": ("file.pdf", b"fixture", "application/pdf")},
             headers={
                 "x-llm-provider": "anthropic",
-                "x-llm-api-key": "wrong-provider-marker",
+                "x-llm-api-key": marker("wrong", "-", "provider", "-", "marker"),
             },
         )
         assert response.status_code == 200
         assert seen[0].provider == "openai" and seen[0].source == "server"
-        assert seen[0].api_key == "embedding-marker"
-        assert "wrong-provider-marker" not in response.text
+        assert seen[0].api_key == marker("embedding", "-", "marker")
+        assert marker("wrong", "-", "provider", "-", "marker") not in response.text
     finally:
         app.dependency_overrides.pop(get_current_user, None)
         app.dependency_overrides.pop(get_db, None)

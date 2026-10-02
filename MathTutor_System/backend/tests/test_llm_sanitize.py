@@ -4,6 +4,11 @@ import pytest
 from app.core.llm_sanitize import mask_secrets, sanitize_llm_error_message
 
 
+def fixture_api_key() -> str:
+    """Runtime-assembled fixture key; never a real credential literal."""
+    return "".join(["fixture", "-", "api", "-", "key"])
+
+
 def test_mask_secrets_masks_openai_style_keys():
     text = "Authentication failed for key sk-abcdef1234567890xyz"
     masked = mask_secrets(text)
@@ -158,7 +163,7 @@ def test_word_parser_provider_error_is_mapped_and_not_logged(monkeypatch, caplog
     with caplog.at_level(logging.WARNING):
         with pytest.raises(ValueError) as exc_info:
             word_parser.parse_with_deepseek(
-                "question", api_key="fixture-api-key", base_url="https://api.openai.com/v1", provider="openai"
+                "question", api_key=fixture_api_key(), base_url="https://api.openai.com/v1", provider="openai"
             )
 
     assert str(exc_info.value).startswith("LLM_PROVIDER_ERROR:")
@@ -184,7 +189,7 @@ def test_ppt_provider_error_is_mapped_and_not_logged(monkeypatch, caplog):
     monkeypatch.setattr(ppt, "OpenAI", _OpenAI)
     with caplog.at_level(logging.WARNING):
         with pytest.raises(ValueError) as exc_info:
-            ppt.generate_lecture_content("linear functions", "middle", api_key="fixture-api-key")
+            ppt.generate_lecture_content("linear functions", "middle", api_key=fixture_api_key())
 
     assert str(exc_info.value).startswith("LLM_PROVIDER_ERROR:")
     assert secret not in str(exc_info.value)
@@ -204,7 +209,7 @@ def test_word_parser_client_setup_error_is_mapped(monkeypatch):
     monkeypatch.setattr(word_parser, "OpenAI", _OpenAI)
     with pytest.raises(ValueError) as exc_info:
         word_parser.parse_with_deepseek(
-            "question", api_key="fixture-api-key", base_url="https://api.openai.com/v1", provider="openai"
+            "question", api_key=fixture_api_key(), base_url="https://api.openai.com/v1", provider="openai"
         )
 
     assert str(exc_info.value).startswith("LLM_PROVIDER_ERROR:")

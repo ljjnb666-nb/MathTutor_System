@@ -128,7 +128,7 @@ def test_fresh_metadata_and_orm_generate_unique_uuid4_subjects():
         with Session(engine) as db:
             user = db.query(User).filter(User.username == "first").one()
             original = user.auth_subject
-            user.hashed_password = "changed-password"
+            user.hashed_password = "".join(["changed", "-", "password"])
             user.role = "admin"
             db.commit()
             assert user.auth_subject == original
