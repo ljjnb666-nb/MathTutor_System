@@ -20,7 +20,7 @@ export default class ErrorBoundary extends Component {
           <div>
             <p className="text-base font-semibold text-red-800">页面出错了</p>
             <p className="mt-1 max-w-md text-sm text-red-700">
-              {String(this.state.error?.message || this.state.error)}
+              页面渲染出现异常，请点击重试；若反复出现，请刷新页面或稍后再试。
             </p>
           </div>
           <button

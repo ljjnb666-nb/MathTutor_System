@@ -4,6 +4,7 @@ import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Download, FileTex
 import toast from 'react-hot-toast'
 import { buildPPTFile, generatePPT } from '../services/api'
 import { EmptyState, PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
+import { normalizeApiError } from '../utils/normalizeApiError'
 
 const GRADES = [
   { value: 'Primary', label: '小学' },
@@ -56,7 +57,7 @@ export default function PPTGenerator() {
         navigate('/pricing')
         return
       }
-      const message = err.response?.data?.detail ?? err.message ?? '生成失败'
+      const message = normalizeApiError(err, '生成失败，请稍后重试')
       setError(message)
       toast.error('生成失败：' + message)
     } finally {
@@ -86,7 +87,7 @@ export default function PPTGenerator() {
         navigate('/pricing')
         return
       }
-      const message = err.response?.data?.detail ?? err.message ?? '下载失败'
+      const message = normalizeApiError(err, '下载失败，请稍后重试')
       setError(message)
       toast.error('下载失败：' + message)
     } finally {

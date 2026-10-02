@@ -9,6 +9,7 @@ import {
   getWeekBounds,
   todayStr,
 } from '../utils/dateRanges'
+import { normalizeApiError } from '../../../utils/normalizeApiError'
 import {
   buildConflictMap,
   getDefaultEndTime,
@@ -132,7 +133,7 @@ export function useSchedulePageState(currentStudentId) {
       const data = await getSchedules(params)
       setSchedules(Array.isArray(data) ? data : [])
     } catch (e) {
-      toast.error(`加载排课失败：${e.response?.data?.detail ?? e.message}`)
+      toast.error(normalizeApiError(e, '加载排课失败'))
       setSchedules([])
     } finally {
       setLoading(false)
@@ -289,7 +290,7 @@ export function useSchedulePageState(currentStudentId) {
         closeModal()
         fetchSchedules()
       } catch (e2) {
-        toast.error((e2.response?.data?.detail ?? e2.message) || '保存失败')
+        toast.error(normalizeApiError(e2, '操作失败，请稍后重试') || '保存失败')
       } finally {
         setSaving(false)
       }
@@ -309,7 +310,7 @@ export function useSchedulePageState(currentStudentId) {
         toast.success('已删除')
         fetchSchedules()
       } catch (e) {
-        toast.error(`删除失败：${e.response?.data?.detail ?? e.message}`)
+        toast.error(normalizeApiError(e, '删除失败'))
       }
     },
     [fetchSchedules]

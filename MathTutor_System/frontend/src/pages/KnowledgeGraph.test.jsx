@@ -90,7 +90,7 @@ describe('KnowledgeGraph', () => {
     api.getStudentMastery.mockRejectedValueOnce(new Error('network down')).mockResolvedValueOnce({ data: { weak_points: [], mastered_points: [] } })
     renderPage()
 
-    expect(await screen.findByText('network down')).toBeInTheDocument()
+    expect((await screen.findAllByText('加载学情失败'))[0]).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: '重试' }))
 
     await waitFor(() => expect(api.getStudentMastery).toHaveBeenCalledTimes(2))

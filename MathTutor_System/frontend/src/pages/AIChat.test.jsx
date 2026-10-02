@@ -112,7 +112,7 @@ describe('AIChat V2 workspace', () => {
     await userEvent.type(screen.getByPlaceholderText(/输入数学疑问/), '重新讲一遍')
     await userEvent.click(screen.getByRole('button', { name: /发送/ }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('chat failed')
+    expect(await screen.findByRole('alert')).toHaveTextContent('对话请求失败')
     await userEvent.click(screen.getByRole('button', { name: '重试' }))
 
     await waitFor(() => expect(api.chatWithAI).toHaveBeenCalledTimes(2))

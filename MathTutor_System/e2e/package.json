@@ -1,0 +1,13 @@
+{
+  "name": "mathtutor-e2e",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Playwright browser E2E gate: real Chromium -> Vite frontends -> FastAPI -> PostgreSQL",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  }
+}

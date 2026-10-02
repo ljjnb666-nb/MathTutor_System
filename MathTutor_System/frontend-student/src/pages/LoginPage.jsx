@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import toast from 'react-hot-toast'
+import { normalizeApiError } from '../utils/normalizeApiError'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -23,7 +24,7 @@ export default function LoginPage() {
       toast.success('登录成功')
       navigate('/', { replace: true })
     } catch (err) {
-      const msg = err.response?.data?.detail ?? err.message ?? '登录失败'
+      const msg = normalizeApiError(err, '登录失败，请检查登录码和密码')
       toast.error(msg)
     } finally {
       setSubmitting(false)

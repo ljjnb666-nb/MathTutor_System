@@ -25,6 +25,7 @@ import {
   getStudentMistakes,
 } from '../services/api'
 import toast from 'react-hot-toast'
+import { normalizeApiError } from '../utils/normalizeApiError'
 
 /** 从错题 topic 字符串拆出知识点集合（与后端一致） */
 function splitTopics(topicStr) {
@@ -74,7 +75,7 @@ export default function KnowledgeGraphPage() {
           setPendingList(Array.isArray(pendingRes) ? pendingRes : pendingRes?.data ?? [])
         }
       } catch (e) {
-        if (!cancelled) toast.error('加载失败：' + (e.response?.data?.detail ?? e.message))
+        if (!cancelled) toast.error(normalizeApiError(e, '加载失败，请稍后重试'))
       } finally {
         if (!cancelled) setLoading(false)
       }

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { FileQuestion, Loader2, RefreshCw, CheckCircle2 } from 'lucide-react'
 import { getStudentExams } from '../services/api'
 import toast from 'react-hot-toast'
+import { normalizeApiError } from '../utils/normalizeApiError'
 
 function formatDate(iso) {
   if (!iso) return '—'
@@ -26,7 +27,7 @@ export default function ExamListPage() {
     getStudentExams()
       .then((data) => setExams(Array.isArray(data) ? data : []))
       .catch((e) => {
-        toast.error('加载失败：' + (e.response?.data?.detail ?? e.message))
+        toast.error(normalizeApiError(e, '加载失败，请稍后重试'))
         setExams([])
       })
       .finally(() => setLoading(false))

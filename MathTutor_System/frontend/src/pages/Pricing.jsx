@@ -4,6 +4,8 @@ import { QRCodeSVG } from 'qrcode.react'
 import { createOrder, getPaymentConfig, getPlans } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import { useSubscription } from '../contexts/SubscriptionContext'
+import { normalizeApiError } from '../utils/normalizeApiError'
+import { getPlanPresentation, getRolePresentation } from '../utils/uiPresentation'
 import { EmptyState, ErrorState, LoadingState, MetricCard, PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
 
 export default function Pricing() {
@@ -34,7 +36,7 @@ export default function Pricing() {
       setWechatEnabled(!!paymentConfig?.wechat_enabled)
     } catch (err) {
       setPlans([])
-      setError(err?.response?.data?.detail || err?.message || '套餐加载失败')
+      setError(normalizeApiError(err, '套餐加载失败，请稍后重试'))
     } finally {
       setLoading(false)
     }
@@ -74,7 +76,7 @@ export default function Pricing() {
         setPayError(result.message || '创建订单失败')
       }
     } catch (err) {
-      setPayError(err.response?.data?.detail || err.message || '请求失败')
+      setPayError(normalizeApiError(err, '创建订单失败，请稍后重试'))
     } finally {
       setPaying(false)
     }
@@ -99,7 +101,7 @@ export default function Pricing() {
       ) : (
         <>
           <div className="grid gap-3 md:grid-cols-3">
-            <MetricCard label="当前套餐" value={subscription?.plan?.name ?? '免费试用版'} hint={`账号角色：${user?.role || 'teacher'}`} icon={WalletCards} />
+            <MetricCard label="当前套餐" value={subscription?.plan?.name ?? getPlanPresentation(currentPlanCode || 'free')} hint={`账号角色：${getRolePresentation(user?.role)}`} icon={WalletCards} />
             <MetricCard label="学生席位" value={`${subscription?.student_count ?? 0} / ${subscription?.max_students ?? 0}`} hint="来自订阅状态" icon={Check} tone="success" />
             <MetricCard label="服务有效期" value={isTeacher ? formatDate(periodEndDate) : '管理员'} hint={daysLeft != null && daysLeft >= 0 ? `剩余 ${daysLeft} 天` : '按真实订阅返回'} icon={CreditCard} tone="warning" />
           </div>

@@ -36,18 +36,14 @@ import {
   StatusBadge,
   Toolbar,
 } from '../components/UiV2'
+import { normalizeApiError } from '../utils/normalizeApiError'
+import { getRagDocumentStatePresentation } from '../utils/uiPresentation'
 
 const LIBRARY_NAMES = ['学科资料', '校本题库', '教学案例', '课程标准']
 
 function getFileType(source = '') {
   const ext = source.split('.').pop()?.toUpperCase()
   return ext && ext.length <= 5 ? ext : 'DOC'
-}
-
-function getDocStatus(doc) {
-  if (!doc.document_id) return { label: '待迁移', tone: 'warning' }
-  if ((doc.chunk_count ?? 0) <= 0) return { label: '待向量化', tone: 'warning' }
-  return { label: '已完成', tone: 'success' }
 }
 
 function formatNumber(n) {
@@ -138,7 +134,7 @@ export default function KnowledgeBase() {
       setDocuments(Array.isArray(res?.documents) ? res.documents : [])
     } catch (err) {
       setDocuments([])
-      setLoadError(err.response?.data?.detail || err.message || '知识库文档加载失败')
+      setLoadError(normalizeApiError(err, '知识库文档加载失败，请稍后重试'))
       if (err.response?.status === 401) toast.error('请先登录')
     } finally {
       setLoading(false)
@@ -179,7 +175,7 @@ export default function KnowledgeBase() {
               }
               if (status.status === 'failed') {
                 toast.dismiss(toastId)
-                toast.error(status.error || '导入失败')
+                toast.error(normalizeApiError(status?.error, '导入失败，请稍后重试'))
                 return
               }
               setTimeout(poll, 1500)
@@ -200,8 +196,7 @@ export default function KnowledgeBase() {
           navigate('/pricing')
           return
         }
-        const msg = err.response?.data?.detail ?? err.message
-        toast.error(typeof msg === 'string' ? msg : '上传失败')
+        toast.error(normalizeApiError(err, '上传失败，请稍后重试'))
       } finally {
         setUploading(false)
       }
@@ -222,8 +217,7 @@ export default function KnowledgeBase() {
       const res = await getRagDocumentChunks(documentId)
       setPreviewChunks(Array.isArray(res?.chunks) ? res.chunks : [])
     } catch (err) {
-      const msg = err.response?.data?.detail ?? err.message
-      toast.error(`加载预览失败：${typeof msg === 'string' ? msg : '未知错误'}`)
+      toast.error(`加载预览失败：${normalizeApiError(err, '请稍后重试')}`)
       setPreviewSource(null)
       setPreviewDocumentId(null)
     } finally {
@@ -249,8 +243,7 @@ export default function KnowledgeBase() {
           setPreviewDocumentId(null)
         }
       } catch (err) {
-        const msg = err.response?.data?.detail ?? err.message
-        toast.error(typeof msg === 'string' ? msg : '删除失败')
+        toast.error(normalizeApiError(err, '删除失败，请稍后重试'))
       } finally {
         setDeletingDocumentId(null)
       }
@@ -261,7 +254,7 @@ export default function KnowledgeBase() {
   const filteredDocuments = useMemo(() => {
     const keyword = query.trim().toLowerCase()
     return documents.filter((doc) => {
-      const status = getDocStatus(doc)
+      const status = getRagDocumentStatePresentation(doc)
       const tags = Array.isArray(doc.knowledge_points) ? doc.knowledge_points.join(' ') : ''
       const source = doc.source || ''
       const matchesKeyword = !keyword || `${source} ${tags}`.toLowerCase().includes(keyword)
@@ -274,7 +267,7 @@ export default function KnowledgeBase() {
 
   const stats = useMemo(() => {
     const totalChunks = documents.reduce((sum, doc) => sum + Number(doc.chunk_count || 0), 0)
-    const doneCount = documents.filter((doc) => getDocStatus(doc).label === '已完成').length
+    const doneCount = documents.filter((doc) => getRagDocumentStatePresentation(doc).label === '已完成').length
     const tagSet = new Set(documents.flatMap((doc) => Array.isArray(doc.knowledge_points) ? doc.knowledge_points : []))
     return {
       libraries: Math.min(LIBRARY_NAMES.length, Math.max(1, tagSet.size || documents.length ? LIBRARY_NAMES.length : 0)),
@@ -286,7 +279,7 @@ export default function KnowledgeBase() {
   }, [documents])
 
   const selectedDocument = filteredDocuments[0] || documents[0] || null
-  const selectedStatus = selectedDocument ? getDocStatus(selectedDocument) : null
+  const selectedStatus = selectedDocument ? getRagDocumentStatePresentation(selectedDocument) : null
 
   return (
     <PageShell>
@@ -391,7 +384,7 @@ export default function KnowledgeBase() {
                   },
                   { key: 'type', title: '类型', render: (doc) => <StatusBadge tone="neutral">{getFileType(doc.source)}</StatusBadge> },
                   { key: 'status', title: '状态', render: (doc) => {
-                    const status = getDocStatus(doc)
+                    const status = getRagDocumentStatePresentation(doc)
                     return <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
                   } },
                   { key: 'chunks', title: '向量化进度', render: (doc) => (
@@ -415,7 +408,7 @@ export default function KnowledgeBase() {
                   } },
                 ]}
                 renderMobile={(doc) => {
-                  const status = getDocStatus(doc)
+                  const status = getRagDocumentStatePresentation(doc)
                   const manageable = Boolean(doc.document_id)
                   return (
                     <div className="space-y-3">

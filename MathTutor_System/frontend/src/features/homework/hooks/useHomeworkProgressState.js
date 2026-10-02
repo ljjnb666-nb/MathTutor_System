@@ -7,6 +7,7 @@ import {
   saveExam,
   updateExam,
 } from '../../../services/api'
+import { normalizeApiError } from '../../../utils/normalizeApiError'
 import {
   bankItemToQuestion,
   buildQuestionRows,
@@ -107,7 +108,7 @@ export function useHomeworkProgressState() {
         fetchData()
         if (mainTab === 'manage' && draft?.id === examId) fetchDraft(assignmentDate)
       } catch (err) {
-        toast.error(err.response?.data?.detail || '删除失败')
+        toast.error(normalizeApiError(err, '删除失败'))
       } finally {
         setDeletingExamId(null)
       }
@@ -140,7 +141,7 @@ export function useHomeworkProgressState() {
         fetchDraft(assignmentDate)
         setAddBankOpen(false)
       } catch (err) {
-        toast.error(err.response?.data?.detail || '加入失败')
+        toast.error(normalizeApiError(err, '加入失败'))
       }
     },
     [assignmentDate, ensureDraft, fetchDraft]
@@ -157,7 +158,7 @@ export function useHomeworkProgressState() {
         fetchDraft(assignmentDate)
         setAddMistakesOpen(false)
       } catch (err) {
-        toast.error(err.response?.data?.detail || '加入失败')
+        toast.error(normalizeApiError(err, '加入失败'))
       }
     },
     [assignmentDate, ensureDraft, fetchDraft]
@@ -175,7 +176,7 @@ export function useHomeworkProgressState() {
         toast.success('已从当日作业中移除')
         fetchDraft(assignmentDate)
       } catch (err) {
-        toast.error(err.response?.data?.detail || '移除失败')
+        toast.error(normalizeApiError(err, '移除失败'))
       } finally {
         setRemovingQuestionIndex(null)
       }

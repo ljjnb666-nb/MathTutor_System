@@ -3,6 +3,8 @@ import { Calendar, Eye, EyeOff, History, RefreshCw, Trash2, UserPlus, Users } fr
 import toast from 'react-hot-toast'
 import { batchSetSubscription, createUser, deleteUser, getUserSubscriptionHistory, listUsers, setUserSubscription } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
+import { normalizeApiError } from '../utils/normalizeApiError'
+import { getRolePresentation } from '../utils/uiPresentation'
 import { EmptyState, ErrorState, LoadingState, MetricCard, PageHeader, PageShell, ResponsiveTable, SectionCard, StatusBadge } from '../components/UiV2'
 
 const PLAN_OPTIONS = [
@@ -66,8 +68,7 @@ export default function AdminUserPage() {
       const data = await listUsers()
       setUsers(Array.isArray(data) ? data : [])
     } catch (err) {
-      const message = err?.response?.data?.detail ?? err?.message ?? '获取用户列表失败'
-      setError(typeof message === 'string' ? message : '获取失败')
+      setError(normalizeApiError(err, '获取用户列表失败'))
       setUsers([])
     } finally {
       setLoading(false)
@@ -106,8 +107,7 @@ export default function AdminUserPage() {
       setModalOpen(false)
       fetchUsers()
     } catch (err) {
-      const message = err?.response?.data?.detail ?? err?.message ?? '创建失败'
-      setFormError(typeof message === 'string' ? message : '创建失败')
+      setFormError(normalizeApiError(err, '创建失败，请稍后重试'))
     } finally {
       setSubmitLoading(false)
     }
@@ -125,8 +125,7 @@ export default function AdminUserPage() {
       await deleteUser(id)
       fetchUsers()
     } catch (err) {
-      const message = err?.response?.data?.detail ?? err?.message ?? '删除失败'
-      setError(typeof message === 'string' ? message : '删除失败')
+      setError(normalizeApiError(err, '删除失败，请稍后重试'))
     } finally {
       setDeletingId(null)
     }
@@ -141,7 +140,7 @@ export default function AdminUserPage() {
       toast.success('套餐已更新')
       fetchUsers()
     } catch (err) {
-      toast.error(err?.response?.data?.detail ?? err?.message ?? '更新失败')
+      toast.error(normalizeApiError(err, '更新失败，请稍后重试'))
     } finally {
       setUpdatingPlanId(null)
     }
@@ -155,7 +154,7 @@ export default function AdminUserPage() {
       toast.success('有效期已更新')
       fetchUsers()
     } catch (err) {
-      toast.error(err?.response?.data?.detail ?? err?.message ?? '更新失败')
+      toast.error(normalizeApiError(err, '更新失败，请稍后重试'))
     } finally {
       setUpdatingPlanId(null)
     }
@@ -176,7 +175,7 @@ export default function AdminUserPage() {
       setSelectedIds(new Set())
       fetchUsers()
     } catch (err) {
-      toast.error(err?.response?.data?.detail ?? err?.message ?? '批量续期失败')
+      toast.error(normalizeApiError(err, '批量续期失败，请稍后重试'))
     } finally {
       setBatchLoading(false)
     }
@@ -191,7 +190,7 @@ export default function AdminUserPage() {
       setSelectedIds(new Set())
       fetchUsers()
     } catch (err) {
-      toast.error(err?.response?.data?.detail ?? err?.message ?? '批量设置失败')
+      toast.error(normalizeApiError(err, '批量设置失败，请稍后重试'))
     } finally {
       setBatchLoading(false)
     }
@@ -211,7 +210,7 @@ export default function AdminUserPage() {
     { key: 'select', title: '', render: (user) => user.role === 'teacher' ? <input type="checkbox" checked={selectedIds.has(user.id)} onChange={() => toggleSelect(user.id)} aria-label={`选择 ${user.username}`} /> : null },
     { key: 'id', title: 'ID' },
     { key: 'username', title: '用户名' },
-    { key: 'role', title: '角色', render: (user) => <StatusBadge tone={user.role === 'admin' ? 'danger' : 'primary'}>{user.role === 'admin' ? '管理员' : '教师'}</StatusBadge> },
+    { key: 'role', title: '角色', render: (user) => <StatusBadge tone={user.role === 'admin' ? 'danger' : 'primary'}>{getRolePresentation(user.role)}</StatusBadge> },
     { key: 'plan', title: '套餐', render: (user) => user.role === 'admin' ? '—' : (
       <div className="v2-admin-inline-controls">
         <select value={user.plan_code || 'free'} onChange={(event) => handlePlanChange(user.id, event.target.value, 30)} disabled={updatingPlanId === user.id} aria-label={`${user.username} 套餐`}>
@@ -240,7 +239,7 @@ export default function AdminUserPage() {
         title="用户管理"
         description="管理真实用户、订阅套餐与历史记录，不提供后端未支持的封禁、重置密码或角色变更。"
         icon={Users}
-        meta={<StatusBadge tone="primary">ADMIN CONSOLE</StatusBadge>}
+        meta={<StatusBadge tone="primary">管理控制台</StatusBadge>}
         actions={<button type="button" className="v2-btn-primary" onClick={handleOpenAdd}><UserPlus className="h-4 w-4" />添加用户</button>}
       />
 
@@ -268,7 +267,7 @@ export default function AdminUserPage() {
                 empty={<EmptyState icon={Users} title={users.length === 0 ? '暂无用户' : '没有匹配用户'} description="不会用假用户填充列表。" />}
                 renderMobile={(user) => (
                   <div className="grid gap-2">
-                    <div className="flex items-center justify-between gap-3"><strong>{user.username}</strong><StatusBadge tone={user.role === 'admin' ? 'danger' : 'primary'}>{user.role}</StatusBadge></div>
+                    <div className="flex items-center justify-between gap-3"><strong>{user.username}</strong><StatusBadge tone={user.role === 'admin' ? 'danger' : 'primary'}>{getRolePresentation(user.role)}</StatusBadge></div>
                     <div className="text-xs text-slate-400">ID: {user.id} · 到期：{formatPeriodEnd(user.period_end)}</div>
                     <div className="flex justify-end">{columns.find((column) => column.key === 'actions').render(user)}</div>
                   </div>

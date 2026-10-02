@@ -4,6 +4,7 @@ import { Loader2, CheckCircle2, XCircle } from 'lucide-react'
 import MathText from '../components/MathText'
 import { getStudentExam, studentGradeExam } from '../services/api'
 import toast from 'react-hot-toast'
+import { normalizeApiError } from '../utils/normalizeApiError'
 
 function flatQuestionsFromExam(exam) {
   const q = exam?.questions
@@ -48,7 +49,7 @@ export default function ExamDoPage() {
     getStudentExam(id)
       .then((data) => setExam(data))
       .catch((e) => {
-        toast.error('加载失败：' + (e.response?.data?.detail ?? e.message))
+        toast.error(normalizeApiError(e, '加载失败，请稍后重试'))
         navigate('/exams', { replace: true })
       })
       .finally(() => setLoading(false))
@@ -95,7 +96,7 @@ export default function ExamDoPage() {
       const total = summary ? summary.total : res.graded
       toast.success(`已提交：答对 ${correct}/${total} 题，${res.mistakes_added} 题加入错题本`)
     } catch (e) {
-      toast.error(e.response?.data?.detail ?? '提交失败')
+      toast.error(normalizeApiError(e, '提交失败，请稍后重试'))
     } finally {
       setSubmitting(false)
     }

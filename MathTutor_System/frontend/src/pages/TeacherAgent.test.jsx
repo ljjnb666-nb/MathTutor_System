@@ -79,7 +79,7 @@ describe('TeacherAgent', () => {
     expect(screen.getByRole('button', { name: /生成教学计划/ })).toBeDisabled()
     // convergence: practice drafts are a separate confirm-gated flow; the
     // panel stays hidden until a run reaches 'completed'.
-    expect(screen.queryByText('Practice draft')).not.toBeInTheDocument()
+    expect(screen.queryByText('练习草稿')).not.toBeInTheDocument()
     expect(screen.queryByText('保存到题库')).not.toBeInTheDocument()
   })
 
@@ -148,8 +148,11 @@ describe('TeacherAgent', () => {
     await userEvent.click(button)
     expect(button).toBeDisabled()
 
+    // Fail-closed presentation: unknown/absent error_code renders the generic
+    // safe message; raw backend error_message is never trusted.
     resolve({ data: { id: 3, status: 'failed', goal: '删除试卷', created_at: new Date().toISOString(), error_message: '只读模式拒绝写操作' } })
-    expect(await screen.findByText('只读模式拒绝写操作')).toBeInTheDocument()
+    expect(await screen.findByText('运行失败，请稍后重试')).toBeInTheDocument()
+    expect(screen.queryByText('只读模式拒绝写操作')).not.toBeInTheDocument()
     expect(api.createTeacherAgentRun).toHaveBeenCalledTimes(1)
   })
 
@@ -208,6 +211,6 @@ describe('TeacherAgent', () => {
     resolveFirstArtifacts({ data: [{ id: 11, content_json: { title: 'Stale artifact', questions: [] } }] })
 
     await waitFor(() => expect(screen.queryByText('Stale artifact')).not.toBeInTheDocument())
-    expect(screen.getByText('Practice draft')).toBeInTheDocument()
+    expect(screen.getByText('练习草稿')).toBeInTheDocument()
   })
 })

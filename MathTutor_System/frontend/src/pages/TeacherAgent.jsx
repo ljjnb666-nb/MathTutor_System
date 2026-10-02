@@ -15,18 +15,13 @@ import {
 import { useStudent } from '../contexts/StudentContext'
 import PracticeDraftPanel from '../components/teacher-agent/PracticeDraftPanel'
 import { EmptyState, PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
+import { normalizeApiError } from '../utils/normalizeApiError'
+import {
+  getAgentRunErrorPresentation,
+  getStatusPresentation,
+} from '../utils/uiPresentation'
 
 const STEPS = ['理解目标', '读取学生', '分析薄弱点', '读取错题', '检索知识库', '生成计划', '完成']
-
-function statusLabel(status) {
-  return {
-    completed: '已完成',
-    needs_input: '需要补充',
-    failed: '失败',
-    running: '运行中',
-    created: '已创建',
-  }[status] || status
-}
 
 export default function TeacherAgent() {
   const { students, currentStudent, refreshStudents } = useStudent()
@@ -102,7 +97,7 @@ export default function TeacherAgent() {
       await loadHistory()
     } catch (err) {
       if (mountedRef.current && requestId === runRequestRef.current) {
-        setError(err.response?.data?.detail || err.message || '生成教学计划失败')
+        setError(normalizeApiError(err, '生成教学计划失败，请稍后重试'))
       }
     } finally {
       if (mountedRef.current && requestId === runRequestRef.current) setLoading(false)
@@ -182,7 +177,7 @@ export default function TeacherAgent() {
       setDraftArtifact(res.data)
       await loadDraftState(runId, requestId)
     } catch (err) {
-      if (isCurrent()) setDraftError(err.response?.data?.detail?.message || err.response?.data?.detail || err.message || '生成练习草稿失败')
+      if (isCurrent()) setDraftError(normalizeApiError(err, '生成练习草稿失败，请稍后重试'))
     } finally {
       if (isCurrent()) setDraftLoading(false)
     }
@@ -202,7 +197,7 @@ export default function TeacherAgent() {
       setDraftArtifact(res.data)
       return res.data
     } catch (err) {
-      if (isCurrent()) setDraftError(err.response?.data?.detail?.message || err.message || '保存草稿编辑失败')
+      if (isCurrent()) setDraftError(normalizeApiError(err, '保存草稿编辑失败，请稍后重试'))
       return null
     } finally {
       if (isCurrent()) setDraftLoading(false)
@@ -224,7 +219,7 @@ export default function TeacherAgent() {
       setDraftConfirmation(res.data.confirmation_summary)
       return res.data
     } catch (err) {
-      if (isCurrent()) setDraftError(err.response?.data?.detail?.message || err.message || '准备保存失败')
+      if (isCurrent()) setDraftError(normalizeApiError(err, '准备保存失败，请稍后重试'))
       return null
     } finally {
       if (isCurrent()) setDraftLoading(false)
@@ -249,7 +244,7 @@ export default function TeacherAgent() {
       setDraftAction(res.data)
       await loadDraftState(runId, requestId)
     } catch (err) {
-      if (isCurrent()) setDraftError(err.response?.data?.detail?.message || err.message || '确认保存失败')
+      if (isCurrent()) setDraftError(normalizeApiError(err, '确认保存失败，请稍后重试'))
       try {
         const actionsRes = await getPracticeArtifactActions(artifactId)
         if (isCurrent()) setDraftAction((Array.isArray(actionsRes.data) ? actionsRes.data : [])[0] || null)
@@ -274,7 +269,7 @@ export default function TeacherAgent() {
       if (!isCurrent()) return
       setDraftAction(res.data)
     } catch (err) {
-      if (isCurrent()) setDraftError(err.response?.data?.detail?.message || err.message || '取消失败')
+      if (isCurrent()) setDraftError(normalizeApiError(err, '取消失败，请稍后重试'))
     } finally {
       if (isCurrent()) setDraftLoading(false)
     }
@@ -309,7 +304,7 @@ export default function TeacherAgent() {
                   <div className="flex items-start justify-between gap-2">
                     <span className="line-clamp-2 text-sm font-bold text-slate-100">{item.goal}</span>
                     <StatusBadge tone={item.status === 'completed' ? 'success' : item.status === 'failed' ? 'danger' : 'warning'}>
-                      {statusLabel(item.status)}
+                      {getStatusPresentation('agentRun', item.status).label}
                     </StatusBadge>
                   </div>
                   <p className="mt-1 text-[11px] text-slate-500">{new Date(item.created_at).toLocaleString()}</p>
@@ -421,7 +416,7 @@ export default function TeacherAgent() {
           </SectionCard>
 
           {error && <StateNotice tone="error" text={error} />}
-          {run?.status === 'failed' && <StateNotice tone="error" text={run.error_message || '运行失败'} />}
+          {run?.status === 'failed' && <StateNotice tone="error" text={getAgentRunErrorPresentation(run)} />}
           {run?.status === 'needs_input' && <MissingFields fields={missingFields} />}
           {plan && <PlanResult plan={plan} warnings={warnings} />}
           <PracticeDraftPanel
@@ -493,7 +488,7 @@ function MissingFields({ fields }) {
       </h2>
       <ul className="mt-2 space-y-1 text-sm" style={{ color: '#92400e' }}>
         {fields.map((field, index) => (
-          <li key={`${field.field}-${index}`}>{field.message || field.field}</li>
+          <li key={`${field.field}-${index}`}>{typeof field.message === 'string' && /[\u4e00-\u9fff]/.test(field.message) ? field.message : '请补充缺失的信息后重试'}</li>
         ))}
       </ul>
     </section>
@@ -512,11 +507,11 @@ function PlanResult({ plan, warnings }) {
           <p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>{plan.summary}</p>
         </div>
         <span className="rounded-lg px-2 py-1 text-xs font-bold" style={{ backgroundColor: 'var(--color-bg-panel)', color: 'var(--color-text-secondary)' }}>
-          {plan.safety_mode}
+          {getStatusPresentation('agentSafetyMode', plan.safety_mode).label}
         </span>
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-3">
-        <SummaryItem label="识别目标" value={plan.intent_type} />
+        <SummaryItem label="识别目标" value={getStatusPresentation('agentIntent', plan.intent_type).label} />
         <SummaryItem label="薄弱知识点" value={(plan.evidence_summary?.weak_points || []).join('、') || '暂无'} />
         <SummaryItem label="近期错题数" value={String(plan.evidence_summary?.recent_mistake_count ?? 0)} />
       </div>

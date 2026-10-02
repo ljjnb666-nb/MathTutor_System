@@ -175,7 +175,7 @@ describe('ExamPreview', () => {
     api.getExam.mockRejectedValueOnce(new Error('not found'))
     renderRoute()
 
-    expect(await screen.findByText('not found')).toBeInTheDocument()
+    expect(await screen.findByText('加载试卷失败')).toBeInTheDocument()
   })
 
   describe('V3-01 Phase 3A Hardened Requirements', () => {
@@ -319,7 +319,7 @@ describe('ExamPreview', () => {
         },
       })
       renderRoute(['/exams/99'])
-      expect(await screen.findByText('id: field required')).toBeInTheDocument()
+      expect(await screen.findByText('输入内容不符合要求，请检查后重试')).toBeInTheDocument()
     })
 
     it('14. React page does not crash when error detail is a structured object', async () => {
@@ -332,7 +332,7 @@ describe('ExamPreview', () => {
       })
       const { container } = renderRoute(['/exams/99'])
       await waitFor(() => expect(container.querySelector('.v2-state-error')).toBeInTheDocument())
-      expect(screen.getByText('id: value is not a valid integer')).toBeInTheDocument()
+      expect(screen.getByText('输入内容不符合要求，请检查后重试')).toBeInTheDocument()
     })
 
     it('15. Priority Scenario 1: new location.state selection completely overwrites stale sessionStorage draft', async () => {

@@ -4,6 +4,7 @@ import { User, LogOut, Loader2, Lock, FileText } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { updateStudentPassword, getStudentReportPdf } from '../services/api'
+import { normalizeApiError } from '../utils/normalizeApiError'
 
 export default function ProfilePage() {
   const { student, logout } = useAuth()
@@ -37,7 +38,7 @@ export default function ProfilePage() {
       setNewPassword('')
       setConfirmPassword('')
     } catch (err) {
-      const msg = err.response?.data?.detail ?? err.message ?? '修改失败'
+      const msg = normalizeApiError(err, '修改失败，请稍后重试')
       toast.error(msg)
     } finally {
       setPasswordSubmitting(false)
@@ -56,7 +57,7 @@ export default function ProfilePage() {
       URL.revokeObjectURL(url)
       toast.success('报告已开始下载')
     } catch (err) {
-      toast.error(err.response?.data?.detail ?? err.message ?? '下载失败')
+      toast.error(normalizeApiError(err, '下载失败，请稍后重试'))
     } finally {
       setReportDownloading(false)
     }

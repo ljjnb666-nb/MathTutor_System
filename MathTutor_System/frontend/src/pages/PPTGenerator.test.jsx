@@ -83,7 +83,7 @@ describe('PPTGenerator V2 workspace', () => {
     await userEvent.type(screen.getByPlaceholderText(/勾股定理/), '函数')
     await userEvent.click(screen.getByRole('button', { name: /生成教学幻灯片/ }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('ppt failed')
+    expect(await screen.findByRole('alert')).toHaveTextContent('生成失败')
     await userEvent.click(screen.getByRole('button', { name: /生成教学幻灯片/ }))
     await waitFor(() => expect(screen.getAllByText('函数概念').length).toBeGreaterThan(0))
   })

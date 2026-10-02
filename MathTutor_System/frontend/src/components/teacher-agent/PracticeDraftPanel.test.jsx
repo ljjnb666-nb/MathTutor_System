@@ -52,7 +52,7 @@ function renderPanel(overrides = {}) {
     onUpdate: vi.fn().mockResolvedValue(makeArtifact({ version: 2 })),
     onPrepare: vi.fn().mockResolvedValue({
       action: { id: 7, status: 'pending_confirmation', idempotency_key: 'k'.repeat(24), expected_artifact_version: 1 },
-      confirmation_summary: { question_count: 1, target_label: 'teacher bank', artifact_version: 1, will_not: [] },
+      confirmation_summary: { question_count: 1, target_label: '保存到：当前教师私有题库', artifact_version: 1, will_not: [] },
     }),
     onConfirm: vi.fn().mockResolvedValue({ id: 7, status: 'completed' }),
     onCancelAction: vi.fn().mockResolvedValue({ id: 7, status: 'cancelled' }),
@@ -65,29 +65,29 @@ function renderPanel(overrides = {}) {
 describe('PracticeDraftPanel', () => {
   it('hides itself when the run is not completed', () => {
     renderPanel({ run: { ...run, status: 'running' } })
-    expect(screen.queryByText('Practice draft')).not.toBeInTheDocument()
+    expect(screen.queryByText('练习草稿')).not.toBeInTheDocument()
   })
 
   it('shows the draft title and validation status', () => {
     renderPanel()
     expect(screen.getByText('Linear functions practice')).toBeInTheDocument()
-    expect(screen.getByText(/Validation: passed/)).toBeInTheDocument()
+    expect(screen.getByText(/草稿校验：通过/)).toBeInTheDocument()
     expect(screen.getByDisplayValue('What is the slope of y = 2x + 1?')).toBeInTheDocument()
   })
 
   it('disables draft edits while a save action is executing', () => {
     renderPanel({ artifact: makeArtifact({ status: 'saving' }) })
-    expect(screen.getByRole('button', { name: 'Save edit' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Save to question bank' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '保存编辑' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '保存到题库' })).toBeDisabled()
   })
 
   it('keeps student mistakes off and disabled without a selected student', () => {
     const { props } = renderPanel()
-    const checkbox = screen.getByRole('checkbox', { name: 'Use student mistakes' })
+    const checkbox = screen.getByRole('checkbox', { name: '结合学生错题' })
     expect(checkbox).not.toBeChecked()
     expect(checkbox).toBeDisabled()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Generate practice draft' }))
+    fireEvent.click(screen.getByRole('button', { name: '生成练习草稿' }))
 
     expect(props.onGenerate).toHaveBeenCalledWith(expect.objectContaining({ use_student_context: false }))
     expect(props.onGenerate.mock.calls[0][0]).not.toHaveProperty('student_id')
@@ -95,29 +95,29 @@ describe('PracticeDraftPanel', () => {
 
   it('binds enabled student mistakes to the selected run student and supports turning the option off', () => {
     const { props } = renderPanel({ run: { ...run, context_snapshot_json: { student_id: 42 } } })
-    const checkbox = screen.getByRole('checkbox', { name: 'Use student mistakes' })
+    const checkbox = screen.getByRole('checkbox', { name: '结合学生错题' })
 
     expect(checkbox).toBeEnabled()
     expect(checkbox).not.toBeChecked()
     fireEvent.click(checkbox)
-    fireEvent.click(screen.getByRole('button', { name: 'Generate practice draft' }))
+    fireEvent.click(screen.getByRole('button', { name: '生成练习草稿' }))
     expect(props.onGenerate.mock.calls[0][0]).toMatchObject({ use_student_context: true, student_id: 42 })
 
     fireEvent.click(checkbox)
-    fireEvent.click(screen.getByRole('button', { name: 'Generate practice draft' }))
+    fireEvent.click(screen.getByRole('button', { name: '生成练习草稿' }))
     expect(props.onGenerate.mock.calls[1][0]).toMatchObject({ use_student_context: false })
     expect(props.onGenerate.mock.calls[1][0]).not.toHaveProperty('student_id')
   })
 
   it('resets mistake context when the active run changes', () => {
     const { props, view } = renderPanel({ run: { ...run, student_id: 42 } })
-    const checkbox = screen.getByRole('checkbox', { name: 'Use student mistakes' })
+    const checkbox = screen.getByRole('checkbox', { name: '结合学生错题' })
     fireEvent.click(checkbox)
     expect(checkbox).toBeChecked()
 
     view.rerender(<PracticeDraftPanel {...props} run={{ ...run, id: 2, student_id: 43 }} />)
 
-    expect(screen.getByRole('checkbox', { name: 'Use student mistakes' })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: '结合学生错题' })).not.toBeChecked()
   })
 
   it('surfaces generation errors from props', () => {
@@ -127,23 +127,39 @@ describe('PracticeDraftPanel', () => {
 
   it('prepare opens the confirm dialog with the summary', async () => {
     const { props, view } = renderPanel()
-    fireEvent.click(screen.getByRole('button', { name: 'Save to question bank' }))
+    fireEvent.click(screen.getByRole('button', { name: '保存到题库' }))
     await waitFor(() => expect(props.onPrepare).toHaveBeenCalledTimes(1))
     view.rerender(
       <PracticeDraftPanel
         {...props}
         action={{ id: 7, status: 'pending_confirmation', idempotency_key: 'k'.repeat(24), expected_artifact_version: 1 }}
-        confirmation={{ question_count: 1, target_label: 'teacher bank', artifact_version: 1, will_not: [] }}
+        confirmation={{ question_count: 1, target_label: '保存到：当前教师私有题库', artifact_version: 1, will_not: [] }}
       />,
     )
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
-    expect(screen.getByText(/Will create 1 formal question-bank items/)).toBeInTheDocument()
-    expect(screen.getByText(/Target: teacher bank/)).toBeInTheDocument()
+    expect(screen.getByText('将创建 1 道正式题目')).toBeInTheDocument()
+    expect(screen.getByText('保存目标：保存到：当前教师私有题库')).toBeInTheDocument()
+  })
+
+  it('maps machine will_not phrases to Chinese and hides unknown ones', async () => {
+    const { props, view } = renderPanel()
+    fireEvent.click(screen.getByRole('button', { name: '保存到题库' }))
+    await waitFor(() => expect(props.onPrepare).toHaveBeenCalledTimes(1))
+    view.rerender(
+      <PracticeDraftPanel
+        {...props}
+        action={{ id: 7, status: 'pending_confirmation', idempotency_key: 'k'.repeat(24), expected_artifact_version: 1 }}
+        confirmation={{ question_count: 1, will_not: ['publish homework', 'some future phrase'] }}
+      />,
+    )
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    expect(screen.getByText('不会发布作业')).toBeInTheDocument()
+    expect(screen.queryByText(/some future phrase/)).not.toBeInTheDocument()
   })
 
   it('cancel in dialog keeps the panel without confirming', async () => {
     const { props, view } = renderPanel()
-    fireEvent.click(screen.getByRole('button', { name: 'Save to question bank' }))
+    fireEvent.click(screen.getByRole('button', { name: '保存到题库' }))
     await waitFor(() => expect(props.onPrepare).toHaveBeenCalledTimes(1))
     view.rerender(
       <PracticeDraftPanel
@@ -153,14 +169,14 @@ describe('PracticeDraftPanel', () => {
       />,
     )
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
-    fireEvent.click(screen.getAllByRole('button', { name: 'Cancel' })[0])
+    fireEvent.click(screen.getAllByRole('button', { name: '取消' })[0])
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(props.onConfirm).not.toHaveBeenCalled()
   })
 
   it('confirm calls onConfirm and closes the dialog', async () => {
     const { props, view } = renderPanel()
-    fireEvent.click(screen.getByRole('button', { name: 'Save to question bank' }))
+    fireEvent.click(screen.getByRole('button', { name: '保存到题库' }))
     await waitFor(() => expect(props.onPrepare).toHaveBeenCalledTimes(1))
     view.rerender(
       <PracticeDraftPanel
@@ -170,22 +186,23 @@ describe('PracticeDraftPanel', () => {
       />,
     )
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm save to question bank' }))
+    fireEvent.click(screen.getByRole('button', { name: '确认保存到题库' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(props.onConfirm).toHaveBeenCalledTimes(1)
   })
 
   it('cancel action button appears only for pending actions', () => {
     renderPanel()
-    expect(screen.queryByRole('button', { name: 'Cancel action' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '取消保存操作' })).not.toBeInTheDocument()
   })
 
-  it('shows the failed action error message', () => {
+  it('shows the failed action status with a safe Chinese error message', () => {
     renderPanel({
-      action: { id: 7, status: 'failed', error_message: 'Practice save failed' },
+      action: { id: 7, status: 'failed', error_code: 'save_failed', error_message: 'Practice save failed' },
     })
-    expect(screen.getByText('Save failed')).toBeInTheDocument()
-    expect(screen.getByText('Practice save failed')).toBeInTheDocument()
+    expect(screen.getByText('保存失败')).toBeInTheDocument()
+    expect(screen.getByText('保存到题库失败，请稍后重试')).toBeInTheDocument()
+    expect(screen.queryByText('Practice save failed')).not.toBeInTheDocument()
   })
 })
 

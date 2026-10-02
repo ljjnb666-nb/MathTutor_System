@@ -16,6 +16,8 @@ import {
 } from '../services/api'
 import { useStudent } from '../contexts/StudentContext'
 import { useSmartGen } from '../contexts/SmartGenContext'
+import { normalizeApiError } from '../utils/normalizeApiError'
+import { getStatusPresentation } from '../utils/uiPresentation'
 import { EmptyState, ErrorState, LoadingState, MetricCard, PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
 
 const TOPICS = ['有理数', '整式', '一次方程', '几何初步', '二次根式', '勾股定理', '函数', '统计', '错题巩固', '其他']
@@ -46,7 +48,7 @@ function MistakeCard({ item, actionState, onReview, onMaster, onDelete, onAskAI,
         <div className="min-w-0">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <StatusBadge tone="warning">{item.topic || '综合'}</StatusBadge>
-            <StatusBadge tone={item.status === 'mastered' ? 'success' : 'neutral'}>{item.status === 'mastered' ? '已掌握' : '待巩固'}</StatusBadge>
+            <StatusBadge tone={item.status === 'mastered' ? 'success' : 'warning'}>{getStatusPresentation('mistake', item.status).label}</StatusBadge>
             {item.next_review_at && <span className="text-xs font-bold text-slate-400">下次复习 {formatDate(item.next_review_at)}</span>}
           </div>
           <p className="whitespace-pre-wrap text-sm font-black leading-7 text-slate-100"><MathText>{item.content || '（无题干）'}</MathText></p>
@@ -133,7 +135,7 @@ export default function MistakeBook() {
       setMasteredList(Array.isArray(masteredRes?.data) ? masteredRes.data : [])
       setDueList(Array.isArray(dueRes?.data) ? dueRes.data : [])
     } catch (err) {
-      const message = err?.response?.data?.detail || err?.message || '加载错题失败'
+      const message = normalizeApiError(err, '加载错题失败，请稍后重试')
       setError(message)
       toast.error(message)
     } finally {
@@ -174,7 +176,7 @@ export default function MistakeBook() {
       setDueList((prev) => prev.filter((m) => m.id !== item.id))
       toast.success('复习打卡成功')
     } catch (err) {
-      toast.error(err?.response?.data?.detail || '打卡失败')
+      toast.error(normalizeApiError(err, '打卡失败，请稍后重试'))
     } finally {
       clearItemAction(item.id)
     }
@@ -189,7 +191,7 @@ export default function MistakeBook() {
       setMasteredList((prev) => [{ ...item, status: 'mastered' }, ...prev])
       toast.success('已标记为掌握')
     } catch (err) {
-      toast.error(err?.response?.data?.detail || '操作失败')
+      toast.error(normalizeApiError(err, '操作失败，请稍后重试'))
     } finally {
       clearItemAction(item.id)
     }
@@ -204,7 +206,7 @@ export default function MistakeBook() {
       setMasteredList((prev) => prev.filter((m) => m.id !== item.id))
       toast.success('已从错题本移除')
     } catch (err) {
-      toast.error(err?.response?.data?.detail || '删除失败')
+      toast.error(normalizeApiError(err, '删除失败，请稍后重试'))
     } finally {
       clearItemAction(item.id)
     }
@@ -216,7 +218,7 @@ export default function MistakeBook() {
       return
     }
     if (!pendingList.length) {
-      toast.error('暂无待巩固错题')
+      toast.error('暂无待攻克错题')
       return
     }
     setGenerating(true)
@@ -249,7 +251,7 @@ export default function MistakeBook() {
       toast.success(`已生成 ${generated.length} 道巩固题`)
       navigate('/smart-gen', { state: { fromMistakeBook: true } })
     } catch (err) {
-      toast.error(err?.response?.data?.detail || err?.message || '生成失败')
+      toast.error(normalizeApiError(err, '生成失败，请稍后重试'))
     } finally {
       setGenerating(false)
       setLoading?.(false)
@@ -269,7 +271,7 @@ export default function MistakeBook() {
       else await saveExam({ title: `${today} 作业`, student_id: null, questions: [question], assignment_date: today })
       toast.success('已加入今日作业')
     } catch (err) {
-      toast.error(err?.response?.data?.detail || '加入今日作业失败')
+      toast.error(normalizeApiError(err, '加入今日作业失败，请稍后重试'))
     } finally {
       clearItemAction(item.id)
     }
@@ -296,7 +298,7 @@ export default function MistakeBook() {
       setForm({ topic: filterKnowledgePoint || '函数', customTopic: '', source: '', content: '', solution: '' })
       toast.success('已添加错题')
     } catch (err) {
-      toast.error(err?.response?.data?.detail || '添加失败')
+      toast.error(normalizeApiError(err, '添加失败，请稍后重试'))
     }
   }
 

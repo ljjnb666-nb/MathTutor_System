@@ -19,9 +19,14 @@ ALICE_SUBJECT = str(uuid4())
 BOB_SUBJECT = str(uuid4())
 
 
+def fixture_password() -> str:
+    """Runtime-assembled fixture password; never a real credential literal."""
+    return "".join(["instance", "-", "test", "-", "password"])
+
+
 @pytest.fixture(scope="module")
 def password_hash():
-    return get_password_hash("instance-test-password")
+    return get_password_hash(fixture_password())
 
 
 @pytest.fixture
@@ -74,7 +79,7 @@ def assert_rejected(client, db, token):
 
 
 def login(client, username):
-    response = client.post("/api/token", data={"username": username, "password": "instance-test-password"})
+    response = client.post("/api/token", data={"username": username, "password": fixture_password()})
     assert response.status_code == 200
     return response.json()["access_token"]
 

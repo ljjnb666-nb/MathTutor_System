@@ -116,7 +116,7 @@ describe('ImportExam', () => {
 
     await userEvent.upload(uploadInput(), file('exam.docx'))
     await userEvent.click(screen.getAllByRole('button', { name: /开始解析/ })[0])
-    expect(await screen.findByText('OCR timeout')).toBeInTheDocument()
+    expect(await screen.findByText('请求超时，请稍后重试')).toBeInTheDocument()
 
     await userEvent.click(screen.getAllByRole('button', { name: /重试解析/ })[0])
     expect(await screen.findByText('重试成功')).toBeInTheDocument()

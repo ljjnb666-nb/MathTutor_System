@@ -7,6 +7,7 @@ import { getBankList, deleteFromBank } from '../services/api'
 import { useStudent } from '../contexts/StudentContext'
 import QuestionCard from '../components/QuestionCard'
 import { EmptyState, MetricCard, PageHeader, PageShell, ResponsiveTable, SearchInput, SectionCard, StatusBadge, Toolbar } from '../components/UiV2'
+import { normalizeApiError } from '../utils/normalizeApiError'
 
 export default function QuestionBank() {
   const { currentStudent } = useStudent()
@@ -31,7 +32,7 @@ export default function QuestionBank() {
       const res = await getBankList(params)
       setList(Array.isArray(res.data) ? res.data : [])
     } catch (e) {
-      const message = e.response?.data?.detail ?? e.message ?? '加载收藏题库失败'
+      const message = normalizeApiError(e, '加载收藏题库失败')
       setError(message)
       toast.error('加载收藏题库失败：' + message)
       setList([])
@@ -105,7 +106,7 @@ export default function QuestionBank() {
         })
         fetchList()
       } catch (e) {
-        toast.error('移出失败：' + (e.response?.data?.detail ?? e.message))
+        toast.error(normalizeApiError(e, '移出失败'))
       } finally {
         setDeletingId(null)
       }

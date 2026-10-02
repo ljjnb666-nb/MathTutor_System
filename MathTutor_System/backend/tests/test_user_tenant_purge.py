@@ -58,14 +58,15 @@ def database(request, tmp_path):
         if not url:
             pytest.skip("NOT_RUN_ENV_UNAVAILABLE: TUTORPRO_TEST_POSTGRES_URL")
         engine = create_engine(url)
-        schema = "purge_test_" + uuid4().hex
+        # Static schema name keeps every statement in this fixture free of
+        # dynamic SQL; the schema is dropped again in the fixture teardown.
         with engine.begin() as connection:
-            connection.execute(text(f'CREATE SCHEMA "{schema}"'))
+            connection.execute(text('CREATE SCHEMA IF NOT EXISTS "purge_tenant_test"'))
 
         @event.listens_for(engine, "connect")
         def search_path(connection, _):
             with connection.cursor() as cursor:
-                cursor.execute(f'SET search_path TO "{schema}"')
+                cursor.execute('SET search_path TO "purge_tenant_test"')
             connection.commit()
 
         engine.dispose()
@@ -106,7 +107,7 @@ def database(request, tmp_path):
     finally:
         if request.param == "postgres":
             with engine.begin() as connection:
-                connection.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
+                connection.execute(text('DROP SCHEMA "purge_tenant_test" CASCADE'))
         engine.dispose()
 
 

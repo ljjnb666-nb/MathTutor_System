@@ -4,6 +4,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 import { SESSION_EXPIRED_KEY } from '../services/api'
+import { normalizeApiError } from '../utils/normalizeApiError'
 
 export default function LoginPage() {
   const { login, isAuthenticated, restoring } = useAuth()
@@ -63,7 +64,7 @@ export default function LoginPage() {
       await login(u, p)
       navigate('/', { replace: true })
     } catch (err) {
-      const msg = err?.response?.data?.detail ?? err?.message ?? '登录失败，请检查用户名或密码'
+      const msg = normalizeApiError(err, '登录失败，请检查用户名或密码')
       setError(typeof msg === 'string' ? msg : '用户名或密码错误')
     } finally {
       setLoading(false)

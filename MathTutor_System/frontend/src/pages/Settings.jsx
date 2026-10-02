@@ -27,6 +27,8 @@ import { buildLlmHeadersFromConfig, shouldSendClientLlmHeaders } from '../servic
 import { testLlmConnection } from '../services/llmApi'
 import { getLlmRuntimeStatus } from '../services/llmApi'
 import { applyTheme } from '../utils/theme'
+import { normalizeApiError } from '../utils/normalizeApiError'
+import { getConfigSourcePresentation, getRolePresentation } from '../utils/uiPresentation'
 import { PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
 
 const accentOptions = [
@@ -184,10 +186,9 @@ export default function Settings() {
         setApiTestState({ status: 'error', message: result?.message || '测试失败，请检查 API 配置' })
       }
     } catch (error) {
-      const detail = error?.response?.data?.detail
       setApiTestState({
         status: 'error',
-        message: typeof detail === 'string' ? detail : error?.response?.data?.message || error?.message || '测试失败，请检查 API 配置',
+        message: normalizeApiError(error, '测试失败，请检查 API 配置'),
       })
     }
   }
@@ -236,7 +237,7 @@ export default function Settings() {
           <SectionCard title="个人资料" description="查看当前登录账户，不在 UI 重构中新增账户编辑能力。">
             <div className="v2-settings-info-grid">
               <InfoTile label="用户名" value={user?.username || '-'} />
-              <InfoTile label="角色" value={user?.role === 'admin' ? '管理员' : '教师'} />
+              <InfoTile label="角色" value={getRolePresentation(user?.role)} />
               <InfoTile label="账号能力" value={user?.role === 'admin' ? '系统管理' : '教师工作台'} />
             </div>
           </SectionCard>
@@ -274,7 +275,7 @@ export default function Settings() {
                 </strong>
                 {runtimeStatus && !runtimeStatus.error && (
                   <span>
-                    来源：{runtimeStatus.config_source} · 浏览器配置：{runtimeStatus.client_config_allowed ? '允许' : '禁用'}
+                    来源：{getConfigSourcePresentation(runtimeStatus.config_source)} · 浏览器配置：{runtimeStatus.client_config_allowed ? '允许' : '禁用'}
                   </span>
                 )}
               </div>
@@ -326,8 +327,8 @@ export default function Settings() {
             </div>
             <p className="v2-settings-help" data-testid="base-url-security-hint">
               {isCustomProvider
-                ? 'Custom Base URL requires backend ALLOW_CUSTOM_LLM_BASE_URL and CLIENT_LLM_ALLOWED_HOSTS.'
-                : 'Preset providers use the official Base URL; arbitrary browser Base URLs are rejected by the backend.'}
+                ? '自定义 Base URL 需要后端开启 ALLOW_CUSTOM_LLM_BASE_URL，且域名在 CLIENT_LLM_ALLOWED_HOSTS 白名单内。'
+                : '预设 Provider 使用官方 Base URL；浏览器端随意填写的 Base URL 会被后端拒绝。'}
             </p>
             <label className="v2-settings-toggle">
               <input type="checkbox" checked={showThinking} onChange={(e) => setShowThinking(e.target.checked)} />

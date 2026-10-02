@@ -13,6 +13,7 @@ import {
 } from 'recharts'
 import { getStudentAnalysisMastery, getStudentAnalysisTrend, getStudentMistakes } from '../services/api'
 import toast from 'react-hot-toast'
+import { normalizeApiError } from '../utils/normalizeApiError'
 
 export default function HomePage() {
   const [mastery, setMastery] = useState({ weak_points: [], mastered_points: [] })
@@ -43,7 +44,7 @@ export default function HomePage() {
           setTodayReviewCount(dueList.length)
         }
       } catch (e) {
-        if (!cancelled) toast.error('加载失败：' + (e.response?.data?.detail ?? e.message))
+        if (!cancelled) toast.error(normalizeApiError(e, '加载失败，请稍后重试'))
       } finally {
         if (!cancelled) setLoading(false)
       }

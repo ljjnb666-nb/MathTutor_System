@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom'
 import { BookMarked, CheckCircle2, Loader2, RefreshCw, Award, Search, Filter } from 'lucide-react'
 import MathText from '../components/MathText'
 import toast from 'react-hot-toast'
+import { normalizeApiError } from '../utils/normalizeApiError'
 import {
   getStudentMistakes,
   studentMistakeReview,
@@ -71,7 +72,7 @@ export default function MistakeBookPage() {
       const data = await getStudentMistakes(params)
       setList(Array.isArray(data) ? data : [])
     } catch (e) {
-      toast.error('加载失败：' + (e.response?.data?.detail ?? e.message))
+      toast.error(normalizeApiError(e, '加载失败，请稍后重试'))
       setList([])
     } finally {
       setLoading(false)
@@ -119,7 +120,7 @@ export default function MistakeBookPage() {
       toast.success('已记录复习')
       fetchList()
     } catch (e) {
-      toast.error(e.response?.data?.detail ?? '操作失败')
+      toast.error(normalizeApiError(e, '操作失败，请稍后重试'))
     } finally {
       setActionId(null)
     }
@@ -132,7 +133,7 @@ export default function MistakeBookPage() {
       toast.success('已标记为掌握')
       fetchList()
     } catch (e) {
-      toast.error(e.response?.data?.detail ?? '操作失败')
+      toast.error(normalizeApiError(e, '操作失败，请稍后重试'))
     } finally {
       setActionId(null)
     }
