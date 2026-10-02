@@ -1,12 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
-import Latex from 'react-latex-next'
+import MathText from '../components/MathText'
 import { AlertCircle, Bot, Check, FileText, Loader2, MessageCircle, Pencil, Pin, PinOff, Plus, RefreshCw, Send, Trash2, User, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { chatWithAI, chatWithAIStream, getChatSessions, getChatSessionMessages, deleteChatSession, updateChatMessage, updateChatSessionPin } from '../services/api'
 import { useStudent } from '../contexts/StudentContext'
-import { normalizeLatexForKaTeX } from '../utils/latex'
-import 'katex/dist/katex.min.css'
 
 function formatSessionDate(iso) {
   if (!iso) return ''
@@ -441,7 +439,7 @@ export default function AIChat() {
                   </div>
                 ) : (
                   <>
-                    {message.role === 'assistant' ? <Latex>{normalizeLatexForKaTeX(message.content ?? '')}</Latex> : message.content}
+                    <MathText>{message.content ?? ''}</MathText>
                     {Array.isArray(message.rag_sources) && message.rag_sources.length > 0 && (
                       <p className="v2-chat-sources">参考来源：{message.rag_sources.join(' · ')}</p>
                     )}

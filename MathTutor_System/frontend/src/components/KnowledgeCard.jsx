@@ -1,8 +1,6 @@
 import { useState } from 'react'
-import Latex from 'react-latex-next'
+import MathText from './MathText'
 import { ChevronDown, ChevronUp, BookOpen } from 'lucide-react'
-import { normalizeLatexForKaTeX } from '../utils/latex'
-import 'katex/dist/katex.min.css'
 
 /** 书本/笔记风格的知识点卡片：标题、摘要、要点列表 */
 export default function KnowledgeCard({ data }) {
@@ -32,7 +30,7 @@ export default function KnowledgeCard({ data }) {
       <div className="px-5 py-4 space-y-4">
         {summary && (
           <p className="leading-relaxed whitespace-pre-line" style={{ color: 'var(--color-text-primary)' }}>
-            <Latex>{normalizeLatexForKaTeX(summary)}</Latex>
+            <MathText>{summary}</MathText>
           </p>
         )}
         {keyPoints.length > 0 && (
@@ -41,7 +39,7 @@ export default function KnowledgeCard({ data }) {
             <ul className="list-disc list-inside space-y-1.5 text-sm" style={{ color: 'var(--color-text-primary)' }}>
               {keyPoints.map((point, i) => (
                 <li key={i}>
-                  <Latex>{normalizeLatexForKaTeX(String(point))}</Latex>
+                  <MathText>{String(point)}</MathText>
                 </li>
               ))}
             </ul>

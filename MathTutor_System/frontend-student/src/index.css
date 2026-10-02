@@ -65,3 +65,11 @@ body {
   font-size: 0.8125rem !important;
   color: #374151 !important;
 }
+
+/* Plain text + math, with local scrolling for long formulas. */
+.math-text { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; min-width: 0; }
+.math-text-inline { position: relative; display: inline-block; max-width: 100%; overflow-x: auto; vertical-align: middle; }
+.math-text-display { position: relative; contain: inline-size; display: block; max-width: 100%; min-width: 0; overflow-x: auto; overflow-y: hidden; }
+.math-text .katex-display { margin: 0.75em 0; }
+.math-text .katex { white-space: nowrap; }
+.math-text-display .katex-display { width: max-content; min-width: 100%; }

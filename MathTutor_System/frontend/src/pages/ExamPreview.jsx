@@ -1,3 +1,4 @@
+import MathText from '../components/MathText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
@@ -22,7 +23,6 @@ import { useAuth } from '../contexts/AuthContext'
 import { useStudent } from '../contexts/StudentContext'
 import { EmptyState, ErrorState, LoadingState, PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
 import { normalizeApiError } from '../utils/normalizeApiError'
-import 'katex/dist/katex.min.css'
 
 export const COMPOSE_DRAFT_PREFIX = 'mathtutor_compose_draft:v1:'
 export const COMPOSE_DRAFT_TTL_MS = 12 * 60 * 60 * 1000
@@ -166,7 +166,7 @@ function QuestionPreview({ question, index, showAnswer, grading, marked, errorTy
             {question.difficulty && <StatusBadge tone="warning">{question.difficulty}</StatusBadge>}
             {question.knowledge_point && <span className="text-xs font-bold text-slate-400">{question.knowledge_point}</span>}
           </div>
-          <p className="whitespace-pre-wrap text-sm font-black leading-7 text-slate-100">{question.content || '未填写题干'}</p>
+          <p className="whitespace-pre-wrap text-sm font-black leading-7 text-slate-100"><MathText>{question.content || '未填写题干'}</MathText></p>
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2 print:hidden">
@@ -196,7 +196,7 @@ function QuestionPreview({ question, index, showAnswer, grading, marked, errorTy
           {options.map((option, optionIndex) => (
             <div key={`${option}-${optionIndex}`} className="v2-preview-option">
               <span>{String.fromCharCode(65 + optionIndex)}</span>
-              <p>{option}</p>
+              <p><MathText>{option}</MathText></p>
             </div>
           ))}
         </div>
@@ -215,8 +215,8 @@ function QuestionPreview({ question, index, showAnswer, grading, marked, errorTy
 
       {showAnswer && (
         <div className="mt-3 grid gap-2 md:grid-cols-2">
-          <div className="v2-preview-note"><span>答案</span><p>{question.answer || '未提供'}</p></div>
-          <div className="v2-preview-note"><span>解析</span><p>{question.analysis || '未提供'}</p></div>
+          <div className="v2-preview-note"><span>答案</span><p><MathText>{question.answer || '未提供'}</MathText></p></div>
+          <div className="v2-preview-note"><span>解析</span><p><MathText>{question.analysis || '未提供'}</MathText></p></div>
         </div>
       )}
     </article>

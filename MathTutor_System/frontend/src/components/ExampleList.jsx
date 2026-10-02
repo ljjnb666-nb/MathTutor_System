@@ -1,8 +1,6 @@
 import { useState } from 'react'
-import Latex from 'react-latex-next'
+import MathText from './MathText'
 import { ChevronDown, ChevronUp, Lightbulb } from 'lucide-react'
-import { normalizeLatexForKaTeX } from '../utils/latex'
-import 'katex/dist/katex.min.css'
 
 /** 将字面量 \n 转为换行 */
 function normalizeText(text) {
@@ -43,7 +41,7 @@ export default function ExampleList({ data }) {
             <li key={i} style={i > 0 ? { borderTop: '1px solid rgba(59, 130, 246, 0.15)' } : {}}>
               <div className="px-5 py-3">
                 <p className="text-sm leading-relaxed" style={{ color: 'var(--color-text-primary)' }}>
-                  <Latex>{normalizeLatexForKaTeX(content)}</Latex>
+                  <MathText>{content}</MathText>
                 </p>
                 <button
                   type="button"
@@ -75,7 +73,7 @@ export default function ExampleList({ data }) {
                 >
                   <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--color-text-secondary)' }}>解析</p>
                   <div className="text-sm leading-relaxed whitespace-pre-line" style={{ color: 'var(--color-text-primary)' }}>
-                    <Latex>{normalizeLatexForKaTeX(analysis)}</Latex>
+                    <MathText>{analysis}</MathText>
                   </div>
                 </div>
               )}

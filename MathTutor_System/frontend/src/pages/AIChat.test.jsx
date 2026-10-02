@@ -1,3 +1,4 @@
+import mathFixture from '../../../test-fixtures/math-rendering-cases.json'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -133,4 +134,13 @@ describe('AIChat V2 workspace', () => {
     expect(screen.queryByText('（无回复）')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '重试' })).toBeInTheDocument()
   })
+})
+
+it('renders formulas in both historical message roles', async () => {
+ api.getChatSessions.mockResolvedValue([{id: 1, title: '数学会话'}])
+ api.getChatSessionMessages.mockResolvedValue([{id: 1, role: 'user', content: mathFixture.question.content}, {id: 2, role: 'assistant', content: mathFixture.question.analysis}])
+ const {container} = renderChat()
+ await userEvent.click(await screen.findByRole('button', {name: /数学会话/}))
+ await waitFor(() => expect(container.querySelectorAll('.katex')).toHaveLength(4))
+ expect(container.querySelector('.katex-display')).not.toBeNull()
 })

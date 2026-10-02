@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
-import Latex from 'react-latex-next'
+import MathText from '../../../components/MathText'
 import { Loader2, X } from 'lucide-react'
 
-import { normalizeLatexForKaTeX } from '../../../utils/latex'
 import { getOptionDisplayText } from '../utils/homeworkUtils'
 
 export default function QuestionPickerModal({
@@ -85,7 +84,7 @@ export default function QuestionPickerModal({
                   />
                   <div className="min-w-0 flex-1 break-words text-sm" style={{ color: 'var(--color-text-primary)' }}>
                     <span className="inline">
-                      <Latex>{normalizeLatexForKaTeX((item.content ?? '').trim() || '（无题干）')}</Latex>
+                      <MathText>{(item.content ?? '').trim() || '（无题干）'}</MathText>
                     </span>
                     {Array.isArray(item.options) && item.options.length > 0 && (
                       <ul className="mt-1.5 list-none space-y-0.5 pl-0" style={{ color: 'var(--color-text-secondary)' }}>
@@ -93,7 +92,7 @@ export default function QuestionPickerModal({
                           <li key={i} className="flex gap-1.5">
                             <span className="shrink-0">{String.fromCharCode(65 + i)}.</span>
                             <span className="inline">
-                              <Latex>{normalizeLatexForKaTeX(getOptionDisplayText(opt))}</Latex>
+                              <MathText>{getOptionDisplayText(opt)}</MathText>
                             </span>
                           </li>
                         ))}

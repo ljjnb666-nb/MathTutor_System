@@ -24,7 +24,6 @@ import {
   SectionCard,
   StatusBadge,
 } from '../../components/UiV2'
-import 'katex/dist/katex.min.css'
 
 const TYPE_TONES = {
   选择: 'accent',

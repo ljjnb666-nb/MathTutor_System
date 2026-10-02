@@ -1,0 +1,37 @@
+{
+  "question": {
+    "content": "已知 $a=2$，求 \\(a^2+\\sqrt{9}\\)。",
+    "options": ["$7$", "\\(8\\)"],
+    "answer": "$7$",
+    "analysis": "第一步：\n$$a^2+\\sqrt{9}=2^2+3$$\n第二步：\n所以答案为 $7$。"
+  },
+  "cases": [
+    {"name":"plain", "input":"一元一次方程", "types":["text"], "text":"一元一次方程"},
+    {"name":"inline", "input":"解方程 $x+1=2$", "types":["text","inline"]},
+    {"name":"display", "input":"结果为：\n$$x=1$$", "types":["text","display"]},
+    {"name":"parenthesis", "input":"解 \\(x^2=4\\)", "types":["text","inline"]},
+    {"name":"bracket", "input":"\\[\nx^2+y^2=z^2\n\\]", "types":["display"]},
+    {"name":"multiple", "input":"当 $x=1$ 时，$y=2$", "types":["text","inline","text","inline"]},
+    {"name":"mixed", "input":"text\n$x$\ntext\n$$y$$\ntext", "types":["text","inline","text","display","text"]},
+    {"name":"currency", "input":"价格是 $5", "types":["text"], "text":"价格是 $5"},
+    {"name":"decimal currency", "input":"价格 $10.50", "types":["text"], "text":"价格 $10.50"},
+    {"name":"escaped dollar", "input":"价格是 \\$5", "types":["text"], "text":"价格是 $5"},
+    {"name":"malformed", "input":"$\\frac{1$", "types":["inline"], "fallback":true},
+    {"name":"latex root", "input":"$\\sqrt{2}$", "types":["inline"], "math":"\\sqrt{2}"},
+    {"name":"unicode root", "input":"$√2$", "types":["inline"], "math":"\\sqrt{2}"},
+    {"name":"root variable", "input":"$√x$", "types":["inline"], "math":"\\sqrt{x}"},
+    {"name":"root braces", "input":"$√{x+1}$", "types":["inline"], "math":"\\sqrt{x+1}"},
+    {"name":"root parentheses", "input":"$√(x+1)$", "types":["inline"], "math":"\\sqrt{x+1}"},
+    {"name":"nested root", "input":"$√(x+(y+1))$", "types":["inline"], "math":"\\sqrt{x+(y+1)}"},
+    {"name":"unsafe root", "input":"$√(x+1$", "types":["inline"], "math":"√(x+1"},
+    {"name":"newline", "input":"第一行\n第二行", "types":["text"], "text":"第一行\n第二行"},
+    {"name":"math newline", "input":"$$x+\ny$$", "types":["display"], "math":"x+\ny"},
+    {"name":"xss", "input":"<script>alert(1)</script>", "types":["text"], "text":"<script>alert(1)</script>"},
+    {"name":"trust", "input":"$\\href{javascript:alert(1)}{x}$", "types":["inline"]},
+    {"name":"circled plain", "input":"①第一步 √2 x^2", "types":["text"], "text":"①第一步 √2 x^2"},
+    {"name":"circled math", "input":"$①+⑩$", "types":["inline"], "math":"(1)+(10)"},
+    {"name":"unmatched display", "input":"$$x+1", "types":["text"], "text":"$$x+1"},
+    {"name":"unmatched paren", "input":"\\(x+1", "types":["text"], "text":"\\(x+1"},
+    {"name":"escaped inside math", "input":"$x+\\$5$", "types":["inline"], "math":"x+\\$5"}
+  ]
+}

@@ -1,3 +1,4 @@
+import mathFixture from '../../../../test-fixtures/math-rendering-cases.json'
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import PracticeDraftPanel from './PracticeDraftPanel'
@@ -186,4 +187,12 @@ describe('PracticeDraftPanel', () => {
     expect(screen.getByText('Save failed')).toBeInTheDocument()
     expect(screen.getByText('Practice save failed')).toBeInTheDocument()
   })
+})
+
+it('renders a full mathematical draft preview with raw editing fields', () => {
+ const artifact = makeArtifact()
+ artifact.content_json.questions = [{...artifact.content_json.questions[0], stem: mathFixture.question.content, options: mathFixture.question.options, answer: mathFixture.question.answer, explanation: mathFixture.question.analysis}]
+ renderPanel({artifact})
+ expect(screen.getByRole('region', {name: '题目预览'}).querySelectorAll('.katex')).toHaveLength(7)
+ expect(screen.getByDisplayValue(mathFixture.question.content)).toBeInTheDocument()
 })

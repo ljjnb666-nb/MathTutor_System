@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react'
-import Latex from '../components/Latex'
+import MathText from '../components/MathText'
 import { getStudentExam, studentGradeExam } from '../services/api'
 import toast from 'react-hot-toast'
 
@@ -13,14 +13,6 @@ function flatQuestionsFromExam(exam) {
   return []
 }
 
-function safeLatex(text) {
-  if (!text || typeof text !== 'string') return ''
-  try {
-    return text.replace(/\\\[/g, '$$').replace(/\\\]/g, '$$').replace(/\\\(/g, '$').replace(/\\\)/g, '$')
-  } catch {
-    return text
-  }
-}
 
 /** 去掉选项文本开头的 "A." "B." 等前缀，避免重复显示 */
 function getOptionDisplayText(opt) {
@@ -166,13 +158,13 @@ export default function ExamDoPage() {
                   )}
                 </div>
                 <div className="prose prose-sm max-w-none text-gray-800">
-                  <Latex>{safeLatex(q.content ?? q.body ?? '')}</Latex>
+                  <MathText>{q.content ?? q.body ?? ''}</MathText>
                   {Array.isArray(q.options) && q.options.length > 0 && (
                     <ul className="mt-2 list-none space-y-1 pl-0 text-gray-600">
                       {(q.options || []).map((opt, i) => (
                         <li key={i}>
                           <span className="font-medium">{String.fromCharCode(65 + i)}.</span>{' '}
-                          <Latex>{safeLatex(getOptionDisplayText(opt))}</Latex>
+                          <MathText>{getOptionDisplayText(opt)}</MathText>
                         </li>
                       ))}
                     </ul>
@@ -183,21 +175,21 @@ export default function ExamDoPage() {
                     <span className="font-medium text-gray-500">你的答案：</span>
                     {isSolution
                       ? (isCorrect ? '自评答对' : '自评答错')
-                      : (studentAnswer || '—')}
+                      : <MathText>{studentAnswer || '—'}</MathText>}
                   </p>
                   {(q.answer || q.analysis) && (
                     <>
                       {q.answer && (
                         <p className="text-gray-700">
                           <span className="font-medium text-gray-500">正确答案：</span>
-                          <Latex>{safeLatex((q.answer ?? '').trim())}</Latex>
+                          <MathText>{(q.answer ?? '').trim()}</MathText>
                         </p>
                       )}
                       {q.analysis && (
                         <div className="rounded-lg bg-gray-50 p-3 text-gray-700">
                           <span className="font-medium text-gray-500">解析：</span>
                           <div className="mt-1">
-                            <Latex>{safeLatex((q.analysis ?? '').trim())}</Latex>
+                            <MathText>{(q.analysis ?? '').trim()}</MathText>
                           </div>
                         </div>
                       )}
@@ -281,7 +273,7 @@ export default function ExamDoPage() {
                 {q.knowledge_point && ` · ${q.knowledge_point}`}
               </div>
               <div className="prose prose-sm max-w-none text-gray-800">
-                <Latex>{safeLatex(q.content ?? q.body ?? '')}</Latex>
+                <MathText>{q.content ?? q.body ?? ''}</MathText>
                 {isChoice && (
                   <ul className="mt-3 list-none space-y-1.5 pl-0" role="radiogroup" aria-label={`第 ${index + 1} 题选项`}>
                     {(q.options || []).map((opt, i) => {
@@ -302,7 +294,7 @@ export default function ExamDoPage() {
                             />
                             <span className="shrink-0 font-medium text-gray-600">{label}.</span>
                             <span className="min-w-0 flex-1">
-                              <Latex>{safeLatex(getOptionDisplayText(opt))}</Latex>
+                              <MathText>{getOptionDisplayText(opt)}</MathText>
                             </span>
                           </label>
                         </li>

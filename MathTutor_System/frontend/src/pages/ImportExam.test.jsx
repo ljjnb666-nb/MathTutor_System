@@ -1,3 +1,4 @@
+import mathFixture from '../../../test-fixtures/math-rendering-cases.json'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -139,3 +140,15 @@ describe('ImportExam', () => {
   })
 })
 
+
+it('renders imported mathematical fields while retaining raw edit values', async () => {
+ api.parseWordExam.mockResolvedValue({questions: [mathFixture.question]})
+ const {container} = render(<ImportExam />)
+ await userEvent.upload(uploadInput(), file('exam.docx'))
+ await userEvent.click(screen.getAllByRole('button', {name: /开始解析/})[0])
+ await waitFor(() => expect(container.querySelectorAll('.katex')).toHaveLength(7))
+ await userEvent.click(screen.getByTitle('编辑'))
+ expect(screen.getByDisplayValue(mathFixture.question.content)).toBeInTheDocument()
+ expect(screen.getByRole('textbox', {name: '答案'})).toHaveValue(mathFixture.question.answer)
+ expect(screen.getByRole('region', {name: '编辑预览'}).querySelectorAll('.katex')).toHaveLength(7)
+})

@@ -7,6 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
   plugins: [react()],
+  test: { environment: 'jsdom', setupFiles: './src/test/setup.js' },
   base: import.meta.env?.VITE_BASE_URL || '/',
   server: {
     port: 5174,

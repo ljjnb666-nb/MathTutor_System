@@ -1,3 +1,4 @@
+import MathText from '../components/MathText'
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FileQuestion, Loader2, Search, Trash2, FileStack, BookOpen, Star, Tags } from 'lucide-react'
@@ -215,7 +216,7 @@ export default function QuestionBank() {
                 title: '题干',
                 render: (item) => (
                   <button type="button" onClick={() => setPreviewId(item.id)} className="max-w-md truncate text-left font-bold hover:text-indigo-300" title={item.content}>
-                    {item.content || '未命名题目'}
+                    <MathText>{item.content || '未命名题目'}</MathText>
                   </button>
                 ),
               },
@@ -249,7 +250,7 @@ export default function QuestionBank() {
                     className="mt-1 h-4 w-4 rounded focus:ring"
                   />
                   <button type="button" onClick={() => setPreviewId(item.id)} className="min-w-0 flex-1 text-left">
-                    <p className="line-clamp-2 text-sm font-bold text-slate-100">{index + 1}. {item.content || '未命名题目'}</p>
+                    <p className="line-clamp-2 text-sm font-bold text-slate-100">{index + 1}. <MathText>{item.content || '未命名题目'}</MathText></p>
                     <p className="mt-1 text-xs text-slate-400">{item.knowledge_point || '未标注知识点'}</p>
                   </button>
                 </div>

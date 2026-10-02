@@ -1,3 +1,4 @@
+import mathFixture from '../../../test-fixtures/math-rendering-cases.json'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -527,3 +528,13 @@ describe('ExamPreview', () => {
   })
 })
 
+
+it('renders all four mathematical fields in the real paper preview', async () => {
+ api.getExam.mockResolvedValue({data: {...exam, questions: [mathFixture.question]}})
+ const {container} = renderRoute()
+ await screen.findByTestId('exam-preview-paper')
+ const toggle = screen.getByRole('checkbox', {name: '显示答案'})
+ if (!toggle.checked) await userEvent.click(toggle)
+ await waitFor(() => expect(container.querySelectorAll('.katex')).toHaveLength(7))
+ expect(container.querySelector('.katex-display')).not.toBeNull()
+})
