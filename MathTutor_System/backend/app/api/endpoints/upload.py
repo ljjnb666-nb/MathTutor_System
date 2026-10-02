@@ -14,6 +14,7 @@ from app.api.endpoints.auth import get_current_user
 from app.core.deps import LLMConfig, get_llm_config
 from app.models.user import User
 from app.services.docx_to_pdf import convert_docx_to_pdf
+from app.services.document_safety import DocumentSafetyError, preflight_document
 from app.services.pdf_to_images import pdf_pages_to_images
 from app.services.llm_service import generate_analysis_for_questions_async
 from app.services.word_parser import (
@@ -44,6 +45,11 @@ def _validate_exam_upload(file: UploadFile, content: bytes) -> str:
         raise HTTPException(status_code=400, detail="File is empty")
     if len(content) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File is too large")
+    # SEC-05: same preflight authority as RAG, with the tighter exam page cap.
+    try:
+        preflight_document(content, filename, profile="exam")
+    except DocumentSafetyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
     return filename
 
 
@@ -107,9 +113,14 @@ async def parse_word_exam(
         else:
             pdf_bytes = convert_docx_to_pdf(content)
             if pdf_bytes is None:
-                logger.info("Word→PDF 未可用，使用纯文本解析 .docx")
+                logger.info("Word→PDF 不可用，改用纯文本解析 .docx")
                 questions = _text_fallback_docx()
                 return {"questions": questions}
+            # SEC-05: the LibreOffice output is re-bounded before rendering.
+            try:
+                preflight_document(pdf_bytes, "converted.pdf", profile="exam")
+            except DocumentSafetyError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from None
 
         page_images = pdf_pages_to_images(pdf_bytes)
         if not page_images or not api_key:

@@ -31,11 +31,14 @@ def parse_file_from_bytes(content: bytes, filename: str) -> str:
     """
     从字节流解析文档为纯文本（供后台任务等同步场景使用）。
     支持 .pdf、.docx；其他格式或解析失败抛出 ValueError。
+    SEC-05：解析前先做 document_safety 预检（页数 / ZIP 展开上限 / 魔数）。
     """
     content_str = ""
     name = (filename or "").lower().strip()
     if not name:
         raise ValueError("缺少文件名")
+    # 单一安全预检 authority：页数上限取知识库配置（试卷路径在 upload.py 另行收紧）。
+    preflight_document(content, name, profile="rag")
     file_stream = io.BytesIO(content)
 
     try:
@@ -48,11 +51,11 @@ def parse_file_from_bytes(content: bytes, filename: str) -> str:
         elif name.endswith(".docx"):
             if docx is None:
                 raise ValueError("未安装 python-docx，无法解析 Word 文档。请执行: pip install python-docx")
-            doc = docx.Document(file_stream)
-            for para in doc.paragraphs:
+            word_doc = docx.Document(file_stream)
+            for para in word_doc.paragraphs:
                 if para.text:
                     content_str += para.text + "\n"
-            for table in doc.tables:
+            for table in word_doc.tables:
                 for row in table.rows:
                     for cell in row.cells:
                         if cell.text:

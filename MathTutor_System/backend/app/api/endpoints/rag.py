@@ -18,6 +18,7 @@ from app.core.ai_runtime import AIConfigError, EmbeddingConfig
 from app.core.subscription import get_current_subscription, require_feature
 from app.models.base import get_db
 from app.models.user import User
+from app.services.document_safety import DocumentSafetyError
 from app.services.file_parser import parse_file_from_bytes
 from app.services.rag_document_store import (
     DocumentRegistryError,
@@ -31,9 +32,17 @@ from app.services.rag_account_service import StaleRAGAccountError, write_rag_for
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+# ---- async upload bookkeeping (SEC-04) -------------------------------------
 _upload_status: dict[str, dict] = {}
 _STATUS_EXPIRE_SEC = 600
 _MAX_STATUS_ENTRIES = 100
+MAX_ACTIVE_RAG_UPLOADS_PER_OWNER = 2
+MAX_ACTIVE_RAG_UPLOADS_GLOBAL = 16
+_ACTIVE_TASK_TIMEOUT_SEC = 1800
+_ACTIVE_STATUSES = frozenset({"pending", "processing"})
+_OWNER_BUSY_DETAIL = "当前已有知识库导入任务正在处理，请稍后重试。"
+_GLOBAL_BUSY_DETAIL = "知识库导入队列繁忙，请稍后重试。"
+
 MAX_RAG_UPLOAD_BYTES = 12 * 1024 * 1024
 MAX_RAG_FILENAME_LENGTH = 180
 ALLOWED_RAG_MIME_TYPES = {
@@ -48,11 +57,39 @@ def _require_rag(current_user: User, db: Session) -> None:
     require_feature(sub, "rag", current_user, db)
 
 
+def _expire_stale_active_tasks() -> None:
+    """Force-fail active tasks that never completed so their slot/buffer release."""
+    deadline = time.time() - _ACTIVE_TASK_TIMEOUT_SEC
+    for rec in _upload_status.values():
+        if rec.get("status") in _ACTIVE_STATUSES and (rec.get("created_at") or 0) < deadline:
+            rec["status"] = "failed"
+            rec["message"] = "任务超时，请重新上传"
+            rec["error"] = "Upload timed out"
+            rec["finished_at"] = time.time()
+
+
+def _active_task_count(owner_user_id: int | None = None) -> int:
+    count = 0
+    for rec in _upload_status.values():
+        if rec.get("status") not in _ACTIVE_STATUSES:
+            continue
+        if owner_user_id is None or int(rec.get("owner_user_id") or -1) == int(owner_user_id):
+            count += 1
+    return count
+
+
 def _prune_upload_status() -> None:
+    """History cap. Terminal entries only, oldest first; active tasks never evicted."""
     if len(_upload_status) <= _MAX_STATUS_ENTRIES:
         return
-    by_time = sorted(_upload_status.items(), key=lambda item: item[1].get("created_at") or 0)
-    for task_id, _ in by_time[: len(_upload_status) - _MAX_STATUS_ENTRIES]:
+    terminal = [
+        (task_id, rec)
+        for task_id, rec in _upload_status.items()
+        if rec.get("status") not in _ACTIVE_STATUSES
+    ]
+    terminal.sort(key=lambda item: item[1].get("finished_at") or item[1].get("created_at") or 0)
+    overflow = len(_upload_status) - _MAX_STATUS_ENTRIES
+    for task_id, _rec in terminal[:overflow]:
         _upload_status.pop(task_id, None)
 
 
@@ -91,11 +128,11 @@ def rag_list_documents(
     _require_rag(current_user, db)
     try:
         return {"documents": store_list_documents(current_user.id)}
-    except DocumentRegistryError as exc:
-        logger.warning("RAG registry list failed error_type=%s", type(exc).__name__)
+    except DocumentRegistryError:
+        logger.warning("RAG registry list failed")
         raise HTTPException(status_code=500, detail="Document registry is unavailable")
-    except Exception as exc:
-        logger.warning("RAG list failed error_type=%s", type(exc).__name__)
+    except Exception:
+        logger.warning("RAG list failed")
         raise HTTPException(status_code=500, detail="Document list failed")
 
 
@@ -141,18 +178,17 @@ async def rag_upload(
     embedding_config: EmbeddingConfig = Depends(get_embedding_config),
 ):
     _require_rag(current_user, db)
-    owner_user_id, owner_auth_subject = current_user.id, current_user.auth_subject
     filename, file_bytes = await _read_validated_rag_upload(file)
     try:
         text = parse_file_from_bytes(file_bytes, filename)
         if not text.strip():
             raise HTTPException(status_code=400, detail="Parsed document is empty")
         document_id = write_rag_for_account_instance(
-            owner_user_id, owner_auth_subject,
+            current_user.id, current_user.auth_subject,
             lambda: get_rag_service(embedding_config=embedding_config).add_document(
                 text,
                 filename,
-                owner_user_id=owner_user_id,
+                owner_user_id=current_user.id,
                 knowledge_point=(knowledge_point or "").strip(),
                 chunk_type=(chunk_type or "question").strip() or "question",
             ),
@@ -164,7 +200,9 @@ async def rag_upload(
         raise
     except AIConfigError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
-    except ValueError as exc:
+    except DocumentSafetyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    except ValueError:
         raise HTTPException(status_code=400, detail="RAG_UPLOAD_ERROR: 文档无法处理，请检查文件格式后重试。") from None
     except Exception as exc:
         logger.error("RAG upload failed external_error_type=%s", type(exc).__name__)
@@ -203,8 +241,21 @@ async def _run_upload_task(
     owner_user_id: int,
     owner_auth_subject: str,
 ) -> None:
-    _upload_status[task_id]["status"] = "processing"
-    _upload_status[task_id]["message"] = "Processing"
+    # setdefault: the entry must exist even if history pruning raced us; a task
+    # that really wrote into the knowledge base must never lose its status.
+    rec = _upload_status.setdefault(
+        task_id,
+        {
+            "owner_user_id": owner_user_id,
+            "owner_auth_subject": owner_auth_subject,
+            "status": "pending",
+            "message": "Queued",
+            "filename": filename,
+            "created_at": time.time(),
+        },
+    )
+    rec["status"] = "processing"
+    rec["message"] = "Processing"
     try:
         loop = asyncio.get_event_loop()
         document_id = await loop.run_in_executor(
@@ -219,16 +270,19 @@ async def _run_upload_task(
                 owner_auth_subject,
             ),
         )
-        _upload_status[task_id].update(
-            {"status": "done", "message": "Knowledge base updated", "filename": filename, "document_id": document_id}
+        rec.update(
+            {"status": "done", "finished_at": time.time(), "message": "Knowledge base updated",
+             "filename": filename, "document_id": document_id}
         )
     except StaleRAGAccountError as exc:
-        _upload_status[task_id].update({"status": "failed", "error": str(exc), "message": str(exc)})
+        rec.update({"status": "failed", "finished_at": time.time(), "error": str(exc), "message": str(exc)})
     except AIConfigError as exc:
-        _upload_status[task_id].update({"status": "failed", "error": str(exc), "message": exc.message})
+        rec.update({"status": "failed", "finished_at": time.time(), "error": str(exc), "message": exc.message})
+    except DocumentSafetyError as exc:
+        rec.update({"status": "failed", "finished_at": time.time(), "error": str(exc), "message": str(exc)})
     except Exception as exc:
         logger.error("RAG async upload failed external_error_type=%s", type(exc).__name__)
-        _upload_status[task_id].update({"status": "failed", "error": "Upload failed", "filename": filename})
+        rec.update({"status": "failed", "finished_at": time.time(), "error": "Upload failed", "filename": filename})
 
 
 @router.post("/upload/async")
@@ -242,6 +296,12 @@ async def rag_upload_async(
 ):
     _require_rag(current_user, db)
     filename, file_bytes = await _read_validated_rag_upload(file)
+    _expire_stale_active_tasks()
+    # SEC-04 admission control happens BEFORE a slot or a 12MB buffer is held.
+    if _active_task_count(current_user.id) >= MAX_ACTIVE_RAG_UPLOADS_PER_OWNER:
+        raise HTTPException(status_code=429, detail=_OWNER_BUSY_DETAIL)
+    if _active_task_count() >= MAX_ACTIVE_RAG_UPLOADS_GLOBAL:
+        raise HTTPException(status_code=503, detail=_GLOBAL_BUSY_DETAIL)
     task_id = str(uuid.uuid4())
     _upload_status[task_id] = {
         "owner_user_id": current_user.id,
