@@ -13,6 +13,8 @@ from app.core.config import (
     ALIPAY_APP_ID,
     ALIPAY_ENABLED,
     ALIPAY_RETURN_URL,
+    WECHAT_APPID,
+    WECHAT_MCHID,
     WECHAT_PAY_ENABLED,
 )
 from app.models.order import Order
@@ -331,7 +333,26 @@ def handle_alipay_notify(db: Session, data: dict) -> dict:
     return {"code": "success", "msg": msg}
 
 
+def _parse_wechat_amount_fen(raw: object) -> int | None:
+    """SEC-03：回调金额必须是不带符号/小数的非负整数「分」。"""
+    if raw is None or isinstance(raw, bool):
+        return None
+    text = str(raw).strip()
+    if not text or not text.isdigit():
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
+
+
 def handle_wechat_notify(db: Session, headers: dict, body: str | bytes) -> dict:
+    """
+    微信支付异步回调。SEC-03：与支付宝回调同等强度的合同——验签解密通过后，
+    还必须核对 out_trade_no / transaction_id / mchid / appid / 支付方式 / 币种 /
+    金额（精确到分，直接用整型「分」比较，不做 float 相等），全部通过才允许
+    apply_paid_order。重复回调保持幂等（exactly-once）。
+    """
     result = verify_wechat_callback(headers, body)
     if not result:
         return {"code": "FAIL", "message": "验签或解密失败"}
@@ -350,12 +371,52 @@ def handle_wechat_notify(db: Session, headers: dict, body: str | bytes) -> dict:
             res = {}
 
     out_trade_no = res.get("out_trade_no")
-    trade_state = res.get("trade_state")
-    transaction_id = res.get("transaction_id")
     if not out_trade_no:
         return {"code": "FAIL", "message": "缺少 out_trade_no"}
+
+    trade_state = res.get("trade_state")
     if trade_state != "SUCCESS":
         return {"code": "SUCCESS", "message": "忽略非成功状态"}
+
+    transaction_id = res.get("transaction_id")
+    if not transaction_id:
+        return {"code": "FAIL", "message": "缺少 transaction_id"}
+
+    mchid = res.get("mchid")
+    if not mchid:
+        return {"code": "FAIL", "message": "缺少 mchid"}
+    if mchid != WECHAT_MCHID:
+        return {"code": "FAIL", "message": "商户号不匹配"}
+
+    appid = res.get("appid")
+    if not appid:
+        return {"code": "FAIL", "message": "缺少 appid"}
+    if appid != WECHAT_APPID:
+        return {"code": "FAIL", "message": "应用标识不匹配"}
+
+    order = db.query(Order).filter(Order.out_trade_no == out_trade_no).first()
+    if not order:
+        return {"code": "FAIL", "message": "订单不存在"}
+    if order.payment_method != "wechat":
+        return {"code": "FAIL", "message": "支付方式不匹配"}
+    if order.currency != "CNY":
+        return {"code": "FAIL", "message": "支付币种不匹配"}
+
+    amount = res.get("amount")
+    if not isinstance(amount, dict):
+        return {"code": "FAIL", "message": "缺少回调金额"}
+    if amount.get("currency") != "CNY":
+        return {"code": "FAIL", "message": "回调币种不匹配"}
+
+    total_fen = _parse_wechat_amount_fen(amount.get("total"))
+    if total_fen is None:
+        return {"code": "FAIL", "message": "回调金额格式错误"}
+
+    stored_amount = _normalize_stored_cny_amount(order.amount)
+    if stored_amount is None:
+        return {"code": "FAIL", "message": "订单金额异常"}
+    if total_fen != int((stored_amount * 100).to_integral_value()):
+        return {"code": "FAIL", "message": "支付金额不匹配"}
 
     msg = apply_paid_order(db, out_trade_no=out_trade_no, third_trade_no=transaction_id)
     if msg in ("订单不存在", "套餐不存在"):

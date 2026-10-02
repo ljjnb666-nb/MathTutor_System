@@ -45,7 +45,7 @@ ALLOWED_RAG_MIME_TYPES = {
 
 def _require_rag(current_user: User, db: Session) -> None:
     sub = get_current_subscription(current_user, db)
-    require_feature(sub, "rag", current_user)
+    require_feature(sub, "rag", current_user, db)
 
 
 def _prune_upload_status() -> None:

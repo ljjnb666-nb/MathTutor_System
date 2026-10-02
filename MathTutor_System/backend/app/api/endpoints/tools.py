@@ -50,7 +50,7 @@ def api_generate_ppt(
     根据主题与学段生成讲稿内容（JSON），供前端预览；不返回文件。需专业版及以上套餐。
     """
     sub = get_current_subscription(current_user, db)
-    require_feature(sub, "magic_ppt", current_user)
+    require_feature(sub, "magic_ppt", current_user, db)
     topic = (body.topic or "").strip()
     grade = (body.grade or "Middle").strip() or "Middle"
 
@@ -85,7 +85,7 @@ def api_build_pptx(
     根据已有讲稿 JSON 生成 .pptx 文件并返回，供「下载 PPT」使用。需专业版及以上套餐。
     """
     sub = get_current_subscription(current_user, db)
-    require_feature(sub, "magic_ppt", current_user)
+    require_feature(sub, "magic_ppt", current_user, db)
     try:
         content = {"title": body.title or "Lesson", "slides": body.slides or []}
         if not content["slides"]:

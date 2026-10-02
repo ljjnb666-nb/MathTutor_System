@@ -53,7 +53,7 @@ async def create_practice_artifact(
     _require_student_owned_if_set(db, user, request.student_id)
     if request.use_knowledge_base:
         sub = get_current_subscription(user, db)
-        require_feature(sub, "rag", user)
+        require_feature(sub, "rag", user, db)
     context_summary = _build_context_summary(db, user, run, request, llm_config)
     draft = await (generator or LLMPracticeDraftGenerator()).generate(
         teacher_goal=run.goal,

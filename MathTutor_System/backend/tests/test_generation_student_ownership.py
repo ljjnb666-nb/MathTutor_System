@@ -119,7 +119,7 @@ def _instrument_feature_checks(monkeypatch):
         entered["subscription"] += 1
         raise AssertionError("get_current_subscription should not be reached")
 
-    def fake_require_feature(subscription, feature_key, current_user):
+    def fake_require_feature(subscription, feature_key, current_user, db=None):
         entered["feature"] += 1
         raise AssertionError("require_feature should not be reached")
 

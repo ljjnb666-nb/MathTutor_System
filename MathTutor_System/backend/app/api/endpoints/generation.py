@@ -45,7 +45,7 @@ async def api_generate_weak_point(
         )
     if request.use_knowledge_base:
         sub = get_current_subscription(current_user, db)
-        require_feature(sub, "rag", current_user)
+        require_feature(sub, "rag", current_user, db)
     if not (llm_config.api_key or "").strip():
         raise HTTPException(
             status_code=400,
@@ -93,7 +93,7 @@ async def api_generate(
         get_student_or_404(db, request.student_id, current_user)
     if request.use_knowledge_base:
         sub = get_current_subscription(current_user, db)
-        require_feature(sub, "rag", current_user)
+        require_feature(sub, "rag", current_user, db)
     if not (llm_config.api_key or "").strip():
         raise HTTPException(
             status_code=400,
@@ -131,7 +131,7 @@ async def api_generate_exam(
         get_student_or_404(db, request.student_id, current_user)
     if request.use_knowledge_base:
         sub = get_current_subscription(current_user, db)
-        require_feature(sub, "rag", current_user)
+        require_feature(sub, "rag", current_user, db)
     if not (llm_config.api_key or "").strip():
         raise HTTPException(
             status_code=400,
