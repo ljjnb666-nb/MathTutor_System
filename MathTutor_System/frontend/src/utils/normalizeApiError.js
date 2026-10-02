@@ -62,8 +62,24 @@ const MACHINE_CODE_PREFIX_PATTERN = /^([A-Z][A-Z0-9_]{2,}):\s*(.+)$/
 // 继续展示（避免只遮住一个 secret 却泄漏其它 provider/内部上下文）。
 
 // credential 字段 + 赋值形状：field=value / field: value / "field": "value"
-// 字段名允许连写/中划/下划变体；值允许引号包裹（JSON-ish）或裸 token。
-const CREDENTIAL_ASSIGNMENT_PATTERN = /\b(?:x-api-key|x-goog-api-key|client-secret|access-token|api-key|api_key|apikey|authorization|password|passwd|secret|token)"?\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;}&]+)/i
+// 字段名用结构化变体（[_-]? / [_-]）避免手工枚举遗漏；compact apiKey 由
+// case-insensitive 的 api[_-]?key 覆盖；值允许引号包裹（JSON-ish）或裸 token。
+const CREDENTIAL_FIELD_NAMES = [
+  'x-api-key',
+  'x-goog-api-key',
+  'access[_-]?token',
+  'client[_-]?secret',
+  'api[_-]?key',
+  'authorization',
+  'password',
+  'passwd',
+  'secret',
+  'token',
+].join('|')
+const CREDENTIAL_ASSIGNMENT_PATTERN = new RegExp(
+  `\\b(?:${CREDENTIAL_FIELD_NAMES})"?\\s*[:=]\\s*(?:"[^"]*"|'[^']*'|[^\\s,;}&]+)`,
+  'i',
+)
 
 // 裸 Bearer/Basic 凭据
 const BEARER_BASIC_PATTERN = /\b(?:bearer|basic)\s+[A-Za-z0-9._~+/=-]{4,}/i

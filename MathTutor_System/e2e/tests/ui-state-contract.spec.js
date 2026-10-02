@@ -294,6 +294,29 @@ test.describe('BROWSER_STATE_CONTRACT error presentation', () => {
     guards.assert({ allowApi5xx: true })
   })
 
+  test('Chinese error text carrying an access_token credential fails closed (student)', async ({ studentPage }) => {
+    const guards = attachGuards(studentPage, { api5xx: false })
+    // Runtime-generated secret; never a committed credential literal.
+    const secret = ['opaque', '-browser-', 'token-99'].join('')
+
+    // No known machine-code prefix here: this exercises the
+    // containsSensitiveMaterial() detector itself on the UI path.
+    await studentPage.route('**/api/student/exams', async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: `处理失败，access_token=${secret}` }),
+      })
+    })
+    await studentPage.goto(`${STUDENT_URL}/exams`)
+    await expect(studentPage.getByText('服务暂时不可用，请稍后重试').first()).toBeVisible({ timeout: 20_000 })
+    const bodyText = await studentPage.locator('body').innerText()
+    expect(bodyText).not.toContain('access_token')
+    expect(bodyText).not.toContain(secret)
+
+    guards.assert({ allowApi5xx: true })
+  })
+
   test('network failure shows the Chinese transport message (student)', async ({ studentPage }) => {
     const guards = attachGuards(studentPage, { api5xx: false })
 

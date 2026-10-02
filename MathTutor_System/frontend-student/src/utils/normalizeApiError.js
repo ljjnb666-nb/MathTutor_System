@@ -38,7 +38,26 @@ const MACHINE_CODE_PREFIX_PATTERN = /^([A-Z][A-Z0-9_]{2,}):\s*(.+)$/
 // ---- Secret redaction boundary（与教师端 frontend/src/utils/normalizeApiError.js 契约一致）----
 // 凭据形状检测（fail-closed）：按"形状"识别 credential 内容；命中即整串丢弃并
 // 回退到安全中文兜底，绝不遮罩后继续展示。
-const CREDENTIAL_ASSIGNMENT_PATTERN = /\b(?:x-api-key|x-goog-api-key|client-secret|access-token|api-key|api_key|apikey|authorization|password|passwd|secret|token)"?\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;}&]+)/i
+// credential 字段 + 赋值形状：field=value / field: value / "field": "value"
+// 字段名用结构化变体（[_-]? / [_-]）避免手工枚举遗漏；compact apiKey 由
+// case-insensitive 的 api[_-]?key 覆盖；值允许引号包裹（JSON-ish）或裸 token。
+// 与教师端 frontend/src/utils/normalizeApiError.js 契约一致。
+const CREDENTIAL_FIELD_NAMES = [
+  'x-api-key',
+  'x-goog-api-key',
+  'access[_-]?token',
+  'client[_-]?secret',
+  'api[_-]?key',
+  'authorization',
+  'password',
+  'passwd',
+  'secret',
+  'token',
+].join('|')
+const CREDENTIAL_ASSIGNMENT_PATTERN = new RegExp(
+  `\\b(?:${CREDENTIAL_FIELD_NAMES})"?\\s*[:=]\\s*(?:"[^"]*"|'[^']*'|[^\\s,;}&]+)`,
+  'i',
+)
 
 const BEARER_BASIC_PATTERN = /\b(?:bearer|basic)\s+[A-Za-z0-9._~+/=-]{4,}/i
 

@@ -219,6 +219,25 @@ describe('normalizeApiError secret redaction boundary (RB01)', () => {
     expect(normalizeApiError(text)).toBe(text)
   })
 
+  it('underscore credential variants (access_token / client_secret) fall back safely', () => {
+    const opaque = credentialFixture('opaque', '-value-', '77')
+    const privateSecret = credentialFixture('private', '-value-', '88')
+    expect(containsSensitiveMaterial(`access_token=${opaque}`)).toBe(true)
+    expect(containsSensitiveMaterial(`"access_token": "${opaque}"`)).toBe(true)
+    expect(containsSensitiveMaterial(`client_secret=${privateSecret}`)).toBe(true)
+    expect(containsSensitiveMaterial(`"client_secret": "${privateSecret}"`)).toBe(true)
+
+    const accessTokenResult = normalizeApiError(`请求失败，access_token=${opaque}`)
+    expect(accessTokenResult).toBe('操作失败，请稍后重试')
+    expect(accessTokenResult).not.toContain('access_token')
+    expect(accessTokenResult).not.toContain(opaque)
+
+    const clientSecretResult = normalizeApiError(`服务失败，client_secret=${privateSecret}`)
+    expect(clientSecretResult).toBe('操作失败，请稍后重试')
+    expect(clientSecretResult).not.toContain('client_secret')
+    expect(clientSecretResult).not.toContain(privateSecret)
+  })
+
   it('containsSensitiveMaterial detects credential shapes across formats', () => {
     const secret = credentialFixture('secret', '-value-', '42')
     expect(containsSensitiveMaterial(`api_key: ${secret}`)).toBe(true)
