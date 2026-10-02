@@ -129,6 +129,7 @@ def _build_prompt(teacher_goal: str, intent: dict, request: PracticeDraftCreate,
     return (
         "Generate a draft-only middle-school math practice set. "
         "Do not claim the questions are saved. Do not include prompts, API keys, raw RAG text, SQL, file paths, or other teachers' data.\n"
+        "Use LaTeX: inline math $...$, display math $$...$$ when needed. Correctly escape LaTeX backslashes in JSON.\n"
         f"Teacher goal: {teacher_goal[:1000]}\n"
         f"Intent: {json.dumps(intent, ensure_ascii=False)[:1500]}\n"
         f"Request: {request.model_dump_json()}\n"

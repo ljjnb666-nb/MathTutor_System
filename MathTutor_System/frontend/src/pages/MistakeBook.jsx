@@ -1,3 +1,4 @@
+import MathText from '../components/MathText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { BookMarked, CheckCircle2, GitBranch, Loader2, MessageCircle, Plus, RefreshCw, Sparkles, Trash2, X } from 'lucide-react'
@@ -48,7 +49,7 @@ function MistakeCard({ item, actionState, onReview, onMaster, onDelete, onAskAI,
             <StatusBadge tone={item.status === 'mastered' ? 'success' : 'neutral'}>{item.status === 'mastered' ? '已掌握' : '待巩固'}</StatusBadge>
             {item.next_review_at && <span className="text-xs font-bold text-slate-400">下次复习 {formatDate(item.next_review_at)}</span>}
           </div>
-          <p className="whitespace-pre-wrap text-sm font-black leading-7 text-slate-100">{item.content || '（无题干）'}</p>
+          <p className="whitespace-pre-wrap text-sm font-black leading-7 text-slate-100"><MathText>{item.content || '（无题干）'}</MathText></p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <button type="button" className="v2-icon-button" title="问 AI" onClick={() => onAskAI(item)}><MessageCircle className="h-4 w-4" /></button>
@@ -66,14 +67,14 @@ function MistakeCard({ item, actionState, onReview, onMaster, onDelete, onAskAI,
           {item.options.map((option, index) => (
             <div key={`${option}-${index}`} className="v2-mistake-option">
               <span>{String.fromCharCode(65 + index)}</span>
-              <p>{option}</p>
+              <p><MathText>{option}</MathText></p>
             </div>
           ))}
         </div>
       )}
 
       <div className="mt-3 grid gap-2 md:grid-cols-2">
-        <div className="v2-mistake-note"><span>答案/订正</span><p>{item.solution || '未记录'}</p></div>
+        <div className="v2-mistake-note"><span>答案/订正</span><p><MathText>{item.solution || '未记录'}</MathText></p></div>
         <div className="v2-mistake-note"><span>复习次数</span><p>{item.review_count ?? 0} 次 · 来源 {item.source || '手动录入'}</p></div>
       </div>
 

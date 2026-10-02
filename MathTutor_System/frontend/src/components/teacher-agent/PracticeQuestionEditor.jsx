@@ -1,3 +1,5 @@
+import MathText from '../MathText'
+
 export default function PracticeQuestionEditor({ question, onChange }) {
   const update = (patch) => onChange({ ...question, ...patch })
   const options = Array.isArray(question.options) ? question.options : []
@@ -64,6 +66,13 @@ export default function PracticeQuestionEditor({ question, onChange }) {
           className="mt-1 w-full resize-none rounded-md border border-slate-300 px-3 py-2 text-sm"
         />
       </label>
+      <section aria-label="题目预览" className="mt-3 min-w-0 rounded-md border border-slate-200 p-3 text-sm text-slate-800">
+        <h4 className="font-bold">题目预览</h4>
+        <p><MathText>{question.stem}</MathText></p>
+        {options.map((option, index) => <p key={index}>{String.fromCharCode(65 + index)}. <MathText>{option}</MathText></p>)}
+        <p>答案：<MathText>{question.answer}</MathText></p>
+        <p>解析：<MathText>{question.explanation}</MathText></p>
+      </section>
       <label className="mt-3 block text-xs font-semibold text-slate-700">
         知识点
         <input

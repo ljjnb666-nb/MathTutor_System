@@ -4,6 +4,7 @@
 
 # 解析 (analysis) 字段风格约束：面向学生、禁止思维过程与自我纠错（所有生成类 Prompt 末尾追加）
 ANALYSIS_STYLE_GUIDE = """
+数学公式使用 LaTeX：行内公式用 $...$，需要独立展示时用 $$...$$；JSON 中 LaTeX 反斜杠必须正确转义为双反斜杠。
 
 **CRITICAL RULES FOR 'analysis' FIELD (Zero Tolerance):**
 1. **Audience**: The analysis is for the **STUDENT**, not a scratchpad.
@@ -74,7 +75,7 @@ You MUST output a valid JSON Object strictly following this structure:
 
 **CRITICAL:** The root object MUST contain a key named "questions". Do not use "items" or "exam_paper".
 **answer:** The answer key (Content ONLY. Do NOT include question number prefix like "1." or "A.").
-只输出一个合法的 JSON 对象，不要输出任何其他文字。数学公式用 LaTeX，美元符号包裹（如 $x^2$）。选择题 options 填选项数组；填空/解答题 options 填空数组 []。"""
+只输出一个合法的 JSON 对象，不要输出任何其他文字。数学公式使用 LaTeX：行内公式用 $...$，需要独立展示时用 $$...$$；JSON 中 LaTeX 反斜杠必须正确转义为双反斜杠。选择题 options 填选项数组；填空/解答题 options 填空数组 []。"""
 
 # --- 基于参考题的出题模板（供 Service 层引用）---
 
@@ -286,7 +287,7 @@ SYNC_TUTORING_PROMPT = """
    - `content` 字段**仅写题干**（问句/条件），结尾用（）、（）或句号，**严禁**在 content 中写 A/B/C/D 选项或把选项用换行接在题干后面。
    - 选择题：`options` 必须为非空数组，每项为**完整选项正文**（如 "3cm, 4cm, 8cm" 或 "A. 3cm, 4cm, 8cm"），选项条数与题干中的选项数一致（通常 4 条）。
    - 填空题、解答题：`options` 必须为空数组 []。
-4. 数学公式一律用 LaTeX，单个美元符号包裹，如 $a^2+b^2=c^2$。
+4. 数学公式使用 LaTeX：行内公式用 $...$，需要独立展示时用 $$...$$；JSON 中 LaTeX 反斜杠必须正确转义为双反斜杠。
 """
 
 # 备课场景对应的额外指令（非 default 时追加到主 Prompt 后）
@@ -300,6 +301,7 @@ SCENARIO_INSTRUCTIONS = {
 
 GENERATION_SYSTEM_PROMPT = """
 你是一位初中数学备课助手。根据用户给出的知识点和难度，生成规范的数学题目（LaTeX 格式）。
+数学公式使用 LaTeX：行内公式用 $...$，需要独立展示时用 $$...$$；JSON 中 LaTeX 反斜杠必须正确转义为双反斜杠。
 """
 
 # 强制返回标准 JSON，数学公式用 LaTeX 包裹（如 $x^2$）
@@ -472,7 +474,7 @@ GENERATE_ANALYSIS_PROMPT = """
 **要求**:
 1. 只输出一个 JSON 对象，形如：{{ "analysis": "解析内容" }}。
 2. 解析必须是**唯一、最终、正确**的解法，结构且仅限：【考点】【思路】【步骤】1) 2) 3) …【结论】。不得再出现任何其他小标题或段落名。
-3. 数学公式用 LaTeX，单个美元符号包裹，如 $x^2$、$\\\\frac{{1}}{{2}}$。
+3. 数学公式使用 LaTeX：行内公式用 $...$，需要独立展示时用 $$...$$；JSON 中 LaTeX 反斜杠必须正确转义为双反斜杠。 例如：如 $x^2$、$\\\\frac{{1}}{{2}}$。
 4. **严禁**在解析中出现以下任何内容（违反则视为不合格）：
    - 思路修正、这一步思路修正、重新构思、重新构思辅助线、审题推理、易错分析、题意澄清；
    - 最优解法路径、另一种解法、先考虑…再、试错、此路不通、太复杂、放弃、改用…；

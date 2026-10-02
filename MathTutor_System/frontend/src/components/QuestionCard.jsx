@@ -1,6 +1,7 @@
+import { parseMathText } from '../utils/mathText'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Latex from 'react-latex-next'
+import MathText from './MathText'
 import {
   ChevronDown,
   ChevronUp,
@@ -18,8 +19,6 @@ import {
 import toast from 'react-hot-toast'
 import { collectQuestion, createMistake, getExams, updateExam, saveExam } from '../services/api'
 import { useStudent } from '../contexts/StudentContext'
-import { normalizeLatexForKaTeX } from '../utils/latex'
-import 'katex/dist/katex.min.css'
 
 const DIFFICULTY_MAP = {
   L1: '基础',
@@ -30,55 +29,41 @@ const DIFFICULTY_MAP = {
 }
 
 /** 按【考点】【思路】【步骤】【结论】【难度等级】分段，用于结构化展示解析；不展示思考过程 */
-const ANALYSIS_LABELS = ['【考点】', '【思路】', '【步骤】', '【结论】', '【难度等级】']
 
-/** 将解析文本中的字面量 \n（反斜杠+n）转为实际换行，避免界面显示为 \n */
-function normalizeAnalysisText(text) {
-  if (!text || typeof text !== 'string') return ''
-  return text.replace(/\\n/g, '\n')
-}
-
-/** 将【步骤】内容按 1) 2) 3) 拆成多段，便于每问换行显示。仅在行首的 1) 2) 3) 处切分，且不在 $...$ 内切分，避免公式内 30) 等被误切导致乱码 */
+/** Only split numbered steps in plain text; math segments remain intact. */
 function splitSteps(content) {
-  if (!content || typeof content !== 'string') return []
-  let insideLatex = false
-  const parts = []
-  let start = 0
-  // 匹配 $ 或“行首 + 数字+)”（避免把公式里的 30) 当成步骤号）
-  const re = /\$|(?:^|[\r\n])\s*(\d+\))/g
-  let m
-  while ((m = re.exec(content)) !== null) {
-    if (m[0] === '$') {
-      insideLatex = !insideLatex
-      continue
-    }
-    if (m[1] && !insideLatex) {
-      const chunk = content.slice(start, m.index).trim()
-      if (chunk) parts.push(chunk)
-      start = m.index
-    }
+  const chunks = []
+  let current = ''
+  for (const part of parseMathText(content)) {
+    if (part.type !== 'text') { current += part.raw; continue }
+    const pieces = part.raw.split(/(?=(?:^|[\r\n])\s*\d+\))/)
+    pieces.forEach((piece, index) => {
+      if (index > 0 && current.trim()) { chunks.push(current.trim()); current = '' }
+      current += piece
+    })
   }
-  const tail = content.slice(start).trim()
-  if (tail) parts.push(tail)
-  return parts.length ? parts : [content.trim()].filter(Boolean)
+  if (current.trim()) chunks.push(current.trim())
+  return chunks
 }
 
 function parseAnalysisSections(text) {
   if (!text || typeof text !== 'string') return null
-  const trimmed = normalizeAnalysisText(text).trim()
-  const first = ANALYSIS_LABELS.find((l) => trimmed.includes(l))
-  if (!first) return null
-  const sections = []
-  for (let i = 0; i < ANALYSIS_LABELS.length; i++) {
-    const label = ANALYSIS_LABELS[i]
-    const nextLabel = ANALYSIS_LABELS[i + 1]
-    const start = trimmed.indexOf(label)
-    if (start === -1) continue
-    const contentStart = start + label.length
-    const contentEnd = nextLabel ? trimmed.indexOf(nextLabel, contentStart) : trimmed.length
-    const content = (contentEnd === -1 ? trimmed.slice(contentStart) : trimmed.slice(contentStart, contentEnd)).trim()
-    if (content) sections.push({ label: label.replace(/【|】/g, ''), content })
+  const markers = []
+  let offset = 0
+  for (const part of parseMathText(text)) {
+    if (part.type === 'text') {
+      const re = /【(?:考点|思路|步骤|结论|难度等级)】/g
+      for (const match of part.raw.matchAll(re)) markers.push({ label: match[0], index: offset + match.index })
+    }
+    offset += part.raw.length
   }
+  if (!markers.length) return null
+  const sections = []
+  if (text.slice(0, markers[0].index).trim()) sections.push({label: '解析', content: text.slice(0, markers[0].index)})
+  markers.forEach((marker, i) => {
+    const content = text.slice(marker.index + marker.label.length, markers[i + 1]?.index ?? text.length).trim()
+    if (content) sections.push({label: marker.label.replace(/【|】/g, ''), content})
+  })
   return sections.length ? sections : null
 }
 
@@ -155,7 +140,7 @@ export default function QuestionCard({
 
   const content = (isEditing ? editData?.content : data.content ?? data.body ?? '') ?? ''
   const options = (isEditing ? editData?.options : data.options ?? []) ?? []
-  const analysis = isEditing ? (editData?.analysis ?? '') : normalizeAnalysisText(data.analysis ?? '')
+  const analysis = isEditing ? (editData?.analysis ?? '') : (data.analysis ?? '')
   const answer = isEditing ? (editData?.answer ?? '') : (data.answer ?? '')
   const isChoice = options.length > 0
   const difficultyLabel =
@@ -583,7 +568,7 @@ export default function QuestionCard({
             placeholder="题目内容（支持 LaTeX，如 $x^2$）"
           />
         ) : (
-          <Latex>{normalizeLatexForKaTeX(content || '（题目内容）')}</Latex>
+          <MathText>{content || '（题目内容）'}</MathText>
         )}
       </div>
 
@@ -671,7 +656,7 @@ export default function QuestionCard({
                     className="min-w-0 text-sm leading-relaxed font-medium"
                     style={{ color: 'var(--color-text-primary)' }}
                   >
-                    <Latex>{normalizeLatexForKaTeX(getOptionText(opt))}</Latex>
+                    <MathText>{getOptionText(opt)}</MathText>
                   </span>
                 </div>
               ))}
@@ -699,6 +684,15 @@ export default function QuestionCard({
         </div>
       )}
 
+      {isEditing && (
+        <section aria-label="编辑预览" className="min-w-0 px-5 py-4">
+          <p className="text-xs font-bold">编辑预览</p>
+          <p><MathText>{editData?.content}</MathText></p>
+          {editData?.options?.map((option, i) => <p key={i}>{String.fromCharCode(65 + i)}. <MathText>{option}</MathText></p>)}
+          <p>答案：<MathText>{editData?.answer}</MathText></p>
+          <p>解析：<MathText>{editData?.analysis}</MathText></p>
+        </section>
+      )}
       {/* Footer: 查看解析 */}
       <div style={{ borderTop: '1px solid var(--color-border-primary)' }}>
         <button
@@ -729,6 +723,7 @@ export default function QuestionCard({
             }}
           >
             <p className="text-xs font-black tracking-wide" style={{ color: 'var(--color-text-secondary)' }}>详细解析与解题步骤</p>
+            {!isEditing && answer && <p>答案：<MathText>{answer}</MathText></p>}
             {isEditing ? (
               <textarea
                 value={editData?.analysis ?? ''}
@@ -772,7 +767,7 @@ export default function QuestionCard({
                                   className="text-sm leading-relaxed min-h-[1.5em] overflow-visible"
                                   style={{ color: 'var(--color-text-primary)' }}
                                 >
-                                  <Latex>{normalizeLatexForKaTeX(step)}</Latex>
+                                  <MathText>{step}</MathText>
                                 </div>
                               ))}
                             </div>
@@ -781,14 +776,14 @@ export default function QuestionCard({
                               className="text-sm leading-relaxed"
                               style={{ color: 'var(--color-text-primary)' }}
                             >
-                              <Latex>{normalizeLatexForKaTeX(content)}</Latex>
+                              <MathText>{content}</MathText>
                             </div>
                           )}
                         </div>
                       )
                     })
                   }
-                  return <Latex>{normalizeLatexForKaTeX(analysis)}</Latex>
+                  return <MathText>{analysis}</MathText>
                 })()
               ) : (
                 <span className="text-xs font-semibold" style={{ color: 'var(--color-text-muted)' }}>暂无详细解析</span>

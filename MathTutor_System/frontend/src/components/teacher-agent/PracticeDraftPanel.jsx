@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Loader2, PlusCircle, Save } from 'lucide-react'
 import PracticeQuestionEditor from './PracticeQuestionEditor'
+import MathText from '../MathText'
 import ConfirmPracticeSaveDialog from './ConfirmPracticeSaveDialog'
 import AgentActionStatus from './AgentActionStatus'
 
@@ -166,7 +167,7 @@ export default function PracticeDraftPanel({
         <div className="mt-5 space-y-3">
           <div>
             <h3 className="text-lg font-bold text-slate-950">{content.title}</h3>
-            <p className="text-sm text-slate-600">{content.summary}</p>
+            <p className="text-sm text-slate-600"><MathText>{content.summary}</MathText></p>
           </div>
           {content.questions.map((question, index) => (
             <PracticeQuestionEditor key={question.client_question_id} question={question} onChange={(next) => updateQuestion(index, next)} />

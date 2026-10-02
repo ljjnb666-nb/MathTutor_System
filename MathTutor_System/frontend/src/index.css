@@ -950,7 +950,7 @@ body {
   }
 
   .v2-import-panel span,
-  .v2-import-note span {
+  .v2-import-note > span {
     @apply block text-xs font-bold;
     color: var(--color-text-secondary);
   }
@@ -1021,7 +1021,7 @@ body {
     background: color-mix(in srgb, var(--color-bg-card) 72%, transparent);
   }
 
-  .v2-import-option span {
+  .v2-import-option > span {
     @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-black;
     background: color-mix(in srgb, var(--color-primary-500) 14%, transparent);
     color: var(--color-primary-300);
@@ -1063,7 +1063,7 @@ body {
     @apply block space-y-2;
   }
 
-  .v2-field span {
+  .v2-field > span {
     @apply block text-xs font-black;
     color: var(--color-text-secondary);
   }
@@ -1180,7 +1180,7 @@ body {
     background: #f8fafc;
   }
 
-  .v2-preview-option span {
+  .v2-preview-option > span {
     @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-black;
     background: #e0e7ff;
     color: #3730a3;
@@ -1197,13 +1197,13 @@ body {
     @apply p-3;
   }
 
-  .v2-preview-note span,
+  .v2-preview-note > span,
   .v2-preview-side-stat span {
     @apply block text-xs font-black;
     color: var(--color-text-secondary);
   }
 
-  .v2-preview-paper .v2-preview-note span,
+  .v2-preview-paper .v2-preview-note > span,
   .v2-preview-paper .text-slate-400 {
     color: #64748b;
   }
@@ -1276,7 +1276,7 @@ body {
     background: color-mix(in srgb, var(--color-bg-card) 72%, transparent);
   }
 
-  .v2-mistake-option span {
+  .v2-mistake-option > span {
     @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-black;
     background: color-mix(in srgb, var(--color-primary-500) 14%, transparent);
     color: var(--color-primary-300);
@@ -1292,7 +1292,7 @@ body {
     @apply p-3;
   }
 
-  .v2-mistake-note span {
+  .v2-mistake-note > span {
     @apply block text-xs font-black;
     color: var(--color-text-secondary);
   }
@@ -2562,3 +2562,11 @@ body {
     @apply rounded-xl;
   }
 }
+
+/* Plain text + math, with local scrolling for long formulas. */
+.math-text { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; min-width: 0; }
+.math-text-inline { position: relative; display: inline-block; max-width: 100%; overflow-x: auto; vertical-align: middle; }
+.math-text-display { position: relative; contain: inline-size; display: block; max-width: 100%; min-width: 0; overflow-x: auto; overflow-y: hidden; }
+.math-text .katex-display { margin: 0.75em 0; }
+.math-text .katex { white-space: nowrap; }
+.math-text-display .katex-display { width: max-content; min-width: 100%; }

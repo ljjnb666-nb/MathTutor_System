@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { BookMarked, CheckCircle2, Loader2, RefreshCw, Award, Search, Filter } from 'lucide-react'
-import Latex from '../components/Latex'
+import MathText from '../components/MathText'
 import toast from 'react-hot-toast'
 import {
   getStudentMistakes,
@@ -18,14 +18,6 @@ function formatDate(iso) {
   }
 }
 
-function safeLatex(text) {
-  if (!text || typeof text !== 'string') return ''
-  try {
-    return text.replace(/\\\[/g, '$$').replace(/\\\]/g, '$$').replace(/\\\(/g, '$').replace(/\\\)/g, '$')
-  } catch {
-    return text
-  }
-}
 
 /** 去掉选项文本开头的 "A." "B." 等前缀，避免重复显示 */
 function getOptionDisplayText(opt) {
@@ -278,13 +270,13 @@ export default function MistakeBookPage() {
                 )}
               </div>
               <div className="prose prose-sm max-w-none text-gray-800">
-                <Latex>{safeLatex(m.content)}</Latex>
+                <MathText>{m.content}</MathText>
                 {Array.isArray(m.options) && m.options.length > 0 && (
                   <ul className="mt-2 list-none space-y-1 pl-0">
                     {m.options.map((opt, i) => (
                       <li key={i} className="flex gap-2">
                         <span className="shrink-0 font-medium">{String.fromCharCode(65 + i)}.</span>
-                        <span><Latex>{safeLatex(getOptionDisplayText(opt))}</Latex></span>
+                        <span><MathText>{getOptionDisplayText(opt)}</MathText></span>
                       </li>
                     ))}
                   </ul>
@@ -293,7 +285,7 @@ export default function MistakeBookPage() {
               {m.solution && (
                 <div className="mt-3 border-t border-gray-100 pt-3 text-sm text-gray-600">
                   <span className="font-medium">解析/答案：</span>
-                  <Latex>{safeLatex(m.solution)}</Latex>
+                  <MathText>{m.solution}</MathText>
                 </div>
               )}
               {tab !== 'mastered' && (

@@ -1,3 +1,4 @@
+import MathText from '../components/MathText'
 import { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -502,7 +503,7 @@ export default function ImportExam() {
                         <StatusBadge tone="warning">{question.difficulty}</StatusBadge>
                         <span className="text-xs font-bold text-slate-400">{question.knowledge_point || '未标注知识点'}</span>
                       </div>
-                      <p className="whitespace-pre-wrap text-sm font-bold leading-6 text-slate-100">{question.content || '未填写题干'}</p>
+                      <p className="whitespace-pre-wrap text-sm font-bold leading-6 text-slate-100"><MathText>{question.content || '未填写题干'}</MathText></p>
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -516,7 +517,7 @@ export default function ImportExam() {
                     {question.options.map((option, optionIndex) => (
                       <div key={`${option}-${optionIndex}`} className="v2-import-option">
                         <span>{OPTION_LABELS[optionIndex] || optionIndex + 1}</span>
-                        <p>{option}</p>
+                        <p><MathText>{option}</MathText></p>
                       </div>
                     ))}
                   </div>
@@ -524,8 +525,8 @@ export default function ImportExam() {
 
                 {(question.answer || question.analysis) && (
                   <div className="mt-3 grid gap-2 md:grid-cols-2">
-                    <div className="v2-import-note"><span>答案</span><p>{question.answer || '未识别'}</p></div>
-                    <div className="v2-import-note"><span>解析</span><p>{question.analysis || '未生成'}</p></div>
+                    <div className="v2-import-note"><span>答案</span><p><MathText>{question.answer || '未识别'}</MathText></p></div>
+                    <div className="v2-import-note"><span>解析</span><p><MathText>{question.analysis || '未生成'}</MathText></p></div>
                   </div>
                 )}
               </article>
@@ -609,6 +610,13 @@ export default function ImportExam() {
               </label>
             </div>
 
+            <section aria-label="编辑预览" className="min-w-0">
+              <h3>编辑预览</h3>
+              <p><MathText>{editForm.content}</MathText></p>
+              {editForm.options?.map((option, i) => <p key={i}>{OPTION_LABELS[i]}. <MathText>{option}</MathText></p>)}
+              <p>答案：<MathText>{editForm.answer}</MathText></p>
+              <p>解析：<MathText>{editForm.analysis}</MathText></p>
+            </section>
             <div className="flex justify-end gap-2">
               <button type="button" className="v2-btn-secondary" onClick={() => setEditingIndex(null)}>取消</button>
               <button type="button" className="v2-btn-primary" onClick={saveEdit}><Save className="h-4 w-4" />保存修改</button>
