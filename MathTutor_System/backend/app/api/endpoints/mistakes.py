@@ -2,6 +2,7 @@
 错题本接口：Active Learning 版 CRUD + review / master；支持复习计划与「今日待复习」。
 """
 from datetime import date, datetime, timedelta
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_
@@ -17,6 +18,11 @@ from app.schemas.mistake_dto import MistakeCreate, MistakeResponse
 router = APIRouter()
 
 # 复习间隔：首次复习 1 天后，之后每次复习后延 3 天
+logger = logging.getLogger(__name__)
+
+# SEC-06：非预期异常不得进入 HTTP 响应；仅回稳定编码 + 中文话术。
+MISTAKE_OPERATION_ERROR = "MISTAKE_OPERATION_ERROR: 错题操作失败，请稍后重试。"
+
 REVIEW_INTERVAL_DAYS_FIRST = 1
 REVIEW_INTERVAL_DAYS_NEXT = 3
 
@@ -72,10 +78,8 @@ def create_mistake(
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"创建错题失败: {str(e)}")
+        logger.error("mistake_create_failed error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail=MISTAKE_OPERATION_ERROR) from None
 
 
 @router.get("/", response_model=list[MistakeResponse])
@@ -101,10 +105,8 @@ def list_mistakes(
         rows = q.order_by(MistakeRecord.created_at.desc()).all()
         return rows
     except Exception as e:
-        import traceback
-
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"获取错题列表失败: {str(e)}")
+        logger.error("mistake_list_failed error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail=MISTAKE_OPERATION_ERROR) from None
 
 
 @router.put("/{mistake_id}/review", response_model=MistakeResponse)
@@ -125,10 +127,8 @@ def increment_review(
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"更新失败: {str(e)}")
+        logger.error("mistake_update_failed error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail=MISTAKE_OPERATION_ERROR) from None
 
 
 @router.put("/{mistake_id}/master", response_model=MistakeResponse)
@@ -150,10 +150,8 @@ def mark_mastered(
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"更新失败: {str(e)}")
+        logger.error("mistake_update_failed error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail=MISTAKE_OPERATION_ERROR) from None
 
 
 @router.delete("/{mistake_id}", status_code=204)
@@ -171,7 +169,5 @@ def delete_mistake(
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"删除失败: {str(e)}")
+        logger.error("mistake_delete_failed error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail=MISTAKE_OPERATION_ERROR) from None

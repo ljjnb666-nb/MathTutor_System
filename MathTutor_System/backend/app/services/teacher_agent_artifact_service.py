@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import secrets
 from datetime import UTC, datetime
 
@@ -11,6 +12,7 @@ from sqlalchemy import desc
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.ai_runtime import AIConfigError
 from app.core.deps import LLMConfig
 from app.core.subscription import get_current_subscription, require_feature
 from app.models.agent_artifact import AgentAction, AgentArtifact
@@ -29,6 +31,10 @@ from app.services.agent_tool_registry import (
 from app.services.practice_draft_generator import LLMPracticeDraftGenerator, PracticeDraftGenerator
 from app.services.practice_draft_validator import validate_practice_draft
 from app.services.question_bank_service import SaveQuestionToBankItem, save_questions_to_bank
+from app.services.rag_account_service import StaleRAGAccountError
+from app.services.teacher_agent_service import get_agent_run_or_404, list_agent_runs, run_teacher_agent
+
+logger = logging.getLogger(__name__)
 
 ARTIFACT_TYPE_PRACTICE_SET = "practice_set"
 ACTION_SAVE_PRACTICE_SET = "save_practice_set_to_question_bank"
@@ -566,7 +572,11 @@ def _now():
 
 
 def _sanitize_error(exc: Exception) -> str:
-    text = str(getattr(exc, "detail", None) or exc)
-    for marker in ["api_key", "authorization", "x-llm-api-key"]:
-        text = text.replace(marker, "[redacted]")
-    return text[:512]
+    """Client-facing failure text: controlled domain messages only (SEC-06)."""
+    if isinstance(exc, (AIConfigError, StaleRAGAccountError)):
+        text = str(getattr(exc, "message", None) or exc)
+        for marker in ["api_key", "authorization", "x-llm-api-key"]:
+            text = text.replace(marker, "[已脱敏]")
+        return text[:512]
+    logger.warning("agent_action_failed external_error_type=%s", type(exc).__name__)
+    return "操作失败，请稍后重试"

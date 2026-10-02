@@ -5,7 +5,6 @@
 import hashlib
 import json
 import logging
-import traceback
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -126,8 +125,8 @@ def collect_question(
     except HTTPException:
         raise
     except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"收藏题目失败: {str(e)}")
+        logger.error("question_bank_collect_failed error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="QUESTION_BANK_ERROR: 题库操作失败，请稍后重试。") from None
 
 
 @router.get("/", response_model=list[BankItemRead])

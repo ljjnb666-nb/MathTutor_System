@@ -204,9 +204,14 @@ def batch_set_or_extend_subscriptions(
             try:
                 _apply_plan_to_user(db, user_id, plan, period_days, now)
                 updated += 1
+            except UserAdminServiceError as exc:
+                # 受控领域异常：detail 是代码内固定话术，可直接给管理端。
+                db.rollback()
+                failed.append({"user_id": user_id, "reason": exc.detail})
             except Exception as exc:
                 db.rollback()
-                failed.append({"user_id": user_id, "reason": str(exc)})
+                logger.warning("batch_plan_apply_failed user_id=%s error_type=%s", user_id, type(exc).__name__)
+                failed.append({"user_id": user_id, "reason": "订阅操作失败，请稍后重试"})
         return {"updated": updated, "failed": failed}
 
     if not period_days:
@@ -236,7 +241,8 @@ def batch_set_or_extend_subscriptions(
             updated += 1
         except Exception as exc:
             db.rollback()
-            failed.append({"user_id": user_id, "reason": str(exc)})
+            logger.warning("batch_extend_failed user_id=%s error_type=%s", user_id, type(exc).__name__)
+            failed.append({"user_id": user_id, "reason": "续期操作失败，请稍后重试"})
 
     return {"updated": updated, "failed": failed}
 
