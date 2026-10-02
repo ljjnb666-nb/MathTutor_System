@@ -73,3 +73,76 @@ jobs:
       - run: npm ci
       - run: npm test -- --run
       - run: npm run build
+
+  e2e:
+    needs: [backend, teacher-frontend, student-frontend]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: MathTutor_System/e2e
+    env:
+      E2E_DATABASE_URL: postgresql+psycopg://tutorpro:tutorpro_e2e_password@localhost:5432/tutorpro_e2e
+      E2E_ADMIN_PASSWORD: e2e-admin-pass-123
+      E2E_TEACHER_PASSWORD: e2e-teacher-pass-123
+      E2E_STUDENT_PASSWORD: e2e-student-pass-123
+      E2E_STUDENT_LOGIN_CODE: E2E-STU-001
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: tutorpro
+          POSTGRES_PASSWORD: tutorpro_e2e_password
+          POSTGRES_DB: tutorpro_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tutorpro -d tutorpro_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: MathTutor_System/e2e/package-lock.json
+      - name: Install backend dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
+        working-directory: MathTutor_System/backend
+      - name: Install teacher frontend dependencies
+        run: npm ci
+        working-directory: MathTutor_System/frontend
+      - name: Install student frontend dependencies
+        run: npm ci
+        working-directory: MathTutor_System/frontend-student
+      - name: Install e2e dependencies
+        run: npm ci
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Seed E2E database (guarded test-only seed)
+        run: python scripts/e2e_seed.py
+        working-directory: MathTutor_System/backend
+        env:
+          TUTORPRO_E2E: "1"
+          ENV: e2e
+          DATABASE_URL: postgresql+psycopg://tutorpro:tutorpro_e2e_password@localhost:5432/tutorpro_e2e
+      - name: Run Playwright E2E
+        run: npx playwright test
+        env:
+          ENV: e2e
+          DEBUG: "true"
+          LLM_API_KEY: ""
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-failure-artifacts
+          path: |
+            MathTutor_System/e2e/playwright-report/
+            MathTutor_System/e2e/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
