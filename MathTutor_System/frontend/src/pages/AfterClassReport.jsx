@@ -5,6 +5,7 @@ import { generateAfterClassComment } from '../services/api'
 import { useStudent } from '../contexts/StudentContext'
 import { AFTER_CLASS_TEMPLATES } from '../constants/after-class-templates'
 import { EmptyState, PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
+import { normalizeApiError } from '../utils/normalizeApiError'
 
 const STAR_LABELS = ['待提升', '一般', '尚可', '较好', '很好']
 const QUICK_KEYWORDS = ['粗心', '有进步', '计算', '书写', '专注', '积极', '需巩固', '配合度高']
@@ -68,7 +69,7 @@ export default function AfterClassReport({ embedded = false, studentNameHint = '
       setComment(data.comment || '')
       toast.success('课后评语已生成')
     } catch (err) {
-      const message = err?.response?.data?.detail || err?.message || '生成失败'
+      const message = normalizeApiError(err, '生成失败')
       setError(message)
       toast.error(message)
     } finally {
@@ -89,7 +90,7 @@ export default function AfterClassReport({ embedded = false, studentNameHint = '
       setComment(data.comment || '')
       toast.success('草稿已修饰')
     } catch (err) {
-      const message = err?.response?.data?.detail || err?.message || '修饰失败'
+      const message = normalizeApiError(err, '修饰失败')
       setError(message)
       toast.error(message)
     } finally {

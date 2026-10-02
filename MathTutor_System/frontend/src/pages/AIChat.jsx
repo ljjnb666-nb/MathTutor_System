@@ -5,6 +5,7 @@ import { AlertCircle, Bot, Check, FileText, Loader2, MessageCircle, Pencil, Pin,
 import toast from 'react-hot-toast'
 import { chatWithAI, chatWithAIStream, getChatSessions, getChatSessionMessages, deleteChatSession, updateChatMessage, updateChatSessionPin } from '../services/api'
 import { useStudent } from '../contexts/StudentContext'
+import { normalizeApiError } from '../utils/normalizeApiError'
 
 function formatSessionDate(iso) {
   if (!iso) return ''
@@ -51,7 +52,7 @@ export default function AIChat() {
       const list = await getChatSessions()
       setSessions(Array.isArray(list) ? list : [])
     } catch (err) {
-      setSessionsError(err?.response?.data?.detail || err?.message || '会话列表加载失败')
+      setSessionsError(normalizeApiError(err, '会话列表加载失败'))
       setSessions([])
     } finally {
       setSessionsLoading(false)
@@ -76,7 +77,7 @@ export default function AIChat() {
       setChatError('')
     } catch (e) {
       toast.error('加载会话失败')
-      setChatError(e?.response?.data?.detail || e?.message || '加载会话失败')
+      setChatError(normalizeApiError(e, '加载会话失败'))
       setMessages([])
     }
   }, [])
@@ -94,7 +95,7 @@ export default function AIChat() {
         }
         fetchSessions()
       } catch (err) {
-        const msg = err.response?.data?.detail || err.message || '删除失败'
+        const msg = normalizeApiError(err, '删除失败')
         toast.error(msg)
       }
     },
@@ -109,7 +110,7 @@ export default function AIChat() {
         toast.success(pinned ? '已取消固定' : '已固定到顶部')
         fetchSessions()
       } catch (err) {
-        const msg = err.response?.data?.detail || err.message || '操作失败'
+        const msg = normalizeApiError(err, '操作失败')
         toast.error(msg)
       }
     },
@@ -181,8 +182,9 @@ export default function AIChat() {
           (data) => {
             setLoading(false)
             if (data?.error) {
-              setChatError(data.error)
-              toast.error(data.error)
+              const streamErrorMessage = normalizeApiError(data.error, '对话请求失败，请稍后重试')
+              setChatError(streamErrorMessage)
+              toast.error(streamErrorMessage)
               setMessages((m) => {
                 const next = [...m]
                 const last = next[next.length - 1]
@@ -229,13 +231,13 @@ export default function AIChat() {
           refetchMessagesForSession(res.session_id)
         }
       } catch (err) {
-        const msg = err.response?.data?.detail || err.message || '对话请求失败'
+        const msg = normalizeApiError(err, '对话请求失败')
         toast.error(msg)
       } finally {
         setLoading(false)
       }
     } catch (err) {
-      const msg = err.response?.data?.detail || err.message || '修改失败'
+      const msg = normalizeApiError(err, '修改失败')
       toast.error(msg)
     }
   }, [
@@ -289,8 +291,9 @@ export default function AIChat() {
         (data) => {
           setLoading(false)
           if (data?.error) {
-            setChatError(data.error)
-            toast.error(data.error)
+            const streamErrorMessage = normalizeApiError(data.error, '对话请求失败，请稍后重试')
+            setChatError(streamErrorMessage)
+            toast.error(streamErrorMessage)
             setMessages((m) => {
               const next = [...m]
               const last = next[next.length - 1]
@@ -340,7 +343,7 @@ export default function AIChat() {
         refetchMessagesForSession(res.session_id)
       }
     } catch (err) {
-      const msg = err.response?.data?.detail || err.message || '对话请求失败'
+      const msg = normalizeApiError(err, '对话请求失败')
       setChatError(msg)
       toast.error(msg)
       setMessages((prev) => prev.slice(0, -1))

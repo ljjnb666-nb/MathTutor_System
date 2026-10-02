@@ -69,7 +69,7 @@ describe('ExamList', () => {
     api.getExams.mockRejectedValueOnce(new Error('network down')).mockResolvedValueOnce({ data: [] })
     renderPage()
 
-    expect(await screen.findByText('network down')).toBeInTheDocument()
+    expect(await screen.findByText('加载试卷失败')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: '重试' }))
 
     await waitFor(() => expect(api.getExams).toHaveBeenCalledTimes(2))

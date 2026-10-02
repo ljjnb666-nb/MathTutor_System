@@ -52,7 +52,7 @@ describe('chat stream API', () => {
     await chatWithAIStream({ messages: [{ role: 'user', content: 'hi' }] }, vi.fn(), onDone)
 
     expect(onDone).toHaveBeenCalledTimes(1)
-    expect(onDone).toHaveBeenCalledWith({ error: 'Missing API Key.（HTTP 400）' })
+    expect(onDone).toHaveBeenCalledWith({ error: '请求内容有误，请检查后重试' })
   })
 
   it('does not display raw JSON text when stream errors are not JSON parsed', async () => {
@@ -70,6 +70,6 @@ describe('chat stream API', () => {
 
     await chatWithAIStream({ messages: [{ role: 'user', content: 'hi' }] }, vi.fn(), onDone)
 
-    expect(onDone).toHaveBeenCalledWith({ error: '400 Bad Request' })
+    expect(onDone).toHaveBeenCalledWith({ error: '请求内容有误，请检查后重试' })
   })
 })

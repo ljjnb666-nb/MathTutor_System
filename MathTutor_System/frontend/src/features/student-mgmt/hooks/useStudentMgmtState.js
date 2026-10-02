@@ -9,6 +9,7 @@ import {
   getStudentsOverview,
   updateStudent,
 } from '../../../services/api'
+import { normalizeApiError } from '../../../utils/normalizeApiError'
 import {
   buildOverviewMap,
   buildStudentPayload,
@@ -43,7 +44,7 @@ export function useStudentMgmtState({
       setStudents(Array.isArray(res.data) ? res.data : [])
       setOverviewMap(buildOverviewMap(overviewData))
     } catch (e) {
-      toast.error(`加载学生列表失败：${e.response?.data?.detail ?? e.message}`)
+      toast.error(normalizeApiError(e, '加载学生列表失败'))
       setStudents([])
       setOverviewMap({})
     } finally {
@@ -101,7 +102,7 @@ export function useStudentMgmtState({
         navigate('/pricing')
         return
       }
-      toast.error((e2.response?.data?.detail ?? e2.message) || '保存失败')
+      toast.error(normalizeApiError(e2, '操作失败，请稍后重试') || '保存失败')
     } finally {
       setSaving(false)
     }
@@ -114,7 +115,7 @@ export function useStudentMgmtState({
       toast.success('已删除')
       fetchList()
     } catch (e) {
-      toast.error(`删除失败：${e.response?.data?.detail ?? e.message}`)
+      toast.error(normalizeApiError(e, '删除失败'))
     }
   }
 
@@ -138,7 +139,7 @@ export function useStudentMgmtState({
       window.URL.revokeObjectURL(url)
       toast.success('报告已下载')
     } catch (e) {
-      toast.error(`下载失败：${e.response?.data?.detail ?? e.message}`)
+      toast.error(normalizeApiError(e, '下载失败'))
     } finally {
       setReportDownloadingId(null)
     }

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { deleteExam, getExams, saveExam } from '../services/api'
 import StudentSelectorModal from '../components/StudentSelectorModal'
 import { EmptyState, ErrorState, LoadingState, MetricCard, PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
+import { normalizeApiError } from '../utils/normalizeApiError'
 
 function formatDate(createdAt) {
   if (!createdAt) return '未记录'
@@ -52,7 +53,7 @@ export default function ExamList() {
     setError('')
     getExams()
       .then((response) => setExams(Array.isArray(response?.data) ? response.data : []))
-      .catch((err) => setError(err?.response?.data?.detail || err?.message || '加载试卷失败'))
+      .catch((err) => setError(normalizeApiError(err, '加载试卷失败')))
       .finally(() => setLoading(false))
   }
 
@@ -89,7 +90,7 @@ export default function ExamList() {
       toast.success('已删除试卷')
       fetchExams()
     } catch (err) {
-      toast.error(err?.response?.data?.detail || '删除失败')
+      toast.error(normalizeApiError(err, '删除失败'))
     } finally {
       setDeletingId(null)
     }
@@ -111,7 +112,7 @@ export default function ExamList() {
       toast.success(`已向 ${selected.length} 位学生布置作业`)
       setAssignExam(null)
     } catch (err) {
-      toast.error(err?.response?.data?.detail || '布置失败')
+      toast.error(normalizeApiError(err, '布置失败'))
       throw err
     }
   }

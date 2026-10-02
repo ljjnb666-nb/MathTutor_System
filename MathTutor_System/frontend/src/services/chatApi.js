@@ -1,4 +1,5 @@
 import api, { apiBaseURL, buildAuthHeaders } from './httpClient'
+import { normalizeApiError } from '../utils/normalizeApiError'
 
 const CHAT_TIMEOUT = 120000
 
@@ -93,23 +94,32 @@ export function chatWithAIStream(params, onChunk, onDone) {
       }
     })
     .catch((err) => {
-      finish({ error: err.message || '请求失败' })
+      finish({ error: err?.name === 'AbortError' ? '已停止生成' : '网络连接失败，请检查网络后重试' })
     })
 }
 
 async function parseStreamError(res) {
-  const fallback = `${res.status} ${res.statusText || '请求失败'}`.trim()
+  // HTTP 状态码 / 机器码前缀不直接展示给用户；后端中文业务消息按原文保留
+  let rawText = ''
   try {
     const data = await res.clone().json()
-    if (typeof data?.detail === 'string') return `${data.detail}（HTTP ${res.status}）`
-    if (typeof data?.message === 'string') return `${data.message}（HTTP ${res.status}）`
+    if (typeof data?.detail === 'string' && data.detail.trim()) rawText = data.detail
+    else if (typeof data?.message === 'string' && data.message.trim()) rawText = data.message
   } catch (_) {}
-  try {
-    const text = await res.text()
-    const trimmed = String(text || '').trim()
-    if (trimmed.startsWith('{') || trimmed.startsWith('[')) return fallback
-    return trimmed || fallback
-  } catch (_) {
-    return fallback
+  if (!rawText) {
+    try {
+      const text = await res.text()
+      const trimmed = String(text || '').trim()
+      if (trimmed && !trimmed.startsWith('{') && !trimmed.startsWith('[')) rawText = trimmed
+    } catch (_) {}
   }
+  const fallback = res.status === 401
+    ? '登录状态已失效，请重新登录'
+    : res.status >= 500
+      ? '对话服务暂时不可用，请稍后重试'
+      : '对话请求失败，请稍后重试'
+  return normalizeApiError(
+    { response: { status: res.status, data: rawText ? { detail: rawText } : {} } },
+    fallback,
+  )
 }

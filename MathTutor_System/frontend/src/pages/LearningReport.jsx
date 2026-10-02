@@ -3,6 +3,7 @@ import { AlertCircle, BarChart3, CheckCircle2, Clock, Loader2, Plus, Sparkles, T
 import toast from 'react-hot-toast'
 import { parseLearningReportDraft } from '../services/api'
 import { EmptyState, PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
+import { normalizeApiError } from '../utils/normalizeApiError'
 
 const defaultWeakPoint = () => ({ point: '', description: '' })
 
@@ -52,7 +53,7 @@ export default function LearningReport({ embedded = false, studentNameHint = '',
       })
       toast.success('已解析学习报告')
     } catch (err) {
-      const message = err?.response?.data?.detail || err?.message || '解析失败'
+      const message = normalizeApiError(err, '解析失败')
       setError(message)
       toast.error(message)
     } finally {

@@ -153,8 +153,8 @@ describe('Settings V2 console', () => {
     await screen.findByDisplayValue('https://api.openai.com/v1')
     await userEvent.click(screen.getByRole('button', { name: /测试 API Key/ }))
 
-    await waitFor(() => expect(screen.getByTestId('api-key-test-result')).toHaveTextContent('[redacted]'))
-    expect(screen.getByTestId('api-key-test-result')).toHaveTextContent('Client Base URL is not trusted or allowed.')
+    await waitFor(() => expect(screen.getByTestId('api-key-test-result')).toHaveTextContent('测试失败，请检查 API 配置'))
+    expect(screen.getByTestId('api-key-test-result')).not.toHaveTextContent('Client Base URL')
     expect(screen.getByTestId('api-key-test-result')).not.toHaveTextContent(apiKeyFixture)
     expect(screen.getByTestId('api-key-test-result')).not.toHaveTextContent('https://api.openai.com/v1')
   })

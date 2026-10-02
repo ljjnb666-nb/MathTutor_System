@@ -15,6 +15,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useStudent } from '../contexts/StudentContext'
 import { useSubscription } from '../contexts/SubscriptionContext'
 import { EmptyState, ErrorState, MetricCard, PageHero, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
+import { normalizeApiError } from '../utils/normalizeApiError'
 
 function formatDate(iso) {
   if (!iso) return '—'
@@ -183,7 +184,7 @@ export default function Dashboard() {
     setError(null)
     getDashboardStats()
       .then((res) => setStats(res.data || MOCK_STATS))
-      .catch((err) => setError(err.response?.data?.detail || err.message || '加载失败'))
+      .catch((err) => setError(normalizeApiError(err, '加载失败')))
       .finally(() => setLoading(false))
   }, [])
 
@@ -237,7 +238,7 @@ export default function Dashboard() {
     setLoading(true)
     getDashboardStats()
       .then((res) => setStats(res.data || MOCK_STATS))
-      .catch((err) => setError(err.response?.data?.detail || err.message || '加载失败'))
+      .catch((err) => setError(normalizeApiError(err, '加载失败')))
       .finally(() => setLoading(false))
   }
 

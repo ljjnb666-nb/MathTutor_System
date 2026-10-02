@@ -5,6 +5,7 @@ import { getStudents } from '../services/api'
 import { EmptyState, ErrorState, LoadingState, MetricCard, PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
 import AfterClassReport from './AfterClassReport'
 import LearningReport from './LearningReport'
+import { normalizeApiError } from '../utils/normalizeApiError'
 
 const TABS = [
   { id: 'after-class', label: '课后报告', icon: FileText },
@@ -29,7 +30,7 @@ export default function Reports() {
       setStudents(list)
       setSelectedStudentId((prev) => prev || (list[0]?.id ? String(list[0].id) : ''))
     } catch (err) {
-      setError(err?.response?.data?.detail || err?.message || '加载学生失败')
+      setError(normalizeApiError(err, '加载学生失败'))
       setStudents([])
     } finally {
       setLoading(false)

@@ -1,4 +1,5 @@
 import MathText from '../MathText'
+import { getStatusPresentation } from '../../utils/uiPresentation'
 
 export default function PracticeQuestionEditor({ question, onChange }) {
   const update = (patch) => onChange({ ...question, ...patch })
@@ -6,9 +7,8 @@ export default function PracticeQuestionEditor({ question, onChange }) {
 
   return (
     <div className="rounded-md border border-slate-200 bg-white p-3">
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-xs font-bold text-slate-500">{question.client_question_id}</span>
-        <span className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">{question.question_type}</span>
+      <div className="flex items-center justify-end gap-3">
+        <span className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">{getStatusPresentation('draftQuestionType', question.question_type).label}</span>
       </div>
       <label className="mt-3 block text-xs font-semibold text-slate-700">
         题干

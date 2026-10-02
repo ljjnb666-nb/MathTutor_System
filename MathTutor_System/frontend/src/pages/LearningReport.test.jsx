@@ -70,7 +70,7 @@ describe('LearningReport V2 editor', () => {
     await userEvent.type(screen.getByPlaceholderText(/今天学了二次函数/), '需要解析')
     await userEvent.click(screen.getByRole('button', { name: /AI 提取并生成/ }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('parse failed')
+    expect(await screen.findByRole('alert')).toHaveTextContent('解析失败')
     expect(screen.getByText('学习报告预览')).toBeInTheDocument()
   })
 })

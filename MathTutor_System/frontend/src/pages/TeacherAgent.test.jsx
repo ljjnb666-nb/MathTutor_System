@@ -79,7 +79,7 @@ describe('TeacherAgent', () => {
     expect(screen.getByRole('button', { name: /生成教学计划/ })).toBeDisabled()
     // convergence: practice drafts are a separate confirm-gated flow; the
     // panel stays hidden until a run reaches 'completed'.
-    expect(screen.queryByText('Practice draft')).not.toBeInTheDocument()
+    expect(screen.queryByText('练习草稿')).not.toBeInTheDocument()
     expect(screen.queryByText('保存到题库')).not.toBeInTheDocument()
   })
 
@@ -208,6 +208,6 @@ describe('TeacherAgent', () => {
     resolveFirstArtifacts({ data: [{ id: 11, content_json: { title: 'Stale artifact', questions: [] } }] })
 
     await waitFor(() => expect(screen.queryByText('Stale artifact')).not.toBeInTheDocument())
-    expect(screen.getByText('Practice draft')).toBeInTheDocument()
+    expect(screen.getByText('练习草稿')).toBeInTheDocument()
   })
 })

@@ -5,6 +5,7 @@ import { generateQuestions, generateExam, saveExam, getExams, updateExam, upload
 import { useSmartGen } from '../../contexts/SmartGenContext'
 import { useStudent } from '../../contexts/StudentContext'
 import { useSubscription } from '../../contexts/SubscriptionContext'
+import { normalizeApiError } from '../../utils/normalizeApiError'
 
 const DIFFICULTY_LABELS = {
   L1: 'L1 基础',
@@ -74,12 +75,7 @@ export function useSmartGenController() {
     setParams((prev) => ({ ...prev, knowledge_point: selectedPoints.join(' + ') }))
   }, [selectedPoints, setParams])
 
-  const getDetailMessage = useCallback((err) => {
-    const d = err.response?.data?.detail
-    if (typeof d === 'string') return d
-    if (Array.isArray(d) && d.length) return d.map((e) => e.msg || e.message || JSON.stringify(e)).join('；')
-    return err.message || '生成题目失败，请检查网络或后端服务'
-  }, [])
+  const getDetailMessage = useCallback((err) => normalizeApiError(err, '生成题目失败，请检查网络或后端服务'), [])
 
   const handleRagFileChange = useCallback(
     async (e) => {
@@ -91,7 +87,7 @@ export function useSmartGenController() {
         await uploadRagDocument(file)
         toast.success('知识库已更新')
       } catch (err) {
-        const msg = err.response?.data?.detail ?? err.message
+        const msg = normalizeApiError(err, '操作失败，请稍后重试')
         toast.error(typeof msg === 'string' ? msg : '上传失败')
       } finally {
         setRagUploading(false)

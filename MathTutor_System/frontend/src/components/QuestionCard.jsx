@@ -19,6 +19,7 @@ import {
 import toast from 'react-hot-toast'
 import { collectQuestion, createMistake, getExams, updateExam, saveExam } from '../services/api'
 import { useStudent } from '../contexts/StudentContext'
+import { normalizeApiError } from '../utils/normalizeApiError'
 
 const DIFFICULTY_MAP = {
   L1: '基础',
@@ -221,7 +222,7 @@ export default function QuestionCard({
         toast.success('✅ 校对完成，已优化解析')
       }
     } catch (e) {
-      const msg = e?.response?.data?.detail || e?.message || '校对失败'
+      const msg = normalizeApiError(e, '校对失败')
       toast.error(typeof msg === 'string' ? msg : '校对失败，请重试')
     } finally {
       setIsVerifying(false)
@@ -249,7 +250,7 @@ export default function QuestionCard({
       toast.success('已加入本地题库')
       setInternalCollected(true)
     } catch (err) {
-      const msg = err.response?.data?.detail ?? err.message
+      const msg = normalizeApiError(err, '操作失败，请稍后重试')
       toast.error(typeof msg === 'string' ? msg : '收藏失败，请重试')
     } finally {
       setCollecting(false)
@@ -279,7 +280,7 @@ export default function QuestionCard({
       })
       toast.success('已加入错题本')
     } catch (err) {
-      const msg = err.response?.data?.detail ?? err.message
+      const msg = normalizeApiError(err, '操作失败，请稍后重试')
       toast.error(typeof msg === 'string' ? msg : '加入错题本失败')
     } finally {
       setAddingToMistake(false)
@@ -323,7 +324,7 @@ export default function QuestionCard({
       }
       toast.success('已加入今日作业')
     } catch (err) {
-      const msg = err.response?.data?.detail ?? err.message
+      const msg = normalizeApiError(err, '操作失败，请稍后重试')
       toast.error(typeof msg === 'string' ? msg : '加入今日作业失败')
     } finally {
       setAddingToHomework(false)

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { X, Loader2, Users } from 'lucide-react'
 import { getStudents } from '../services/api'
 import toast from 'react-hot-toast'
+import { normalizeApiError } from '../utils/normalizeApiError'
 
 /**
  * 布置作业：多选学生弹窗。
@@ -32,7 +33,7 @@ export default function StudentSelectorModal({
     getStudents()
       .then((res) => setStudents(Array.isArray(res.data) ? res.data : []))
       .catch((e) => {
-        toast.error('加载学生列表失败：' + (e.response?.data?.detail ?? e.message))
+        toast.error('加载学生列表失败：' + normalizeApiError(e, '操作失败，请稍后重试'))
         setStudents([])
       })
       .finally(() => setLoading(false))

@@ -21,6 +21,7 @@ import { useStudent } from '../contexts/StudentContext'
 import { useSmartGen } from '../contexts/SmartGenContext'
 import { TEXTBOOK_DATA } from '../constants/textbooks'
 import { EmptyState, ErrorState, LoadingState, MetricCard, PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
+import { normalizeApiError } from '../utils/normalizeApiError'
 
 const EXPANDED_KEYS_STORAGE = 'knowledge_graph_expanded'
 
@@ -232,7 +233,7 @@ export default function KnowledgeGraph() {
       setWeakPoints(Array.isArray(weak) ? weak : [])
       setMasteredPoints(Array.isArray(mastered) ? mastered : [])
     } catch (err) {
-      const message = err?.response?.data?.detail || err?.message || '加载学情失败'
+      const message = normalizeApiError(err, '加载学情失败')
       setError(message)
       setWeakPoints([])
       setMasteredPoints([])
@@ -338,8 +339,7 @@ export default function KnowledgeGraph() {
       toast.success(`已生成 ${list.length} 道弱项巩固题，可保存到题库`)
       navigate('/smart-gen', { state: { fromWeakPoint: true, weakPointQuestions: list, weakPointParams: nextParams } })
     } catch (err) {
-      const detail = err?.response?.data?.detail
-      toast.error(typeof detail === 'string' ? detail : '按弱项出题失败，请检查设置与网络')
+      toast.error(normalizeApiError(err, '按弱项出题失败，请检查设置与网络'))
     } finally {
       setWeakPointGenerating(false)
       setLoading?.(false)

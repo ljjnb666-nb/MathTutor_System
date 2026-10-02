@@ -365,7 +365,7 @@ export default function ExamPreview() {
       toast.success(`已向 ${selected.length} 位学生布置作业`)
       setShowAssignModal(false)
     } catch (err) {
-      toast.error(err?.response?.data?.detail || '布置失败')
+      toast.error(normalizeApiError(err, '布置失败'))
       throw err
     }
   }
@@ -402,7 +402,7 @@ export default function ExamPreview() {
       setSubmittedGrades(true)
       toast.success('批改结果已提交')
     } catch (err) {
-      toast.error(err?.response?.data?.detail || '提交批改失败')
+      toast.error(normalizeApiError(err, '提交批改失败'))
     } finally {
       setSubmittingGrade(false)
     }

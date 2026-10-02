@@ -58,7 +58,7 @@ describe('AfterClassReport V2 editor', () => {
     await userEvent.type(screen.getByPlaceholderText('关键词 1'), '专注')
     await userEvent.click(screen.getByRole('button', { name: /生成课后评语/ }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('server down')
+    expect(await screen.findByRole('alert')).toHaveTextContent('生成失败')
     expect(screen.getByText('家长反馈预览')).toBeInTheDocument()
   })
 

@@ -3,6 +3,7 @@ import { X, Search, Loader2 } from 'lucide-react'
 import { getQuestions } from '../services/api'
 import QuestionCard from './QuestionCard'
 import toast from 'react-hot-toast'
+import { normalizeApiError } from '../utils/normalizeApiError'
 
 /**
  * 选择参考题目弹窗：从题库搜索并选择一题，用于生成变式题等场景。
@@ -20,7 +21,7 @@ export default function QuestionSelectModal({ open, onClose, onSelect }) {
     getQuestions()
       .then((res) => setQuestions(Array.isArray(res.data) ? res.data : []))
       .catch((e) => {
-        toast.error('加载题库失败：' + (e.response?.data?.detail ?? e.message))
+        toast.error('加载题库失败：' + normalizeApiError(e, '操作失败，请稍后重试'))
         setQuestions([])
       })
       .finally(() => setLoading(false))

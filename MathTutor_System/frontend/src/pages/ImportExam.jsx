@@ -23,6 +23,7 @@ import toast from 'react-hot-toast'
 import { collectQuestion, generateAnalysisForQuestions, parseWordExam, saveQuestionsBatch } from '../services/api'
 import { useStudent } from '../contexts/StudentContext'
 import { EmptyState, ErrorState, PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
+import { normalizeApiError } from '../utils/normalizeApiError'
 
 const MAX_UPLOAD_BYTES = 30 * 1024 * 1024
 const ACCEPTED_EXTENSIONS = ['.docx', '.pdf']
@@ -224,7 +225,7 @@ export default function ImportExam() {
         toast.success(`已解析 ${parsed.length} 道题目`)
       }
     } catch (err) {
-      const message = err?.response?.data?.detail ?? err?.message ?? '解析服务暂不可用'
+      const message = normalizeApiError(err, '解析服务暂不可用')
       setParseError(String(message))
       toast.error(`解析失败：${message}`)
     } finally {
@@ -250,7 +251,7 @@ export default function ImportExam() {
       setCollectResult({ createdIndices, skippedIndices })
       toast.success(`已保存 ${createdIndices.length} 道新题${skippedIndices.length ? `，跳过 ${skippedIndices.length} 道重复题` : ''}`)
     } catch (err) {
-      const message = err?.response?.data?.detail ?? err?.message ?? '保存失败'
+      const message = normalizeApiError(err, '保存失败')
       toast.error(`录入题库失败：${message}`)
     } finally {
       setSaving(false)
@@ -276,7 +277,7 @@ export default function ImportExam() {
       })
       toast.success(`已生成 ${targetIndices.length} 道题解析`)
     } catch (err) {
-      const message = err?.response?.data?.detail ?? err?.message ?? '生成失败'
+      const message = normalizeApiError(err, '生成失败')
       toast.error(`AI 生成解析失败：${message}`)
     } finally {
       setGeneratingAnalysis(false)
