@@ -35,6 +35,36 @@ const TIMEOUT_ERROR_MESSAGE = '请求超时，请稍后重试'
 
 const MACHINE_CODE_PREFIX_PATTERN = /^([A-Z][A-Z0-9_]{2,}):\s*(.+)$/
 
+// ---- Secret redaction boundary（与教师端 frontend/src/utils/normalizeApiError.js 契约一致）----
+// 凭据形状检测（fail-closed）：按"形状"识别 credential 内容；命中即整串丢弃并
+// 回退到安全中文兜底，绝不遮罩后继续展示。
+const CREDENTIAL_ASSIGNMENT_PATTERN = /\b(?:x-api-key|x-goog-api-key|client-secret|access-token|api-key|api_key|apikey|authorization|password|passwd|secret|token)"?\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;}&]+)/i
+
+const BEARER_BASIC_PATTERN = /\b(?:bearer|basic)\s+[A-Za-z0-9._~+/=-]{4,}/i
+
+const KNOWN_KEY_SHAPE_PATTERN = /\b(?:sk-[A-Za-z0-9_-]{8,}|AIza[A-Za-z0-9_-]{16,}|eyJ[A-Za-z0-9_-]{10,})/
+
+const INFRA_URL_PATTERN = /\b(?:postgresql(?:\+\w+)?|mysql(?:\+\w+)?|mongodb(?:\+srv)?|redis|amqp|mssql):\/\/[^\s]+/i
+
+/**
+ * 检测任意文本是否携带 credential 形状内容。
+ * 纯函数；Teacher/Student 两端契约保持一致。
+ */
+export function containsSensitiveMaterial(text) {
+  if (typeof text !== 'string' || !text) return false
+  return Boolean(
+    CREDENTIAL_ASSIGNMENT_PATTERN.test(text)
+    || BEARER_BASIC_PATTERN.test(text)
+    || KNOWN_KEY_SHAPE_PATTERN.test(text)
+    || INFRA_URL_PATTERN.test(text),
+  )
+}
+
+/** 携带敏感内容的文本不作为业务文案展示：一律回退到调用方提供的兜底。 */
+export function redactSensitiveText(text, fallback) {
+  return containsSensitiveMaterial(text) ? fallback : text
+}
+
 function containsCJK(text) {
   return /[\u4e00-\u9fff\u3400-\u4dbf]/.test(text || '')
 }
@@ -66,15 +96,21 @@ function httpStatusFromMessage(text) {
 function normalizeDetailString(text, fallback) {
   const trimmed = text.trim()
   if (!trimmed) return fallback
+
   const prefixMatch = trimmed.match(MACHINE_CODE_PREFIX_PATTERN)
   if (prefixMatch) {
-    const remainder = prefixMatch[2].trim()
-    // 后端若已附带中文业务文案，按原文保留（含标点）
-    if (remainder && containsCJK(remainder)) return remainder
+    // 已知 machine code：直接返回稳定映射，完全忽略 remainder
     const mapped = prefixMatch[1] && MACHINE_CODE_MESSAGES[prefixMatch[1]]
     if (mapped) return mapped
+    // 未知 code：remainder 仅在"安全中文业务文案"时保留
+    const remainder = prefixMatch[2].trim()
+    if (remainder && containsCJK(remainder) && !containsSensitiveMaterial(remainder)) {
+      return remainder
+    }
     return fallback
   }
+
+  if (containsSensitiveMaterial(trimmed)) return fallback
   if (containsCJK(trimmed)) return trimmed
   if (isTimeoutErrorText(trimmed)) return TIMEOUT_ERROR_MESSAGE
   if (isNetworkErrorText(trimmed)) return NETWORK_ERROR_MESSAGE

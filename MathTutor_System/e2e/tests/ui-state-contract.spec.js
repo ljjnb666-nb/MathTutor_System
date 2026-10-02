@@ -262,9 +262,34 @@ test.describe('BROWSER_STATE_CONTRACT error presentation', () => {
       })
     })
     await studentPage.goto(`${STUDENT_URL}/exams`)
-    await expect(studentPage.getByText('提交批改结果失败，请稍后重试。').first()).toBeVisible({ timeout: 20_000 })
+    // Known machine code → stable Chinese mapping (remainder ignored entirely)
+    await expect(studentPage.getByText('提交批改结果失败，请稍后重试').first()).toBeVisible({ timeout: 20_000 })
     const bodyText = await studentPage.locator('body').innerText()
     expect(bodyText).not.toContain('EXAM_GRADING_ERROR')
+
+    guards.assert({ allowApi5xx: true })
+  })
+
+  test('machine code with embedded secret maps to the stable Chinese message (student)', async ({ studentPage }) => {
+    const guards = attachGuards(studentPage, { api5xx: false })
+    const secret = ['browser', '-secret-token'].join('')
+
+    await studentPage.route('**/api/student/exams', async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: `EXAM_GRADING_ERROR: 提交失败，Authorization: Bearer ${secret}` }),
+      })
+    })
+    await studentPage.goto(`${STUDENT_URL}/exams`)
+    // Known machine code → stable Chinese mapping; the credential-bearing
+    // remainder must never reach the UI.
+    await expect(studentPage.getByText('提交批改结果失败，请稍后重试').first()).toBeVisible({ timeout: 20_000 })
+    const bodyText = await studentPage.locator('body').innerText()
+    expect(bodyText).not.toContain(secret)
+    expect(bodyText).not.toContain('Authorization')
+    expect(bodyText).not.toContain('EXAM_GRADING_ERROR')
+    expect(bodyText).not.toContain('提交失败')
 
     guards.assert({ allowApi5xx: true })
   })

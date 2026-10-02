@@ -76,7 +76,7 @@ describe('role / plan 呈现', () => {
   })
 })
 
-describe('agent 错误呈现', () => {
+describe('agent 错误呈现（fail-closed：仅信任已知 error_code）', () => {
   it('已知 run error_code 映射中文', () => {
     expect(getAgentRunErrorPresentation({ error_code: 'intent_extraction_failed', error_message: 'Intent extraction failed. Please retry.' }))
       .toBe('无法理解教学目标，请换个说法后重试')
@@ -84,15 +84,15 @@ describe('agent 错误呈现', () => {
       .toBe('计划未通过安全校验，已停止执行')
   })
 
-  it('中文业务消息保留，英文消息兜底', () => {
-    expect(getAgentRunErrorPresentation({ error_message: '后端返回的中文原因' })).toBe('后端返回的中文原因')
-    expect(getAgentRunErrorPresentation({ error_message: 'Some english failure' })).toBe('运行失败，请稍后重试')
+  it('unknown code / 任意 message 一律 generic 兜底，不透出原始文本', () => {
+    expect(getAgentRunErrorPresentation({ error_message: '后端返回的中文原因' })).toBe('运行失败，请稍后重试')
+    expect(getAgentRunErrorPresentation({ error_code: 'future_error', error_message: '执行失败，Authorization: Bearer x' })).toBe('运行失败，请稍后重试')
     expect(getAgentRunErrorPresentation(null)).toBe('运行失败，请稍后重试')
   })
 
   it('action 错误呈现', () => {
     expect(getAgentActionErrorPresentation({ error_code: 'save_failed', error_message: 'Save failed' })).toBe('保存到题库失败，请稍后重试')
-    expect(getAgentActionErrorPresentation({ error_message: '数据库写入失败' })).toBe('数据库写入失败')
+    expect(getAgentActionErrorPresentation({ error_code: 'future_action_error', error_message: '数据库写入失败' })).toBe('操作失败，请稍后重试')
     expect(getAgentActionErrorPresentation({})).toBe('操作失败，请稍后重试')
   })
 })
@@ -122,11 +122,12 @@ describe('草稿校验错误呈现', () => {
 
   it('未知 code 不透出内部 message，使用安全兜底', () => {
     expect(getDraftValidationMessage({ code: 'brand_new_rule', message: 'Internal english detail' })).toBe(DRAFT_VALIDATION_FALLBACK)
+    expect(getDraftValidationMessage({ code: 'future_validation_code', message: '内部校验失败，token=secret' })).toBe(DRAFT_VALIDATION_FALLBACK)
     expect(getDraftValidationMessage(null)).toBe(DRAFT_VALIDATION_FALLBACK)
   })
 
-  it('后端中文 message 保留', () => {
-    expect(getDraftValidationMessage({ code: 'brand_new_rule', message: '题目内容有安全问题' })).toBe('题目内容有安全问题')
+  it('unknown code 的中文 message 同样不透出（fail-closed）', () => {
+    expect(getDraftValidationMessage({ code: 'brand_new_rule', message: '题目内容有安全问题' })).toBe(DRAFT_VALIDATION_FALLBACK)
   })
 })
 

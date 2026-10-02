@@ -132,27 +132,18 @@ const AGENT_ACTION_ERROR_MESSAGES = {
   save_failed: '保存到题库失败，请稍后重试',
 }
 
-function containsCJK(text) {
-  return /[\u4e00-\u9fff\u3400-\u4dbf]/.test(text || '')
-}
-
-/**
- * Agent 运行失败的中文呈现：优先按 error_code 映射；
- * 后端若已返回中文业务消息则原样保留；其余一律安全兜底。
- */
+// Agent error_code 是 authoritative machine contract：已知 code 映射稳定中文；
+// 任何 unknown code / 自由文本 message 一律 generic 兜底（fail-closed），
+// 不信任任意 error_message —— 后端 message 可能携带 provider/凭据上下文。
 export function getAgentRunErrorPresentation(run) {
   const code = run?.error_code
   if (code && AGENT_RUN_ERROR_MESSAGES[code]) return AGENT_RUN_ERROR_MESSAGES[code]
-  const message = (run?.error_message || '').trim()
-  if (message && containsCJK(message)) return message
   return '运行失败，请稍后重试'
 }
 
 export function getAgentActionErrorPresentation(action) {
   const code = action?.error_code
   if (code && AGENT_ACTION_ERROR_MESSAGES[code]) return AGENT_ACTION_ERROR_MESSAGES[code]
-  const message = (action?.error_message || '').trim()
-  if (message && containsCJK(message)) return message
   return '操作失败，请稍后重试'
 }
 
@@ -198,15 +189,19 @@ const DRAFT_VALIDATION_MESSAGES = {
 export const DRAFT_VALIDATION_FALLBACK = '草稿校验未通过，请检查题目内容'
 
 /**
- * 草稿校验错误项的中文呈现：按 item.code 映射；未知 code 一律安全兜底，不透出内部消息。
+ * 草稿校验错误项的中文呈现（fail-closed）：
+ * 仅信任已知 item.code 的稳定映射；unknown code 一律 DRAFT_VALIDATION_FALLBACK，
+ * 不透出内部 code，也不信任任意 item.message（可能携带内部/敏感上下文）。
  */
 export function getDraftValidationMessage(item) {
   if (!item || typeof item !== 'object') return DRAFT_VALIDATION_FALLBACK
   const code = typeof item.code === 'string' ? item.code : ''
   if (code && DRAFT_VALIDATION_MESSAGES[code]) return DRAFT_VALIDATION_MESSAGES[code]
-  const message = typeof item.message === 'string' ? item.message.trim() : ''
-  if (message && containsCJK(message)) return message
   return DRAFT_VALIDATION_FALLBACK
+}
+
+function containsCJK(text) {
+  return /[\u4e00-\u9fff\u3400-\u4dbf]/.test(text || '')
 }
 
 const TARGET_QUESTION_BANK_LABELS = {

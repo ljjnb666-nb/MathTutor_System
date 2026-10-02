@@ -148,8 +148,11 @@ describe('TeacherAgent', () => {
     await userEvent.click(button)
     expect(button).toBeDisabled()
 
+    // Fail-closed presentation: unknown/absent error_code renders the generic
+    // safe message; raw backend error_message is never trusted.
     resolve({ data: { id: 3, status: 'failed', goal: '删除试卷', created_at: new Date().toISOString(), error_message: '只读模式拒绝写操作' } })
-    expect(await screen.findByText('只读模式拒绝写操作')).toBeInTheDocument()
+    expect(await screen.findByText('运行失败，请稍后重试')).toBeInTheDocument()
+    expect(screen.queryByText('只读模式拒绝写操作')).not.toBeInTheDocument()
     expect(api.createTeacherAgentRun).toHaveBeenCalledTimes(1)
   })
 

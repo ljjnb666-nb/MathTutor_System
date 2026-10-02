@@ -56,6 +56,43 @@ const TIMEOUT_ERROR_MESSAGE = '请求超时，请稍后重试'
 // 机器错误码前缀：形如 "EXAM_GRADING_ERROR: 提交批改结果失败，请稍后重试。"
 const MACHINE_CODE_PREFIX_PATTERN = /^([A-Z][A-Z0-9_]{2,}):\s*(.+)$/
 
+// ---- Secret redaction boundary -------------------------------------------------
+// 凭据形状检测（fail-closed）：normalizer 不知道真实密钥值，因此按"形状"识别
+// credential-bearing 内容；命中即整串丢弃并回退到安全中文兜底，绝不尝试遮罩后
+// 继续展示（避免只遮住一个 secret 却泄漏其它 provider/内部上下文）。
+
+// credential 字段 + 赋值形状：field=value / field: value / "field": "value"
+// 字段名允许连写/中划/下划变体；值允许引号包裹（JSON-ish）或裸 token。
+const CREDENTIAL_ASSIGNMENT_PATTERN = /\b(?:x-api-key|x-goog-api-key|client-secret|access-token|api-key|api_key|apikey|authorization|password|passwd|secret|token)"?\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;}&]+)/i
+
+// 裸 Bearer/Basic 凭据
+const BEARER_BASIC_PATTERN = /\b(?:bearer|basic)\s+[A-Za-z0-9._~+/=-]{4,}/i
+
+// 已知密钥形状：OpenAI sk-… / Google AIza… / JWT eyJ…
+const KNOWN_KEY_SHAPE_PATTERN = /\b(?:sk-[A-Za-z0-9_-]{8,}|AIza[A-Za-z0-9_-]{16,}|eyJ[A-Za-z0-9_-]{10,})/
+
+// 带 credential 语义的基础设施 URL：出现即整体 fallback，不遮罩后继续显示
+const INFRA_URL_PATTERN = /\b(?:postgresql(?:\+\w+)?|mysql(?:\+\w+)?|mongodb(?:\+srv)?|redis|amqp|mssql):\/\/[^\s]+/i
+
+/**
+ * 检测任意文本是否携带 credential 形状内容。
+ * 纯函数；Teacher/Student 两端契约保持一致。
+ */
+export function containsSensitiveMaterial(text) {
+  if (typeof text !== 'string' || !text) return false
+  return Boolean(
+    CREDENTIAL_ASSIGNMENT_PATTERN.test(text)
+    || BEARER_BASIC_PATTERN.test(text)
+    || KNOWN_KEY_SHAPE_PATTERN.test(text)
+    || INFRA_URL_PATTERN.test(text),
+  )
+}
+
+/** 携带敏感内容的文本不作为业务文案展示：一律回退到调用方提供的兜底。 */
+export function redactSensitiveText(text, fallback) {
+  return containsSensitiveMaterial(text) ? fallback : text
+}
+
 function containsCJK(text) {
   return /[\u4e00-\u9fff\u3400-\u4dbf]/.test(text || '')
 }
@@ -92,15 +129,24 @@ function httpStatusFromMessage(text) {
 function normalizeDetailString(text, fallback) {
   const trimmed = text.trim()
   if (!trimmed) return fallback
+
+  // A/B. 机器错误码前缀
   const prefixMatch = trimmed.match(MACHINE_CODE_PREFIX_PATTERN)
   if (prefixMatch) {
-    const remainder = prefixMatch[2].trim()
-    // 后端若已附带中文业务文案，按原文保留（含标点）
-    if (remainder && containsCJK(remainder)) return remainder
+    // C. 已知 machine code：直接返回稳定映射，完全忽略 remainder
+    //    （remainder 可能携带 provider/凭据上下文，永不透出）
     const mapped = lookupMachineCode(prefixMatch[1])
     if (mapped) return mapped
+    // D. 未知 code：remainder 仅在"安全中文业务文案"时保留
+    const remainder = prefixMatch[2].trim()
+    if (remainder && containsCJK(remainder) && !containsSensitiveMaterial(remainder)) {
+      return remainder
+    }
     return fallback
   }
+
+  // D/E. 普通字符串：先过 secret 边界，再考虑保留中文业务消息
+  if (containsSensitiveMaterial(trimmed)) return fallback
   if (containsCJK(trimmed)) return trimmed
   if (isTimeoutErrorText(trimmed)) return TIMEOUT_ERROR_MESSAGE
   if (isNetworkErrorText(trimmed)) return NETWORK_ERROR_MESSAGE
