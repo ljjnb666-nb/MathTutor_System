@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 def main(path: str) -> None:
     cases = list(ET.parse(Path(path)).getroot().iter("testcase"))
     pg = [case for case in cases if "postgres" in case.get("name", "").lower()
+          or "postgres" in case.get("classname", "")
           or "test_user_deletion_postgres" in case.get("classname", "")]
     required = {
         "migration": lambda c: "migration" in c.get("classname", ""),
@@ -15,6 +16,7 @@ def main(path: str) -> None:
         "sql_tenant_purge": lambda c: "test_user_tenant_purge" in c.get("classname", ""),
         "cross_store_lifecycle": lambda c: "test_user_deletion_lifecycle" in c.get("classname", ""),
         "upload_delete_race": lambda c: "test_user_deletion_postgres" in c.get("classname", ""),
+        "tenant_isolation": lambda c: "test_tenant_isolation_postgres" in c.get("classname", ""),
     }
     for label, select in required.items():
         selected = [case for case in pg if select(case)]

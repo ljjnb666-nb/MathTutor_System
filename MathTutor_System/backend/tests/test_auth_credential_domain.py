@@ -28,7 +28,7 @@ def domain_db():
                     role="teacher", is_active=True))
         db.flush()
         db.add(Student(id=12, user_id=1, name="Collision student", grade="8", class_name="1",
-                       login_code="domain-student"))
+                       login_code="domain-student", hashed_password=get_password_hash("domain-test-password")))
         db.commit()
         yield db
     engine.dispose()
@@ -160,7 +160,8 @@ def test_optional_auth_accepts_instance_bound_teacher(domain_db):
 
 
 def test_student_login_and_me_keep_student_domain(client):
-    response = client.post("/api/student/token", json={"login_code": "domain-student"})
+    # SEC-01: student logins now require the paired password.
+    response = client.post("/api/student/token", json={"login_code": "domain-student", "password": "domain-test-password"})
     assert response.status_code == 200
     token = response.json()["access_token"]
     assert decode_access_token(token)["type"] == "student"
