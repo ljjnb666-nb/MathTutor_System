@@ -1,0 +1,71 @@
+{
+  "comment": "UI 状态呈现契约用例：machine value 保持稳定英文；expectedLabel/expectedTone 为用户可见中文呈现。Teacher/Student 测试各自读取对应分节；unknown 分节断言未登记值不得原样透出。",
+  "teacher": {
+    "agentRun": [
+      { "machineValue": "created", "expectedLabel": "已创建", "expectedTone": "neutral" },
+      { "machineValue": "running", "expectedLabel": "运行中", "expectedTone": "warning" },
+      { "machineValue": "needs_input", "expectedLabel": "需要补充信息", "expectedTone": "warning" },
+      { "machineValue": "completed", "expectedLabel": "已完成", "expectedTone": "success" },
+      { "machineValue": "failed", "expectedLabel": "失败", "expectedTone": "danger" }
+    ],
+    "agentArtifact": [
+      { "machineValue": "draft", "expectedLabel": "草稿待完善", "expectedTone": "warning" },
+      { "machineValue": "ready_for_confirmation", "expectedLabel": "待确认保存", "expectedTone": "warning" },
+      { "machineValue": "saving", "expectedLabel": "正在保存", "expectedTone": "warning" },
+      { "machineValue": "saved", "expectedLabel": "已保存", "expectedTone": "success" },
+      { "machineValue": "cancelled", "expectedLabel": "已取消", "expectedTone": "neutral" }
+    ],
+    "agentAction": [
+      { "machineValue": "pending_confirmation", "expectedLabel": "等待确认", "expectedTone": "warning" },
+      { "machineValue": "executing", "expectedLabel": "正在保存", "expectedTone": "warning" },
+      { "machineValue": "completed", "expectedLabel": "保存完成", "expectedTone": "success" },
+      { "machineValue": "failed", "expectedLabel": "保存失败", "expectedTone": "danger" },
+      { "machineValue": "cancelled", "expectedLabel": "已取消", "expectedTone": "neutral" }
+    ],
+    "ragUpload": [
+      { "machineValue": "pending", "expectedLabel": "等待处理", "expectedTone": "neutral" },
+      { "machineValue": "processing", "expectedLabel": "正在解析", "expectedTone": "warning" },
+      { "machineValue": "done", "expectedLabel": "导入完成", "expectedTone": "success" },
+      { "machineValue": "failed", "expectedLabel": "导入失败", "expectedTone": "danger" }
+    ],
+    "agentIntent": [
+      { "machineValue": "lesson_preparation", "expectedLabel": "备课规划", "expectedTone": "neutral" },
+      { "machineValue": "review_plan", "expectedLabel": "复习规划", "expectedTone": "neutral" },
+      { "machineValue": "practice_plan", "expectedLabel": "练习规划", "expectedTone": "neutral" },
+      { "machineValue": "student_analysis", "expectedLabel": "学情分析", "expectedTone": "neutral" },
+      { "machineValue": "exam_preparation_plan", "expectedLabel": "备考规划", "expectedTone": "neutral" },
+      { "machineValue": "general_teaching", "expectedLabel": "通用教学", "expectedTone": "neutral" }
+    ],
+    "agentSafetyMode": [
+      { "machineValue": "read_only", "expectedLabel": "只读模式", "expectedTone": "success" }
+    ],
+    "role": [
+      { "machineValue": "admin", "expectedLabel": "管理员" },
+      { "machineValue": "teacher", "expectedLabel": "教师" }
+    ],
+    "plan": [
+      { "machineValue": "free", "expectedLabel": "免费版" },
+      { "machineValue": "basic", "expectedLabel": "基础版" },
+      { "machineValue": "pro", "expectedLabel": "专业版" }
+    ]
+  },
+  "student": {
+    "mistake": [
+      { "machineValue": "pending", "expectedLabel": "待攻克", "expectedTone": "warning" },
+      { "machineValue": "mastered", "expectedLabel": "已掌握", "expectedTone": "success" }
+    ],
+    "examState": [
+      { "machineValue": "ungraded", "expectedLabel": "去做题", "expectedTone": "warning" },
+      { "machineValue": "graded", "expectedLabel": "已完成", "expectedTone": "success" }
+    ],
+    "role": [
+      { "machineValue": "student", "expectedLabel": "学生" }
+    ]
+  },
+  "unknown": {
+    "machineValue": "future_new_status",
+    "teacherExpectedLabel": "未知状态",
+    "studentExpectedLabel": "未知状态",
+    "expectedTone": "neutral"
+  }
+}

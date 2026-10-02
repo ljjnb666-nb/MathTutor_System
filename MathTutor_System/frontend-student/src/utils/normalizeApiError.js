@@ -1,39 +1,19 @@
 /**
- * 用户可见错误信息的统一归一化（本地化）。
+ * 学生端用户可见错误信息的统一归一化（与教师端 frontend/src/utils/normalizeApiError.js 同语义）。
  *
  * 归一化顺序：
- * 1. 已登记的结构化错误码（{ code | error_code, message }）→ 稳定中文文案
+ * 1. 已登记的结构化错误码 → 稳定中文文案
  * 2. 机器错误码前缀（"XXX_YYY_ERROR: ..."）→ 隐藏前缀，只保留中文部分
  * 3. 后端已提供的中文业务消息 → 原样保留
  * 4. 已知网络 / 超时 / HTTP 传输层错误 → 稳定中文文案
  * 5. 通用中文兜底
- *
- * 安全约定（延续 2C-1 secret contract）：
- * - 不会把 API Key、Bearer token、Authorization 头、数据库 URL、完整 provider 异常透出给用户；
- * - 未知结构永不 JSON.stringify 展示；纯英文技术消息一律替换为中文兜底。
  */
 
 const MACHINE_CODE_MESSAGES = {
-  CHAT_PROVIDER_ERROR: '对话服务暂时不可用，请稍后重试',
-  CHAT_SESSION_ERROR: '对话会话出现异常，请重新打开会话',
-  QUESTION_GENERATION_ERROR: '生成题目失败，请稍后重试',
-  EXAM_GENERATION_ERROR: '生成试卷失败，请稍后重试',
-  QUESTION_VERIFICATION_ERROR: '题目校验失败，请稍后重试',
   EXAM_GRADING_ERROR: '提交批改结果失败，请稍后重试',
-  REPORT_PROVIDER_ERROR: '学情报告服务暂时不可用，请稍后重试',
   REPORT_GENERATION_ERROR: '生成报告失败，请稍后重试',
-  RAG_UPLOAD_ERROR: '知识库导入失败，请稍后重试',
-  RAG_PROVIDER_ERROR: '知识库服务暂时不可用，请稍后重试',
-  DOCUMENT_PARSE_ERROR: '文档解析失败，请检查文件后重试',
+  REPORT_PROVIDER_ERROR: '学情报告服务暂时不可用，请稍后重试',
   LLM_PROVIDER_ERROR: 'AI 服务暂时不可用，请稍后重试',
-  LLM_AUTH_ERROR: 'AI 服务鉴权失败，请检查模型配置',
-  LLM_CONFIG_UNSUPPORTED_PROVIDER: '暂不支持该 AI 服务商，请检查模型配置',
-  LLM_CONFIG_INVALID_BASE_URL: 'AI 服务地址无效，请检查 Base URL 配置',
-  LLM_CONFIG_MISSING_MODEL: '未配置 AI 模型，请先在设置中选择模型',
-  LLM_CONFIG_MISSING_KEY: '未配置 AI 服务密钥，请先在设置中填写 API Key',
-  EMBEDDING_CONFIG_ERROR: '向量服务配置异常，请检查嵌入模型设置',
-  PPT_GENERATION_ERROR: '生成课件失败，请稍后重试',
-  PPT_BUILD_ERROR: '导出课件失败，请稍后重试',
 }
 
 const HTTP_FALLBACK_MESSAGES = {
@@ -53,7 +33,6 @@ const HTTP_FALLBACK_MESSAGES = {
 const NETWORK_ERROR_MESSAGE = '网络连接失败，请检查网络后重试'
 const TIMEOUT_ERROR_MESSAGE = '请求超时，请稍后重试'
 
-// 机器错误码前缀：形如 "EXAM_GRADING_ERROR: 提交批改结果失败，请稍后重试。"
 const MACHINE_CODE_PREFIX_PATTERN = /^([A-Z][A-Z0-9_]{2,}):\s*(.+)$/
 
 function containsCJK(text) {
@@ -68,10 +47,6 @@ function isTimeoutErrorText(text) {
   return /timeout|timed?\s?out|ETIMEDOUT/i.test(text)
 }
 
-function lookupMachineCode(code) {
-  return code && MACHINE_CODE_MESSAGES[code]
-}
-
 function lookupHttpStatus(error) {
   const status = error?.response?.status
   if (status && HTTP_FALLBACK_MESSAGES[status]) return HTTP_FALLBACK_MESSAGES[status]
@@ -79,7 +54,6 @@ function lookupHttpStatus(error) {
   return null
 }
 
-/** 从形如 "Request failed with status code 500" 的 axios 消息提取状态码兜底。 */
 function httpStatusFromMessage(text) {
   const match = text.match(/status code (\d{3})/i)
   if (!match) return null
@@ -97,7 +71,7 @@ function normalizeDetailString(text, fallback) {
     const remainder = prefixMatch[2].trim()
     // 后端若已附带中文业务文案，按原文保留（含标点）
     if (remainder && containsCJK(remainder)) return remainder
-    const mapped = lookupMachineCode(prefixMatch[1])
+    const mapped = prefixMatch[1] && MACHINE_CODE_MESSAGES[prefixMatch[1]]
     if (mapped) return mapped
     return fallback
   }
@@ -112,13 +86,8 @@ function normalizeDetailString(text, fallback) {
 function normalizeDetailObject(detail, error, fallback) {
   const code = typeof detail.code === 'string' ? detail.code.trim() : ''
   const errorCode = typeof detail.error_code === 'string' ? detail.error_code.trim() : ''
-  const mapped = lookupMachineCode(code || errorCode)
+  const mapped = (code || errorCode) && MACHINE_CODE_MESSAGES[code || errorCode]
   if (mapped) return mapped
-
-  // 练习草稿保存失败：backend 返回 { message, validation: { valid, errors: [...] } }
-  if (detail.validation && typeof detail.validation === 'object') {
-    return '草稿校验未通过，请检查题目内容'
-  }
 
   const candidates = [detail.message, detail.msg, detail.detail, detail.error]
   for (const candidate of candidates) {
@@ -142,7 +111,7 @@ export function normalizeApiError(error, defaultMessage = '操作失败，请稍
     return defaultMessage
   }
 
-  // FastAPI 422 校验数组：[{ loc, msg, type }]，字段名/消息是内部信息，统一安全兜底
+  // FastAPI 422 校验数组：内部字段名/消息统一安全兜底
   const rawDetail = error?.response?.data?.detail ?? error?.detail
   if (Array.isArray(rawDetail)) {
     return HTTP_FALLBACK_MESSAGES[422]

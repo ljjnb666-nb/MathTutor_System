@@ -10,23 +10,33 @@ import { ErrorState } from '../components/UiV2'
 // assertions below must guard against.
 const credentialFixture = (...segments) => segments.join('')
 
-describe('normalizeApiError & ErrorState security rules', () => {
-  it('1. string returns string', () => {
+describe('normalizeApiError 基础归一化', () => {
+  it('1. 中文字符串原样保留', () => {
     expect(normalizeApiError('网络连接失败')).toBe('网络连接失败')
   })
 
-  it('2. Error.message returns message', () => {
-    expect(normalizeApiError(new Error('Permission denied'))).toBe('Permission denied')
+  it('2. 英文原生 Error 消息不透出，返回中文兜底', () => {
+    expect(normalizeApiError(new Error('Permission denied'))).toBe('操作失败，请稍后重试')
   })
 
-  it('3. FastAPI detail string', () => {
-    const error = { response: { data: { detail: 'Unprocessable Entity' } } }
-    expect(normalizeApiError(error)).toBe('Unprocessable Entity')
+  it('3. 中文原生 Error 消息保留', () => {
+    expect(normalizeApiError(new Error('用户未登录'))).toBe('用户未登录')
   })
 
-  it('4. FastAPI detail array', () => {
+  it('4. FastAPI 英文 detail 字符串不透出', () => {
+    const error = { response: { status: 500, data: { detail: 'Internal Server Error' } } }
+    expect(normalizeApiError(error)).toBe('服务暂时不可用，请稍后重试')
+  })
+
+  it('5. FastAPI 中文业务 detail 保留', () => {
+    const error = { response: { status: 409, data: { detail: '用户正在删除中' } } }
+    expect(normalizeApiError(error)).toBe('用户正在删除中')
+  })
+
+  it('6. FastAPI 422 校验数组统一安全兜底', () => {
     const error = {
       response: {
+        status: 422,
         data: {
           detail: [
             { loc: ['body', 'id'], msg: 'field required' },
@@ -35,32 +45,95 @@ describe('normalizeApiError & ErrorState security rules', () => {
         },
       },
     }
-    expect(normalizeApiError(error)).toBe('id: field required; title: must be string')
+    const result = normalizeApiError(error)
+    expect(result).toBe('输入内容不符合要求，请检查后重试')
+    expect(result).not.toContain('field required')
+    expect(result).not.toContain('body')
   })
 
-  it('5. { msg } object', () => {
+  it('7. { msg } 对象（中文）', () => {
     expect(normalizeApiError({ msg: '用户未登录' })).toBe('用户未登录')
   })
 
-  it('6. { message } object', () => {
+  it('8. { message } 对象（中文）', () => {
     expect(normalizeApiError({ message: '服务器繁忙' })).toBe('服务器繁忙')
   })
 
-  it('7. null returns default message', () => {
-    expect(normalizeApiError(null)).toBe('操作失败')
+  it('9. null / undefined 返回默认消息', () => {
+    expect(normalizeApiError(null)).toBe('操作失败，请稍后重试')
     expect(normalizeApiError(null, '默认错误')).toBe('默认错误')
+    expect(normalizeApiError(undefined)).toBe('操作失败，请稍后重试')
   })
 
-  it('8. undefined returns default message', () => {
-    expect(normalizeApiError(undefined)).toBe('操作失败')
-  })
-
-  it('9. unknown object returns default message', () => {
+  it('10. 未知对象返回默认消息', () => {
     const error = { foo: 'bar', status: 500 }
-    expect(normalizeApiError(error)).toBe('操作失败')
+    expect(normalizeApiError(error)).toBe('操作失败，请稍后重试')
+  })
+})
+
+describe('normalizeApiError 机器错误码契约', () => {
+  it('已知结构化 code 映射稳定中文文案', () => {
+    expect(normalizeApiError({ response: { status: 500, data: { detail: { code: 'EXAM_GRADING_ERROR', message: 'boom' } } } }))
+      .toBe('提交批改结果失败，请稍后重试')
+    expect(normalizeApiError({ detail: { error_code: 'LLM_AUTH_ERROR', message: 'denied' } }))
+      .toBe('AI 服务鉴权失败，请检查模型配置')
   })
 
-  it('10. object with headers does not leak headers', () => {
+  it('未知结构化 code 且英文 message → 中文兜底', () => {
+    expect(normalizeApiError({ response: { status: 500, data: { detail: { code: 'TOTALLY_NEW_CODE', message: 'mystery failure' } } } }))
+      .toBe('服务暂时不可用，请稍后重试')
+  })
+
+  it('机器错误码前缀被隐藏，中文部分保留', () => {
+    expect(normalizeApiError({ response: { status: 500, data: { detail: 'EXAM_GRADING_ERROR: 提交批改结果失败，请稍后重试。' } } }))
+      .toBe('提交批改结果失败，请稍后重试。')
+  })
+
+  it('未知机器前缀 + 无中文内容 → 安全兜底', () => {
+    expect(normalizeApiError({ response: { status: 500, data: { detail: 'WORKSPACE_UNKNOWN_ERROR: something broke' } } }))
+      .toBe('服务暂时不可用，请稍后重试')
+  })
+
+  it('LLM/WORKSPACE 系列机器 token 不进入用户文案', () => {
+    const result = normalizeApiError({ response: { status: 400, data: { detail: 'LLM_CONFIG_MISSING_KEY: missing' } } })
+    expect(result).toBe('未配置 AI 服务密钥，请先在设置中填写 API Key')
+    expect(normalizeApiError({ response: { status: 409, data: { detail: 'WORKSPACE_BUSY: locked' } } }))
+      .toBe('当前状态已发生变化，请刷新后重试')
+  })
+})
+
+describe('normalizeApiError 传输层契约', () => {
+  it('Network Error → 中文', () => {
+    expect(normalizeApiError(new Error('Network Error'))).toBe('网络连接失败，请检查网络后重试')
+    expect(normalizeApiError({ code: 'ERR_NETWORK', message: 'Network Error' })).toBe('网络连接失败，请检查网络后重试')
+    expect(normalizeApiError(new TypeError('Failed to fetch'))).toBe('网络连接失败，请检查网络后重试')
+  })
+
+  it('timeout / ECONNABORTED → 中文', () => {
+    expect(normalizeApiError({ code: 'ECONNABORTED', message: 'timeout of 30000ms exceeded' })).toBe('请求超时，请稍后重试')
+    expect(normalizeApiError(new Error('Request timed out'))).toBe('请求超时，请稍后重试')
+  })
+
+  it.each([
+    [401, '登录状态已失效，请重新登录'],
+    [403, '当前账号无权执行此操作'],
+    [404, '请求的内容不存在或已被删除'],
+    [409, '当前状态已发生变化，请刷新后重试'],
+    [422, '输入内容不符合要求，请检查后重试'],
+    [429, '请求过于频繁，请稍后再试'],
+    [500, '服务暂时不可用，请稍后重试'],
+    [503, '服务暂时不可用，请稍后重试'],
+  ])('HTTP %i → 中文兜底', (status, expected) => {
+    expect(normalizeApiError({ response: { status, data: {} } })).toBe(expected)
+  })
+
+  it('axios 英文 status message 也映射', () => {
+    expect(normalizeApiError({ message: 'Request failed with status code 500' })).toBe('服务暂时不可用，请稍后重试')
+  })
+})
+
+describe('normalizeApiError secret 安全', () => {
+  it('object with headers does not leak headers', () => {
     const bearerTokenValue = credentialFixture('sec', 'ret-token-', '123')
     const cookieValue = credentialFixture('sess', 'ion=xy', 'z')
     const error = {
@@ -69,31 +142,31 @@ describe('normalizeApiError & ErrorState security rules', () => {
       request: {},
     }
     const result = normalizeApiError(error)
-    expect(result).toBe('操作失败')
+    expect(result).toBe('操作失败，请稍后重试')
     expect(result).not.toContain(bearerTokenValue)
     expect(result).not.toContain('Bearer')
     expect(result).not.toContain('Cookie')
   })
 
-  it('11. object with Authorization does not leak Authorization', () => {
+  it('object with Authorization does not leak Authorization', () => {
     const bearerValue = credentialFixture('ab', 'cd', 'ef')
     const error = { detail: { Authorization: `Bearer ${bearerValue}` } }
     const result = normalizeApiError(error)
-    expect(result).toBe('操作失败')
+    expect(result).toBe('操作失败，请稍后重试')
     expect(result).not.toContain(bearerValue)
   })
 
-  it('12. object with apiKey/token does not leak values', () => {
+  it('object with apiKey/token does not leak values', () => {
     const apiKeyValue = credentialFixture('sk-', '1234', '5678', '90')
     const tokenValue = credentialFixture('eyJ', 'hbGci', '...')
     const error = { apiKey: apiKeyValue, token: tokenValue }
     const result = normalizeApiError(error)
-    expect(result).toBe('操作失败')
+    expect(result).toBe('操作失败，请稍后重试')
     expect(result).not.toContain(apiKeyValue)
     expect(result).not.toContain(tokenValue)
   })
 
-  it('13. ErrorState does not render [object Object] and does not crash when given arbitrary object', () => {
+  it('ErrorState does not render [object Object] and does not crash when given arbitrary object', () => {
     const bearerValue = credentialFixture('sec', 'ret')
     const apiKeyValue = credentialFixture('pri', 'vate-', 'key')
     const sensitiveObj = {
