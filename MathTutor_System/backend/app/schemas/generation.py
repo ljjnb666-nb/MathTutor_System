@@ -15,7 +15,7 @@ class GenerateRequest(BaseModel):
     knowledge_point: str = Field(..., min_length=1, max_length=255, description="知识点")
     difficulty: str = Field(..., min_length=1, max_length=8, description="难度 L1-L5")
     question_type: str = Field(
-        default="选择题",
+        default="选择",
         max_length=64,
         description="题型：选择 / 填空 / 解答",
     )
@@ -52,7 +52,7 @@ class QuestionItem(BaseModel):
     options: list[str] = Field(default_factory=list, description="选项（选择题时使用）")
     answer: str = Field(..., description="答案")
     analysis: str = Field(default="", description="解析")
-    design_intent: str | None = Field(default=None, description="AI 改编/设计思路（参考题场景）")
+    design_logic: str | None = Field(default=None, description="AI 改编/设计思路（参考题场景）；字段名为既有 API contract，勿改")
     type_tag: str | None = Field(default=None, description="题目类型标签，如「陷阱题」「巩固题」")
     question_type: str | None = Field(default=None, description="题型：选择/填空/解答，综合生成时按实际题型填写")
     student_id: int | None = Field(default=None, description="学生 ID，归属该学生；空为公共题")

@@ -119,6 +119,11 @@ class AppSettings(BaseSettings):
 
 settings = AppSettings()
 
+# RB06：生产环境禁止通配 CORS origin（与 allow_credentials=true 不兼容的安全契约）。
+# 失败信息只说明策略本身，绝不输出任何配置值。
+if settings.is_production and any(origin == "*" for origin in settings.cors_origins):
+    raise RuntimeError("wildcard CORS origin is not allowed in production")
+
 
 def get_settings() -> AppSettings:
     """Return the ingested application snapshot; consumers never re-read env."""

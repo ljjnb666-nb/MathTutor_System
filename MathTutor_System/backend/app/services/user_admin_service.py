@@ -5,7 +5,7 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.security import get_password_hash
+from app.core.security import PasswordPolicyError, get_password_hash
 from app.models.agent_artifact import AgentAction, AgentArtifact
 from app.models.agent_run import AgentRun
 from app.models.exam import Exam
@@ -132,9 +132,16 @@ def create_user_with_default_subscription(db: Session, body: UserCreate) -> User
     if existing:
         raise UserAdminServiceError(400, "用户名已存在")
 
+    # RB05：DTO 长度按字符，UTF-8 字节上限（bcrypt 72B）与空白密码只能在
+    # policy authority 处发现 —— 映射为 400 安全话术，不允许 500。
+    try:
+        hashed_password = get_password_hash(body.password)
+    except PasswordPolicyError as exc:
+        raise UserAdminServiceError(400, str(exc)) from None
+
     user = User(
         username=body.username,
-        hashed_password=get_password_hash(body.password),
+        hashed_password=hashed_password,
         role=body.role or "teacher",
         is_active=True,
     )
