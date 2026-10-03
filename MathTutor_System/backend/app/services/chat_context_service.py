@@ -63,7 +63,7 @@ def build_chat_context(db: Session, request: ChatRequest, current_user: User, ll
     use_kb = request.use_knowledge_base and bool(knowledge_point)
     if use_kb:
         sub = get_current_subscription(current_user, db)
-        require_feature(sub, "rag", current_user)
+        require_feature(sub, "rag", current_user, db)
 
     student_name: str | None = None
     if request.student_id is not None:

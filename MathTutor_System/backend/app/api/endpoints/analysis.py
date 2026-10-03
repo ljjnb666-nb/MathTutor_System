@@ -2,6 +2,7 @@
 学情分析接口：知识点掌握情况（弱项/已掌握）、多学生总览、学情趋势。按当前用户隔离。
 """
 from datetime import date, datetime, timedelta
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_
@@ -13,6 +14,8 @@ from app.models.mistake import MistakeRecord
 from app.models.student import Student
 from app.models.user import User
 from app.services.topic_service import split_topics
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -67,11 +70,8 @@ async def get_student_mastery(
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-
-        traceback.print_exc()
-        detail = str(e).strip() or "获取学情分析失败"
-        raise HTTPException(status_code=500, detail=f"获取学情分析失败: {detail}")
+        logger.error("mastery_analytics_failed error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="ANALYTICS_ERROR: 获取学情分析失败，请稍后重试。") from None
 
 
 @router.get("/students-overview")
@@ -133,10 +133,8 @@ async def get_students_overview(
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail="获取学生总览失败")
+        logger.error("student_overview_failed error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="ANALYTICS_ERROR: 获取学生总览失败，请稍后重试。") from None
 
 
 def _week_start(d: date) -> date:
@@ -204,7 +202,5 @@ async def get_student_trend(
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail="获取学情趋势失败")
+        logger.error("trend_analytics_failed error_type=%s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="ANALYTICS_ERROR: 获取学情趋势失败，请稍后重试。") from None

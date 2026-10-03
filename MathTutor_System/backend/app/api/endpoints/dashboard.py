@@ -3,6 +3,7 @@
 仅统计本人创建的题目/试卷；student_id 仅表示布置/业务上下文。
 """
 from datetime import date, datetime
+import logging
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
@@ -17,6 +18,7 @@ from app.models.question import Question
 from app.models.student import Student
 from app.models.user import User
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -130,10 +132,8 @@ def get_dashboard_stats(
             recent_exams=recent_exams,
             knowledge_distribution=knowledge_distribution,
         )
-    except Exception:
-        import traceback
-
-        traceback.print_exc()
+    except Exception as e:
+        logger.error("dashboard_stats_failed error_type=%s", type(e).__name__)
         return DashboardStatsResponse(
             total_questions=0,
             total_exams=0,

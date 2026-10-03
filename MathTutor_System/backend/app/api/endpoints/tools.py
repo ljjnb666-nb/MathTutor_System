@@ -5,7 +5,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session
 
 from app.api.endpoints.auth import get_current_user
@@ -20,8 +20,8 @@ router = APIRouter()
 
 
 class GeneratePPTRequest(BaseModel):
-    topic: str = Field(..., description="主题，如 Pythagorean Theorem")
-    grade: str = Field(default="Middle", description="学段：Primary | Middle | High School")
+    topic: str = Field(..., min_length=1, max_length=255, description="主题，如 Pythagorean Theorem")
+    grade: str = Field(default="Middle", max_length=64, description="学段：Primary | Middle | High School")
 
 
 def _sanitize_pptx_filename(name: str) -> str:
@@ -33,10 +33,28 @@ def _sanitize_pptx_filename(name: str) -> str:
     return s + ".pptx" if not s.lower().endswith(".pptx") else s
 
 
+class PPTSlideInput(BaseModel):
+    """单页幻灯片输入（SEC-08：页数、每页要点数与文本长度均有硬上限）。"""
+
+    model_config = ConfigDict(extra="ignore")
+
+    layout: str = Field(default="content", max_length=32, description="title | content")
+    title: str = Field(default="", max_length=255)
+    subtitle: str = Field(default="", max_length=500)
+    bullets: list[str] = Field(default_factory=list, max_length=12)
+
+    @model_validator(mode="after")
+    def _bound_bullets(self) -> "PPTSlideInput":
+        for bullet in self.bullets:
+            if len(bullet) > 500:
+                raise ValueError("单条要点不能超过 500 字符")
+        return self
+
+
 class BuildPPTRequest(BaseModel):
-    title: str = Field(default="", description="演示文稿标题")
-    slides: list = Field(..., description="幻灯片列表，每项含 layout, title, subtitle?, bullets?")
-    filename: str | None = Field(None, description="下载时使用的文件名（不含路径），不含 .pptx 则自动追加")
+    title: str = Field(default="", max_length=255, description="演示文稿标题")
+    slides: list[PPTSlideInput] = Field(..., min_length=1, max_length=30, description="幻灯片列表，最多 30 页")
+    filename: str | None = Field(None, max_length=180, description="下载时使用的文件名（不含路径），不含 .pptx 则自动追加")
 
 
 @router.post("/generate-ppt")
@@ -50,7 +68,7 @@ def api_generate_ppt(
     根据主题与学段生成讲稿内容（JSON），供前端预览；不返回文件。需专业版及以上套餐。
     """
     sub = get_current_subscription(current_user, db)
-    require_feature(sub, "magic_ppt", current_user)
+    require_feature(sub, "magic_ppt", current_user, db)
     topic = (body.topic or "").strip()
     grade = (body.grade or "Middle").strip() or "Middle"
 
@@ -85,15 +103,18 @@ def api_build_pptx(
     根据已有讲稿 JSON 生成 .pptx 文件并返回，供「下载 PPT」使用。需专业版及以上套餐。
     """
     sub = get_current_subscription(current_user, db)
-    require_feature(sub, "magic_ppt", current_user)
+    require_feature(sub, "magic_ppt", current_user, db)
     try:
-        content = {"title": body.title or "Lesson", "slides": body.slides or []}
+        content = {
+            "title": body.title or "Lesson",
+            "slides": [slide.model_dump(exclude_none=True) for slide in body.slides],
+        }
         if not content["slides"]:
             raise HTTPException(status_code=400, detail="slides 不能为空")
-        buf = create_pptx_file(content)
+        buffer = create_pptx_file(content)
         filename = _sanitize_pptx_filename(body.filename or "")
         return Response(
-            content=buf.getvalue(),
+            content=buffer.getvalue(),
             media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
             headers={
                 "Content-Disposition": f'attachment; filename="{filename}"',

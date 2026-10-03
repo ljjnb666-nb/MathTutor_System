@@ -14,7 +14,7 @@ class StudentCreate(BaseModel):
     class_name: str = Field(..., min_length=1, max_length=64, description="班级，如 3班")
     tags: list[str] = Field(default_factory=list, description="标签，如 [数学课代表, 几何弱项]")
     login_code: str | None = Field(None, min_length=1, max_length=32, description="学生端登录码，唯一")
-    password: str | None = Field(None, min_length=1, max_length=128, description="学生端登录密码（可选）")
+    password: str | None = Field(None, min_length=8, max_length=128, description="学生端登录密码；启用登录码时必填")
 
 
 class StudentUpdate(BaseModel):
@@ -26,7 +26,7 @@ class StudentUpdate(BaseModel):
     tags: list[str] | None = Field(None, description="标签列表")
     performance_score: int | None = Field(None, ge=0, le=100, description="综合评分 0-100")
     login_code: str | None = Field(None, min_length=1, max_length=32, description="学生端登录码，唯一")
-    password: str | None = Field(None, min_length=1, max_length=128, description="学生端登录密码（可选）")
+    password: str | None = Field(None, min_length=8, max_length=128, description="学生端登录密码；启用登录码时必填")
 
 
 class StudentResponse(BaseModel):
@@ -69,11 +69,13 @@ class StudentLoginRequest(BaseModel):
     """学生端登录请求"""
 
     login_code: str = Field(..., min_length=1, max_length=32, description="登录码")
-    password: str | None = Field(None, max_length=128, description="密码（若已设置则必填）")
+    # RB02-B：密码必填（1-128），避免「不传密码」区分登录码是否存在；
+    # 不设 min_length=8 —— 历史 8 位以下密码仍须允许登录，新策略只约束新 hash。
+    password: str = Field(..., min_length=1, max_length=128, description="密码")
 
 
 class StudentPasswordUpdate(BaseModel):
     """学生端修改密码请求"""
 
     old_password: str = Field(..., min_length=1, max_length=128, description="当前密码")
-    new_password: str = Field(..., min_length=1, max_length=128, description="新密码")
+    new_password: str = Field(..., min_length=8, max_length=128, description="新密码（至少 8 位）")

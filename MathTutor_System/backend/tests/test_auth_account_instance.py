@@ -43,7 +43,7 @@ def instance_db(password_hash):
         ])
         db.flush()
         db.add(Student(id=12, user_id=99, name="Collision student", grade="8", class_name="1",
-                       login_code="instance-student"))
+                       login_code="instance-student", hashed_password=password_hash))
         db.commit()
         yield db
     engine.dispose()
@@ -222,8 +222,8 @@ def test_inactive_instance_is_rejected(client, instance_db):
 
 
 def test_student_login_preserves_student_domain_and_cannot_enter_teacher(client, instance_db):
-    # 2B5A-AUTH-11: real student login still has no teacher uid claim.
-    response = client.post("/api/student/token", json={"login_code": "instance-student"})
+    # 2B5A-AUTH-11: real student login (code + password since SEC-01) still has no teacher uid claim.
+    response = client.post("/api/student/token", json={"login_code": "instance-student", "password": fixture_password()})
     assert response.status_code == 200
     token = response.json()["access_token"]
     payload = decode_access_token(token)

@@ -17,7 +17,7 @@ class UserCreate(BaseModel):
     """创建新管理员"""
 
     username: str = Field(..., min_length=1, max_length=128, description="登录名")
-    password: str = Field(..., min_length=6, max_length=128, description="明文密码")
+    password: str = Field(..., min_length=8, max_length=128, description="明文密码（至少 8 位）")
     role: str = Field(default="teacher", description="角色：teacher | admin")
 
 

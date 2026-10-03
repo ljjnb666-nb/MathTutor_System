@@ -122,7 +122,7 @@ def test_update_student_for_user_normalizes_login_code_and_password():
     updated = update_student_for_user(
         db,
         student.id,
-        StudentUpdate(login_code="  alice  ", password="secret"),
+        StudentUpdate(login_code="  alice  ", password="alice-pass-9"),
         user,
     )
 

@@ -1,9 +1,11 @@
 ﻿"""
 AI 鍑洪鎺ュ彛锛氭帴鏀跺墠绔弬鏁颁笌璇锋眰澶翠腑鐨?LLM 閰嶇疆锛岃皟鐢?llm_service锛岃繑鍥為鐩垪琛ㄣ€?"""
+import json
 import logging
 import traceback
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session
 
 from app.api.endpoints.auth import get_current_user
@@ -45,7 +47,7 @@ async def api_generate_weak_point(
         )
     if request.use_knowledge_base:
         sub = get_current_subscription(current_user, db)
-        require_feature(sub, "rag", current_user)
+        require_feature(sub, "rag", current_user, db)
     if not (llm_config.api_key or "").strip():
         raise HTTPException(
             status_code=400,
@@ -93,7 +95,7 @@ async def api_generate(
         get_student_or_404(db, request.student_id, current_user)
     if request.use_knowledge_base:
         sub = get_current_subscription(current_user, db)
-        require_feature(sub, "rag", current_user)
+        require_feature(sub, "rag", current_user, db)
     if not (llm_config.api_key or "").strip():
         raise HTTPException(
             status_code=400,
@@ -131,7 +133,7 @@ async def api_generate_exam(
         get_student_or_404(db, request.student_id, current_user)
     if request.use_knowledge_base:
         sub = get_current_subscription(current_user, db)
-        require_feature(sub, "rag", current_user)
+        require_feature(sub, "rag", current_user, db)
     if not (llm_config.api_key or "").strip():
         raise HTTPException(
             status_code=400,
@@ -150,9 +152,35 @@ async def api_generate_exam(
         raise HTTPException(status_code=500, detail="EXAM_GENERATION_ERROR: 生成试卷失败，请稍后重试。") from None
 
 
+class VerifyQuestionRequest(BaseModel):
+    """SEC-08：题目校对输入预算——单题、字段全部限长，扩展字段一并限制。"""
+
+    model_config = ConfigDict(extra="allow")
+
+    content: str = Field(..., min_length=1, max_length=8000)
+    options: list[str] = Field(default_factory=list, max_length=10)
+    answer: str = Field(default="", max_length=4000)
+    analysis: str = Field(default="", max_length=4000)
+    question_type: str = Field(default="", max_length=64)
+    difficulty: str = Field(default="", max_length=8)
+
+    @model_validator(mode="after")
+    def _bound_extra(self) -> "VerifyQuestionRequest":
+        for option in self.options:
+            if len(option) > 2000:
+                raise ValueError("单个选项不能超过 2000 字符")
+        extras = self.__pydantic_extra__ or {}
+        if len(extras) > 20:
+            raise ValueError("扩展字段数量过多")
+        for key, value in extras.items():
+            if len(json.dumps(value, ensure_ascii=False, default=str)) > 4000:
+                raise ValueError(f"扩展字段 {key} 过长")
+        return self
+
+
 @router.post("/verify")
 async def api_verify_question(
-    body: dict = Body(..., description="寰呮牎瀵圭殑棰樼洰瀵硅薄 (content, options, answer, analysis 绛?"),
+    body: VerifyQuestionRequest,
     llm_config: LLMConfig = Depends(get_llm_config),
     current_user: User = Depends(get_current_user),
 ) -> dict:
@@ -164,7 +192,7 @@ async def api_verify_question(
             detail="未配置 API Key。请在前端设置中填写，或在后端 .env 中配置 LLM_API_KEY。",
         )
     try:
-        result = await verify_question_async(body, llm_config)
+        result = await verify_question_async(body.model_dump(exclude_none=True), llm_config)
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

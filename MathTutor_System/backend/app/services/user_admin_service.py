@@ -1,11 +1,12 @@
 """Business logic for admin user and subscription management."""
+import logging
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.security import get_password_hash
+from app.core.security import PasswordPolicyError, get_password_hash
 from app.models.agent_artifact import AgentAction, AgentArtifact
 from app.models.agent_run import AgentRun
 from app.models.exam import Exam
@@ -22,6 +23,10 @@ from app.models.subscription_history import SubscriptionHistory
 from app.models.user import User, USER_DELETION_ACTIVE
 from app.schemas.plan_dto import SubscriptionHistoryItem
 from app.schemas.user_dto import UserCreate, UserResponse
+
+# RF02-04: batch error handlers log only user_id + error_type — never exception
+# text or any secret-shaped payload.
+logger = logging.getLogger(__name__)
 
 DEFAULT_PAID_DAYS = 30
 
@@ -132,9 +137,16 @@ def create_user_with_default_subscription(db: Session, body: UserCreate) -> User
     if existing:
         raise UserAdminServiceError(400, "用户名已存在")
 
+    # RB05：DTO 长度按字符，UTF-8 字节上限（bcrypt 72B）与空白密码只能在
+    # policy authority 处发现 —— 映射为 400 安全话术，不允许 500。
+    try:
+        hashed_password = get_password_hash(body.password)
+    except PasswordPolicyError as exc:
+        raise UserAdminServiceError(400, str(exc)) from None
+
     user = User(
         username=body.username,
-        hashed_password=get_password_hash(body.password),
+        hashed_password=hashed_password,
         role=body.role or "teacher",
         is_active=True,
     )
@@ -204,9 +216,14 @@ def batch_set_or_extend_subscriptions(
             try:
                 _apply_plan_to_user(db, user_id, plan, period_days, now)
                 updated += 1
+            except UserAdminServiceError as exc:
+                # 受控领域异常：detail 是代码内固定话术，可直接给管理端。
+                db.rollback()
+                failed.append({"user_id": user_id, "reason": exc.detail})
             except Exception as exc:
                 db.rollback()
-                failed.append({"user_id": user_id, "reason": str(exc)})
+                logger.warning("batch_plan_apply_failed user_id=%s error_type=%s", user_id, type(exc).__name__)
+                failed.append({"user_id": user_id, "reason": "订阅操作失败，请稍后重试"})
         return {"updated": updated, "failed": failed}
 
     if not period_days:
@@ -236,7 +253,8 @@ def batch_set_or_extend_subscriptions(
             updated += 1
         except Exception as exc:
             db.rollback()
-            failed.append({"user_id": user_id, "reason": str(exc)})
+            logger.warning("batch_extend_failed user_id=%s error_type=%s", user_id, type(exc).__name__)
+            failed.append({"user_id": user_id, "reason": "续期操作失败，请稍后重试"})
 
     return {"updated": updated, "failed": failed}
 

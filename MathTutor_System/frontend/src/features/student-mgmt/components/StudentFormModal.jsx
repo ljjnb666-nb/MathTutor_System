@@ -125,7 +125,7 @@ export default function StudentFormModal({
                 e.currentTarget.style.borderColor = 'var(--color-border-primary)'
               }}
             />
-            <p className="mt-1 text-xs" style={{ color: '#d97706' }}>每个学生的登录码必须唯一，重复时保存会报错。</p>
+            <p className="mt-1 text-xs" style={{ color: '#d97706' }}>每个学生的登录码必须唯一，重复时保存会报错；启用学生端登录时必须同时设置密码。</p>
           </div>
 
           <div>
@@ -134,7 +134,8 @@ export default function StudentFormModal({
               type="password"
               value={form.password}
               onChange={(e) => onSetForm((prev) => ({ ...prev, password: e.target.value }))}
-              placeholder={editingStudent ? '不修改请留空' : '不填则仅用登录码登录'}
+              placeholder={editingStudent ? '不修改请留空' : '启用登录码时必填（至少 8 位）'}
+              minLength={form.password ? 8 : undefined}
               className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 transition-all"
               style={{ border: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-bg-input)', color: 'var(--color-text-primary)' }}
               onFocus={(e) => {

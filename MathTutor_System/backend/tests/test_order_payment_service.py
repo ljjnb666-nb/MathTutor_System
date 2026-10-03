@@ -618,6 +618,9 @@ def test_handle_alipay_notify_missing_plan_fails_without_paid_state(signed_alipa
 
 
 def test_handle_wechat_notify_missing_plan_rejected(monkeypatch):
+    """SEC-03 之后：只有完整合法的回调才会走到套餐缺失的业务失败。"""
+    monkeypatch.setattr(service, "WECHAT_MCHID", "1900006789")
+    monkeypatch.setattr(service, "WECHAT_APPID", "wx-test-appid")
     monkeypatch.setattr(
         service,
         "verify_wechat_callback",
@@ -625,6 +628,9 @@ def test_handle_wechat_notify_missing_plan_rejected(monkeypatch):
             "out_trade_no": "order-1",
             "trade_state": "SUCCESS",
             "transaction_id": "wx-t1",
+            "mchid": "1900006789",
+            "appid": "wx-test-appid",
+            "amount": {"currency": "CNY", "total": "1000"},
         },
     )
     db = make_db()

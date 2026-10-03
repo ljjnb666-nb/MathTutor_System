@@ -75,7 +75,10 @@ def get_current_student_from_token(db: Session, token: str | None) -> Student:
     student = db.query(Student).filter(Student.auth_subject == sub).populate_existing().first()
     if not student or student.id != sid or student.user_id != owner_uid:
         raise _auth_error("学生不存在")
-    if not student.login_code or not student.login_code.strip():
+    # RB02-A：学生端凭证的 active invariant 是「登录码 + 密码」同时存在。
+    # 部署前签发的 code-only 合法 JWT 在凭证降级后同样失效，避免契约不一致。
+    if (not student.login_code or not student.login_code.strip()
+            or not student.hashed_password or not student.hashed_password.strip()):
         raise _auth_error("该账号未开通学生端登录")
     _validate_student_owner(db, student, auth_subject=owner_sub)
     return student
@@ -87,11 +90,13 @@ def login_student(db: Session, login_code: str, password: str | None) -> Token:
         raise _auth_error("登录码或密码错误")
 
     owner = _validate_student_owner(db, student)
-    if student.hashed_password and student.hashed_password.strip():
-        if not password or not password.strip():
-            raise _auth_error("请输入密码")
-        if not verify_password(password, student.hashed_password):
-            raise _auth_error("登录码或密码错误")
+    # SEC-01/RB02-B：登录码 + 密码必须同时存在；缺密码与错密码、未知登录码
+    # 一律同一句话，不形成「登录码是否存在」的枚举 oracle。
+    if (not student.hashed_password or not student.hashed_password.strip()
+            or not password or not password.strip()):
+        raise _auth_error("登录码或密码错误")
+    if not verify_password(password, student.hashed_password):
+        raise _auth_error("登录码或密码错误")
 
     access_token = create_access_token(data={
         "type": "student", "sub": student.auth_subject, "sid": student.id,
@@ -105,7 +110,11 @@ def update_student_password(db: Session, student: Student, old_password: str, ne
         raise StudentPortalServiceError(400, "您尚未设置密码，无法修改。请联系老师在学生管理中为您设置密码。")
     if not verify_password(old_password, student.hashed_password):
         raise StudentPortalServiceError(400, "当前密码错误")
-    student.hashed_password = get_password_hash(new_password)
+    # 旧密码只做校验不套用新规则；新密码必须满足统一 policy。
+    try:
+        student.hashed_password = get_password_hash(new_password)
+    except ValueError as exc:
+        raise StudentPortalServiceError(400, str(exc)) from None
     db.commit()
     return {"detail": "密码已修改"}
 

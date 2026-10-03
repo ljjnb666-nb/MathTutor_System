@@ -136,7 +136,7 @@ def get_teacher_schedule(db: Session, user: User, args: ToolArgs, llm_config: LL
 
 def search_owned_rag(db: Session, user: User, args: ToolArgs, llm_config: LLMConfig) -> dict:
     sub = get_current_subscription(user, db)
-    require_feature(sub, "rag", user)
+    require_feature(sub, "rag", user, db)
     query = (args.query or args.knowledge_point or "").strip()
     if not query:
         return {"context": "", "sources": [], "warning": "No RAG query was provided."}

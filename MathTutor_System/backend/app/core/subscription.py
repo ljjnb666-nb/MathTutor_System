@@ -58,6 +58,19 @@ def count_students_for_user(user_id: int, db: Session) -> int:
     return db.query(Student).filter(Student.user_id == user_id).count()
 
 
+BROKEN_PLAN_DETAIL = "系统套餐状态异常，请联系管理员"
+INACTIVE_SUBSCRIPTION_DETAIL = "当前订阅未生效，请续费或联系管理员后再使用该功能。"
+
+
+def _resolve_plan(subscription: Subscription, db: Session) -> Plan | None:
+    """刷新后仍拿不到 plan 即视为 entitlement 关系损坏。"""
+    plan = subscription.plan
+    if plan is None:
+        db.refresh(subscription)
+        plan = subscription.plan
+    return plan
+
+
 def require_plan_capacity(
     current_user: User,
     subscription: Subscription,
@@ -66,15 +79,22 @@ def require_plan_capacity(
     """
     校验当前学生数 < plan.max_students；超出则 403。
     管理员（role=admin）跳过限制。
+    SEC-02：对非 admin 一律 fail closed —— 订阅非 active（如已过期但 plan_id
+    仍指向付费套餐）不得按该套餐容量创建学生；套餐关系损坏 → 503。
     """
     if current_user.role == "admin":
         return
-    plan = subscription.plan
+    if subscription.status != "active":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=INACTIVE_SUBSCRIPTION_DETAIL,
+        )
+    plan = _resolve_plan(subscription, db)
     if plan is None:
-        db.refresh(subscription)
-        plan = subscription.plan
-    if plan is None:
-        return
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=BROKEN_PLAN_DETAIL,
+        )
     current_count = count_students_for_user(current_user.id, db)
     if current_count >= plan.max_students:
         raise HTTPException(
@@ -83,16 +103,25 @@ def require_plan_capacity(
         )
 
 
-def require_feature(subscription: Subscription, feature_key: str, current_user: User) -> None:
+def require_feature(subscription: Subscription, feature_key: str, current_user: User, db: Session) -> None:
     """
     校验套餐是否开通某功能（如 magic_ppt、rag）；未开通则 403。
     管理员跳过。
+    SEC-02：非 admin 一律 fail closed —— 订阅非 active、套餐关系损坏均不得放行付费功能。
     """
     if current_user.role == "admin":
         return
-    plan = subscription.plan
+    if subscription.status != "active":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=INACTIVE_SUBSCRIPTION_DETAIL,
+        )
+    plan = _resolve_plan(subscription, db)
     if plan is None:
-        return
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=BROKEN_PLAN_DETAIL,
+        )
     raw = getattr(plan, "features", None)
     features = raw if isinstance(raw, dict) else {}
     if not features.get(feature_key):
