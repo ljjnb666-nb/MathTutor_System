@@ -8,7 +8,7 @@ PHASE 2C-5：含显式数学定界符的字段经 ppt_math_renderer 渲染为透
 """
 import math
 from io import BytesIO
-from typing import Any
+from typing import Any, NamedTuple
 
 from pptx import Presentation
 from pptx.dml.color import RGBColor
@@ -54,11 +54,19 @@ BODY_CONTENT_BOTTOM = _CARD_BOTTOM - _BODY_BOTTOM_PAD
 # ---- 正文有界排布参数（RB01 deterministic bounded layout）----
 _BODY_PT = 19                     # 正文首选字号（沿用既有值）
 _BODY_MIN_PT = 11                 # 流式布局正文字号下限；低于此转入 whole-body fallback
-_BODY_GAP = Pt(16)                # 首选条间距
-_BODY_GAP_MIN = Pt(6)             # 收缩后的最小条间距
 _MIN_IMAGE_SCALE = 0.25           # 数学 PNG 等比收缩下限；低于此转入 whole-body fallback
 _BODY_FONT_LADDER_STEP = 1.0      # whole-body fallback 字号步进
 _LAYOUT_EPS_IN = 0.01             # 几何比较容差（英寸）
+
+# ---- RB01-EXT：文本流测量契约（measurement == emission）----
+# 行高系数与文本框内边距都是发射与测量共用的唯一模型：
+# 写入 PowerPoint 的每个正文/副标题文本框都显式应用 _apply_textbox_margins，
+# 测量高度一律用 _measure_text_block（newline 先切逻辑行、逐行按可用宽度 soft-wrap）。
+_LINE_HEIGHT_FACTOR = 1.45        # 单行高度 = font_pt * 该系数 / 72 英寸
+_TEXTBOX_H_MARGIN = Inches(0.05)  # 文本框左右内边距（显式常量，计入可用宽度）
+_TEXTBOX_V_MARGIN = 0             # 文本框上下内边距显式为 0：框高即内容可用高
+_BODY_GAP_PT = 16.0               # 首选段间距（pt）
+_BODY_GAP_MIN_PT = 6.0            # 收缩后的最小段间距（pt）
 
 # ---- 内容页副标题（RB02 export semantics）----
 _SUBTITLE_PT = 14
@@ -174,56 +182,109 @@ def _add_field_picture(shapes, image: MathFieldImage, left_in: float, top_in: fl
     return h
 
 
-def _estimate_bullet_height(text: str, width_in: float, font_pt: float) -> float:
-    """估算原生文本要点占高（全角字符按 1 个全宽计）。"""
-    units = sum(2 if ord(c) > 0x2E80 else 1 for c in text) / 2
-    per_line = max(1.0, width_in * 72 / font_pt)
-    lines = max(1, math.ceil(units / per_line))
-    return lines * font_pt * 1.45 / 72
+# ---- RB01/RB01-EXT：确定性有界正文排布与文本流测量契约 ----
 
 
-# ---- RB01：确定性有界正文排布 ----
+def _count_block_lines(text: str, font_pt: float, usable_w_in: float) -> int:
+    """单一权威行数模型：显式换行（\\n 与 <a:br/> 对应）先切逻辑行，
+    每个逻辑行再按可用宽度 soft-wrap；全角字符按 1 个全宽计。"""
+    per_line = max(1.0, usable_w_in * 72.0 / font_pt)
+    count = 0
+    for logical_line in text.splitlines() or [""]:
+        units = sum(2 if ord(c) > 0x2E80 else 1 for c in logical_line) / 2
+        count += max(1, math.ceil(units / per_line))
+    return count
 
 
-def _solve_body_font(lines: list[str], width_in: float, avail_h_in: float,
-                     start_pt: float = _BODY_PT) -> float:
-    """确定性字号求解：从 start_pt 逐级下探，返回能放进 avail_h 的最大字号。
+def _measure_text_block(text: str, font_pt: float, usable_w_in: float) -> float:
+    """单一权威段落块高度（英寸）。planner 与 writer 必须都用本函数：
+    发射端每个正文/副标题文本框都带 _apply_textbox_margins 写入的同一 margins，
+    显式换行经 paragraph.text setter 变成 <a:br/> 软换行，语义与此测量一致。"""
+    return _count_block_lines(text, font_pt, usable_w_in) * font_pt * _LINE_HEIGHT_FACTOR / 72.0
 
-    never silent-drop：极端密度（如 12×500 字符合法 payload）允许字号低于可读下限，
-    该产品债登记为 PPT_SLIDE_CONTENT_DENSITY_LIMIT；内容绝不被截断或丢弃。
+
+def _usable_text_width(box_w_in: float) -> float:
+    """文本框可用宽度：显式减去 _apply_textbox_margins 写入的左右内边距。"""
+    return box_w_in - 2.0 * (_TEXTBOX_H_MARGIN / _EMU_PER_INCH)
+
+
+def _apply_textbox_margins(box) -> None:
+    """显式写入文本框内边距（上下 0、左右已知常量）——测量契约的发射半边。"""
+    frame = box.text_frame
+    frame.margin_top = _TEXTBOX_V_MARGIN
+    frame.margin_bottom = _TEXTBOX_V_MARGIN
+    frame.margin_left = _TEXTBOX_H_MARGIN
+    frame.margin_right = _TEXTBOX_H_MARGIN
+
+
+class TextBlockLayout(NamedTuple):
+    """正文文本栈的确定性排布计划（backend 内部布局契约，不暴露给客户端）。
+
+    planner 用它评估是否放得下；writer 按同一 font_pt/gap_pt 发射：
+    段 1..N-1 space_after = gap_pt，最后一段 space_after = 0。
     """
-    font = float(start_pt)
+    font_pt: float
+    gap_pt: float
+    line_counts: tuple[int, ...]
+    heights_in: tuple[float, ...]
+    total_h_in: float
+
+
+def _plan_body_stack(body_lines: list[str], box_w_in: float, usable_h_in: float) -> TextBlockLayout:
+    """确定性求解正文 (font, gap)：首选间距优先，其次最小间距，字号逐级下探；
+    全部候选都用同一测量权威评估。极端密度允许字号低于可读下限，
+    该产品债登记为 PPT_SLIDE_CONTENT_DENSITY_LIMIT；内容绝不截断或丢弃。
+    box_w_in 为文本框全宽；可用宽度由 _usable_text_width 权威扣除。"""
+    usable_w_in = _usable_text_width(box_w_in)
+
+    def build(font_pt: float, gap_pt: float) -> TextBlockLayout:
+        labels = [f"•  {line}" for line in body_lines]
+        line_counts = tuple(_count_block_lines(t, font_pt, usable_w_in) for t in labels)
+        heights = tuple(_measure_text_block(t, font_pt, usable_w_in) for t in labels)
+        gaps_in = gap_pt * (len(labels) - 1) / 72.0
+        return TextBlockLayout(font_pt, gap_pt, line_counts, heights, sum(heights) + gaps_in)
+
+    for gap_pt in (_BODY_GAP_PT, _BODY_GAP_MIN_PT):
+        font = float(_BODY_PT)
+        while font >= _BODY_MIN_PT:
+            plan = build(font, gap_pt)
+            if plan.total_h_in <= usable_h_in + _LAYOUT_EPS_IN:
+                return plan
+            font -= _BODY_FONT_LADDER_STEP
+    font = float(_BODY_MIN_PT)
     while font > _BODY_FONT_LADDER_STEP:
-        total = sum(_estimate_bullet_height(f"•  {line}", width_in, font) for line in lines)
-        total += (len(lines) - 1) * (_BODY_GAP_MIN / _EMU_PER_INCH) * (font / _BODY_PT)
-        if total <= avail_h_in + _LAYOUT_EPS_IN:
-            break
         font -= _BODY_FONT_LADDER_STEP
-    return font
+        plan = build(font, _BODY_GAP_MIN_PT)
+        if plan.total_h_in <= usable_h_in + _LAYOUT_EPS_IN:
+            return plan
+    return build(font, _BODY_GAP_MIN_PT)
 
 
 def _add_plain_body(shapes, body_lines: list[str], body_top: int, body_w: int) -> None:
-    """无数学正文：单个原生文本框，字号经确定性求解保证预计高度不越出正文可用区。"""
-    body_top_in = body_top / _EMU_PER_INCH
+    """无数学正文：单文本框。字号/段间距由 _plan_body_stack 确定性求解，
+    emission 与测量完全一致（同 margins、同字号、段 1..N-1 space_after=gap、
+    最后一段 space_after=0）。"""
     avail_h_in = (BODY_CONTENT_BOTTOM - body_top) / _EMU_PER_INCH
-    body_w_in = body_w / _EMU_PER_INCH
-    font_pt = _solve_body_font(body_lines, body_w_in, avail_h_in)
+    plan = _plan_body_stack(body_lines, body_w / _EMU_PER_INCH, avail_h_in)
     box = shapes.add_textbox(_CONTENT_LEFT, body_top, body_w, int(avail_h_in * _EMU_PER_INCH))
     box.text_frame.word_wrap = True
+    _apply_textbox_margins(box)
+    last_index = len(body_lines) - 1
     for j, line in enumerate(body_lines):
         if j == 0:
             para = box.text_frame.paragraphs[0]
         else:
             para = box.text_frame.add_paragraph()
         para.text = f"•  {line}"
-        para.space_after = Pt(_BODY_GAP / Pt(1) * font_pt / _BODY_PT)
+        para.space_after = Pt(plan.gap_pt) if j < last_index else Pt(0)
         para.level = 0
-        _set_para_font(para, int(round(font_pt)), _BODY_COLOR)
+        _set_para_font(para, int(plan.font_pt), _BODY_COLOR)
 
 
 def _measure_flow_items(renderer, body_lines: list[str], body_w_in: float,
                         box_h_in: float) -> list[dict]:
-    """逐条量测：数学条渲染为 PNG（field 级失败回退源文本），文本条用估算高度。"""
+    """逐条量测：数学条渲染为 PNG（field 级失败回退源文本），文本条用测量权威。"""
+    usable_w_in = _usable_text_width(body_w_in)
     items: list[dict] = []
     for line in body_lines:
         labeled = f"•  {line}"
@@ -234,7 +295,7 @@ def _measure_flow_items(renderer, body_lines: list[str], body_w_in: float,
             items.append({"kind": "picture", "image": image, "w": w, "h": h})
         else:
             items.append({"kind": "text", "text": labeled, "font_pt": _BODY_PT,
-                          "h": _estimate_bullet_height(labeled, body_w_in, _BODY_PT)})
+                          "h": _measure_text_block(labeled, _BODY_PT, usable_w_in)})
     return items
 
 
@@ -257,6 +318,7 @@ def _place_flow_items(shapes, items: list[dict], body_top_in: float,
             box = shapes.add_textbox(_CONTENT_LEFT, int(y * _EMU_PER_INCH),
                                      int(body_w_in * _EMU_PER_INCH), int(box_h_in * _EMU_PER_INCH))
             box.text_frame.word_wrap = True
+            _apply_textbox_margins(box)
             para = box.text_frame.paragraphs[0]
             para.text = item["text"]
             _set_para_font(para, int(item["font_pt"]), _BODY_COLOR)
@@ -274,8 +336,8 @@ def _add_bounded_flow_body(shapes, renderer, body_lines: list[str],
     body_top_in = body_top / _EMU_PER_INCH
     avail_h_in = (BODY_CONTENT_BOTTOM - body_top) / _EMU_PER_INCH
     body_w_in = body_w / _EMU_PER_INCH
-    gap_pref_in = _BODY_GAP / _EMU_PER_INCH
-    gap_min_in = _BODY_GAP_MIN / _EMU_PER_INCH
+    gap_pref_in = _BODY_GAP_PT / 72.0
+    gap_min_in = _BODY_GAP_MIN_PT / 72.0
     single_box_h_in = max(0.2, avail_h_in - gap_min_in)
 
     items = _measure_flow_items(renderer, body_lines, body_w_in, single_box_h_in)
@@ -287,12 +349,13 @@ def _add_bounded_flow_body(shapes, renderer, body_lines: list[str],
         _place_flow_items(shapes, items, body_top_in, gap_min_in, body_w_in, avail_h_in)
         return
 
-    # 等比收缩：文本字号降到 _BODY_MIN_PT，PNG 按剩余空间等比缩放。
+    # 等比收缩：文本字号降到 _BODY_MIN_PT（同一测量权威重量），PNG 按剩余空间等比缩放。
+    flow_usable_w_in = _usable_text_width(body_w_in)
     scaled: list[dict] = []
     for item in items:
         if item["kind"] == "text":
             scaled.append({**item, "font_pt": _BODY_MIN_PT,
-                           "h": _estimate_bullet_height(item["text"], body_w_in, _BODY_MIN_PT)})
+                           "h": _measure_text_block(item["text"], _BODY_MIN_PT, flow_usable_w_in)})
         else:
             scaled.append({**item})
     gaps_h = gap_min_in * max(0, len(scaled) - 1)
@@ -465,11 +528,10 @@ def _add_section_slide(prs, slide_spec: dict, slide_num: int, total: int) -> Non
 
 def _add_content_subtitle(shapes, renderer, subtitle_text: str, sub_left_in: float,
                           sub_w_in: float, subtitle_top_in: float) -> float:
-    """内容页副标题（RB02）：plain → 原生文本，数学 → 字段 PNG，失败 → 规范源文本。
-
-    副标题占高确定性求解并封顶 _SUBTITLE_MAX_H，返回副标题底边（英寸），
-    供调用方推导正文起点；绝不与标题、正文卡、页脚互相覆盖。
-    """
+    """内容页副标题（RB02/RB01-EXT）：plain → 原生文本，数学 → 字段 PNG，
+    失败 → 规范源文本。plain/malformed 分支用同一测量权威（newline-aware、
+    margin-aware）确定性求解字号，占高封顶 _SUBTITLE_MAX_H，返回副标题底边
+    （英寸）供调用方推导正文起点；绝不与标题、正文卡、页脚互相覆盖。"""
     sub_max_h_in = _SUBTITLE_MAX_H / _EMU_PER_INCH
     image = _try_render_field(renderer, subtitle_text, font_pt=_SUBTITLE_PT,
                               color=_SUBTITLE_COLOR, width_in=sub_w_in) if renderer else None
@@ -478,16 +540,20 @@ def _add_content_subtitle(shapes, renderer, subtitle_text: str, sub_left_in: flo
         _add_field_picture(shapes, image, sub_left_in, subtitle_top_in, w, h, align="left")
         return subtitle_top_in + h
 
+    usable_sub_w_in = _usable_text_width(sub_w_in)
     font = float(_SUBTITLE_PT)
-    while font > 1.0 and _estimate_bullet_height(subtitle_text, sub_w_in, font) > sub_max_h_in:
+    while (font > 1.0
+           and _measure_text_block(subtitle_text, font, usable_sub_w_in) > sub_max_h_in):
         font -= _BODY_FONT_LADDER_STEP
-    box_h_in = min(sub_max_h_in, max(_estimate_bullet_height(subtitle_text, sub_w_in, font), 0.2))
+    measured_h_in = _measure_text_block(subtitle_text, font, usable_sub_w_in)
+    box_h_in = min(sub_max_h_in, max(measured_h_in, 0.2))
     box = shapes.add_textbox(int(sub_left_in * _EMU_PER_INCH), int(subtitle_top_in * _EMU_PER_INCH),
                              int(sub_w_in * _EMU_PER_INCH), int(box_h_in * _EMU_PER_INCH))
     box.text_frame.word_wrap = True
+    _apply_textbox_margins(box)
     para = box.text_frame.paragraphs[0]
     para.text = subtitle_text
-    _set_para_font(para, int(round(font)), _SUBTITLE_COLOR)
+    _set_para_font(para, int(font), _SUBTITLE_COLOR)
     return subtitle_top_in + box_h_in
 
 

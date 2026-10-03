@@ -158,19 +158,35 @@ def test_hostile_text_bullet_never_becomes_picture_or_link():
 # 对生成后的 PowerPoint 用 python-pptx 重开，直接断言每个正文 shape 的
 # top >= body_top 且 top + height <= BODY_CONTENT_BOTTOM，并核对页脚不被覆盖。
 
-from pptx.util import Inches
+from pptx.util import Inches, Pt
 
+import pytest
+
+from app.schemas.ppt_dto import MAX_BULLET_LENGTH
 from app.services.ppt_service import (
     BODY_CONTENT_BOTTOM,
     _BODY_BOTTOM_PAD,
+    _BODY_GAP_PT,
+    _BODY_MIN_PT,
+    _BODY_PT,
     _BODY_TOP,
     _CARD_BOTTOM,
     _CARD_BOTTOM_PAD,
+    _CONTENT_LEFT,
     _EMU_PER_INCH,
     _FOOTER_SEPARATOR_LIFT,
     _FOOTER_TOP,
+    _LINE_HEIGHT_FACTOR,
+    _MARGIN,
+    _SLIDE_W,
+    _SUBTITLE_MAX_H,
+    _TEXTBOX_H_MARGIN,
     _TITLE_BOX_H,
     _TITLE_TOP,
+    _count_block_lines,
+    _measure_text_block,
+    _plan_body_stack,
+    _usable_text_width,
 )
 
 _GEOM_EPS = int(0.02 * _EMU_PER_INCH)  # 吸收放置时的整型截断
@@ -318,6 +334,21 @@ def test_rb01_scenario_d_long_bullet_with_math_bounded():
     assert "长" * 100 in texts  # 完整长文本在场（不截断）
 
 
+def _assert_text_stack_measured_fit(box, paragraph_count: int) -> float:
+    """F：用同一测量权威核算文本栈实际占高，必须 ≤ 文本框可用高度。"""
+    paras = list(box.text_frame.paragraphs)
+    assert len([p for p in paras if p.text.strip()]) == paragraph_count
+    font_pt = paras[0].runs[0].font.size.pt
+    usable_w_in = _usable_text_width(box.width / _EMU_PER_INCH)
+    occupied = sum(_measure_text_block(p.text, font_pt, usable_w_in) for p in paras)
+    occupied += sum((p.space_after.pt if p.space_after else 0) for p in paras[:-1]) / 72.0
+    box_h_in = box.height / _EMU_PER_INCH
+    assert occupied <= box_h_in + 0.02, (
+        f"emitted text stack {occupied:.3f}in exceeds textbox {box_h_in:.3f}in"
+    )
+    return occupied
+
+
 def test_rb01_extreme_plain_density_whole_body_bounded_and_complete():
     """极端纯文本密度（12×500）：字号确定性下探，内容完整且不越界。"""
     content = {
@@ -336,6 +367,8 @@ def test_rb01_extreme_plain_density_whole_body_bounded_and_complete():
     paragraphs = [p.text for p in boxes[0].text_frame.paragraphs if p.text.strip()]
     assert len(paragraphs) == 12  # 12 条要点一条不少
     assert all(p == f"•  {'超' * 500}" for p in paragraphs)
+    # RB01-EXT F：权威测量占高 ≤ 文本框可用高度（visual fit contract）
+    _assert_text_stack_measured_fit(boxes[0], 12)
 
 
 def test_rb01_extreme_math_density_whole_body_fallback_no_silent_drop(caplog):
@@ -364,6 +397,8 @@ def test_rb01_extreme_math_density_whole_body_fallback_no_silent_drop(caplog):
     # 公式正文绝不进入日志
     assert "a^2+b^2=c^2" not in caplog.text
     assert "压力测试" not in caplog.text
+    # RB01-EXT F：whole-body fallback 的文本栈同样必须通过权威测量 fit 核算
+    _assert_text_stack_measured_fit(boxes[0], 12)
 
 
 def test_rb01_plain_path_still_bounded_without_math():
@@ -474,6 +509,224 @@ def test_rb02_no_subtitle_keeps_legacy_body_top():
     slide = prs.slides[0]
     card_top = _card_top_of(slide)
     assert card_top == _BODY_TOP - Inches(0.12)
+    _assert_body_geometry(slide)
+
+
+# ---------- RB01-EXT：文本流测量契约（measurement == emission） ----------
+
+
+def _plain_body_w_in():
+    return (_SLIDE_W - _CONTENT_LEFT - _MARGIN) / _EMU_PER_INCH
+
+
+def _plain_usable_h_in():
+    return (BODY_CONTENT_BOTTOM - _BODY_TOP) / _EMU_PER_INCH
+
+
+def _expected_plain_plan(bullets):
+    return _plan_body_stack(bullets, _plain_body_w_in(), _plain_usable_h_in())
+
+
+def _single_bullet_box(slide):
+    boxes = [
+        s for s in slide.shapes
+        if s.has_text_frame and s.text_frame.text.strip().startswith("•")
+    ]
+    assert len(boxes) == 1, f"expected single body textbox, got {len(boxes)}"
+    return boxes[0]
+
+
+def test_rb01ext_gap_authority_planner_matches_emitted_paragraphs():
+    """A（GAP A）：planner chosen font/gap 与发射的 paragraphs 完全一致；
+    段 1..N-1 space_after == chosen gap，最后一段 space_after == 0。"""
+    bullets = [f"短要点{i}" for i in range(12)]
+    plan = _expected_plain_plan(bullets)
+    # 12 条短要点在首选间距下即可放下：chosen gap 必须就是 preferred gap 本身。
+    assert plan.gap_pt == _BODY_GAP_PT
+    assert plan.total_h_in <= _plain_usable_h_in() + 0.01
+
+    content = {
+        "title": "T",
+        "slides": [{"layout": "content", "title": "学习目标", "bullets": bullets}],
+    }
+    prs = Presentation(create_pptx_file(content))
+    box = _single_bullet_box(prs.slides[0])
+    paras = box.text_frame.paragraphs
+    assert len(paras) == 12
+    for j, para in enumerate(paras):
+        expected_gap = Pt(plan.gap_pt) if j < len(paras) - 1 else Pt(0)
+        assert para.space_after == expected_gap, f"paragraph {j} spacing mismatch"
+        assert para.runs and para.runs[0].font.size == Pt(plan.font_pt), (
+            f"paragraph {j} font mismatch"
+        )
+
+
+def test_rb01ext_twelve_short_plain_bullets_measured_fit():
+    """B：12 条短 plain bullets 全部存在；权威测量占高 ≤ 可用框高；
+    发射 spacing == planner spacing；shape 仍受 BODY_CONTENT_BOTTOM 约束。"""
+    bullets = [f"要点内容第{i}条，覆盖常规正文密度。" for i in range(12)]
+    plan = _expected_plain_plan(bullets)
+    usable_h_in = _plain_usable_h_in()
+    occupied = sum(plan.heights_in) + plan.gap_pt * (len(bullets) - 1) / 72.0
+    assert occupied == pytest.approx(plan.total_h_in)
+    assert occupied <= usable_h_in + 0.01
+
+    content = {
+        "title": "T",
+        "slides": [{"layout": "content", "title": "常规", "bullets": bullets}],
+    }
+    prs = Presentation(create_pptx_file(content))
+    slide = prs.slides[0]
+    _assert_body_geometry(slide)
+    box = _single_bullet_box(slide)
+    paras = box.text_frame.paragraphs
+    assert len([p for p in paras if p.text.strip()]) == 12
+    for j, para in enumerate(paras):
+        expected_gap = Pt(plan.gap_pt) if j < len(paras) - 1 else Pt(0)
+        assert para.space_after == expected_gap
+    _assert_text_stack_measured_fit(box, 12)
+
+
+def test_rb01ext_explicit_newlines_measured_and_emitted():
+    """C1：`第一行\\n第二行\\n第三行` 的显式换行被测量正确计入，
+    并以同数量 <a:br/> 软换行发射。"""
+    bullets = ["第一行\n第二行\n第三行"]
+    plan = _expected_plain_plan(bullets)
+    assert plan.line_counts == (3,)  # 3 个逻辑行一个不少
+    assert plan.font_pt == _BODY_PT  # 低密度：字号保持首选
+    assert plan.heights_in[0] == pytest.approx(3 * _BODY_PT * _LINE_HEIGHT_FACTOR / 72)
+
+    content = {
+        "title": "T",
+        "slides": [{"layout": "content", "title": "换行要点", "bullets": bullets}],
+    }
+    prs = Presentation(create_pptx_file(content))
+    slide = prs.slides[0]
+    _assert_body_geometry(slide)
+    box = _single_bullet_box(slide)
+    para = box.text_frame.paragraphs[0]
+    assert para.text.replace("\x0b", "\n") == "•  第一行\n第二行\n第三行"
+    assert para.text.count("\x0b") == 2  # 发射的软换行数量 == 测量逻辑行数 - 1
+    _assert_text_stack_measured_fit(box, 1)
+
+
+def test_rb01ext_dense_newline_bullet_counts_every_logical_line():
+    """C2：近 500 字符、含大量显式换行的合法 bullet——每个逻辑行都被计入，
+    字号确定性下探后仍在正文区内完整呈现（不截断、不丢行）。"""
+    dense = "\n".join(["内容行"] * 100)  # 100 个逻辑行，399 字符 ≤ 500
+    assert len(dense) <= MAX_BULLET_LENGTH
+    plan = _expected_plain_plan([dense])
+    assert plan.line_counts == (100,)  # 100 个换行一个不少
+    assert plan.total_h_in <= _plain_usable_h_in() + 0.01
+
+    content = {
+        "title": "T",
+        "slides": [{"layout": "content", "title": "高密度换行", "bullets": [dense]}],
+    }
+    prs = Presentation(create_pptx_file(content))
+    slide = prs.slides[0]
+    _assert_body_geometry(slide)
+    box = _single_bullet_box(slide)
+    para = box.text_frame.paragraphs[0]
+    normalized = para.text.replace("\x0b", "\n")
+    lines = normalized.splitlines()
+    assert len(lines) == 100  # 100 个逻辑行完整发射
+    assert lines[0] == "•  内容行"
+    assert lines[-1] == "内容行"
+    assert para.text.count("\x0b") == 99
+    # 测量 == 发射：以发射字号/框宽重新测量，与 plan 一致且不超过可用框高
+    font_pt = para.runs[0].font.size.pt
+    assert font_pt == plan.font_pt
+    emitted_measured = _measure_text_block(
+        para.text, font_pt, _usable_text_width(box.width / _EMU_PER_INCH))
+    assert emitted_measured == pytest.approx(plan.heights_in[0])
+    assert emitted_measured <= _plain_usable_h_in() + 0.01
+
+
+def test_rb01ext_mixed_flow_newline_items_measured_and_bounded():
+    """D：plain-with-newline / 合法 math / malformed fallback-with-newline /
+    plain 混排页——全部条目保留、测量正确、几何有界。"""
+    bullets = [
+        "多行纯文本要点\n第二行要点",
+        "公式 $x^2$ 要点",
+        "畸形 $\\frac{1$\n换行后仍是源文本",
+        "普通要点",
+    ]
+    content = {
+        "title": "T",
+        "slides": [{"layout": "content", "title": "混排换行", "bullets": bullets}],
+    }
+    prs = Presentation(create_pptx_file(content))
+    slide = prs.slides[0]
+    _assert_body_geometry(slide)
+    assert len(_pictures(slide)) == 1  # 合法 math → PNG
+    text_shapes = _bullet_text_shapes(slide)
+    assert len(text_shapes) == 3  # 多行 plain + malformed fallback + plain
+    joined = " | ".join(s.text_frame.text for s in text_shapes)
+    assert "多行纯文本要点\x0b第二行要点" in joined
+    assert "畸形 $\\frac{1$\x0b换行后仍是源文本" in joined
+    assert "普通要点" in joined
+    # 每个 flow 文本条：发射框高 == 权威测量高度（同 margins/字号模型）
+    for shape in text_shapes:
+        run_font = shape.text_frame.paragraphs[0].runs[0].font.size.pt
+        measured = _measure_text_block(
+            shape.text_frame.text, run_font, _usable_text_width(shape.width / _EMU_PER_INCH))
+        assert shape.height / _EMU_PER_INCH == pytest.approx(measured, abs=0.02)
+
+
+def test_rb01ext_plain_subtitle_newlines_bounded():
+    """E1：多行 plain subtitle 内容完整、高度含显式换行、不覆盖 title/body card。"""
+    subtitle = "第一行\n第二行\n第三行"
+    content = {
+        "title": "T",
+        "slides": [{
+            "layout": "content",
+            "title": "概念讲解",
+            "subtitle": subtitle,
+            "bullets": ["理解直角三角形"],
+        }],
+    }
+    prs = Presentation(create_pptx_file(content))
+    slide = prs.slides[0]
+    band = _assert_subtitle_band(slide)
+    sub_boxes = [s for s in band if s.has_text_frame and "第一行" in s.text_frame.text]
+    assert len(sub_boxes) == 1
+    box = sub_boxes[0]
+    assert box.text_frame.text.replace("\x0b", "\n") == subtitle
+    assert box.text_frame.paragraphs[0].text.count("\x0b") == 2
+    font_pt = box.text_frame.paragraphs[0].runs[0].font.size.pt
+    measured = _measure_text_block(
+        box.text_frame.text, font_pt, _usable_text_width(box.width / _EMU_PER_INCH))
+    assert box.height / _EMU_PER_INCH == pytest.approx(measured, abs=0.02)
+    assert measured <= _SUBTITLE_MAX_H / _EMU_PER_INCH + 0.01
+    _assert_body_geometry(slide)
+
+
+def test_rb01ext_malformed_subtitle_with_newline_survives():
+    """E2：malformed-math fallback subtitle + 显式换行——原样保留、量测正确、
+    不覆盖 title 与 body card，也不产生任何 PNG。"""
+    subtitle = "$\\frac{1$\n第二行"
+    content = {
+        "title": "T",
+        "slides": [{
+            "layout": "content",
+            "title": "概念讲解",
+            "subtitle": subtitle,
+            "bullets": ["理解直角三角形"],
+        }],
+    }
+    prs = Presentation(create_pptx_file(content))
+    slide = prs.slides[0]
+    assert _pictures(slide) == []
+    band = _assert_subtitle_band(slide)
+    sub_boxes = [s for s in band if s.has_text_frame and "$\\frac{1$" in s.text_frame.text]
+    assert len(sub_boxes) == 1
+    box = sub_boxes[0]
+    assert box.text_frame.text.replace("\x0b", "\n") == subtitle
+    font_pt = box.text_frame.paragraphs[0].runs[0].font.size.pt
+    measured = _measure_text_block(
+        box.text_frame.text, font_pt, _usable_text_width(box.width / _EMU_PER_INCH))
+    assert box.height / _EMU_PER_INCH == pytest.approx(measured, abs=0.02)
     _assert_body_geometry(slide)
 
 
