@@ -35,9 +35,37 @@ _MARGIN = Inches(0.85)
 _CONTENT_LEFT = Inches(1.15)   # 内容区左边界（留出竖条后）
 _ACCENT_BAR_W = Inches(0.18)   # 左侧竖条略宽，更醒目
 _TITLE_TOP = Inches(0.55)
+_TITLE_BOX_H = Inches(0.75)
 _BODY_TOP = Inches(1.45)
+_BODY_TOP_NO_TITLE = Inches(1.0)
 _FOOTER_TOP = Inches(6.85)
 _FONT_NAME = "Microsoft YaHei"
+
+# ---- RB01：正文几何权威 ----
+# 内容卡底边与正文可用下界都从 _FOOTER_TOP 推导：页脚分隔线位于
+# _FOOTER_TOP - _FOOTER_SEPARATOR_LIFT，正文任何 shape（原生文本框或数学 PNG）
+# 的底边都不得超过 BODY_CONTENT_BOTTOM。除此之外不得再引入正文下界 magic number。
+_FOOTER_SEPARATOR_LIFT = Pt(10)   # 页脚分隔线相对 _FOOTER_TOP 的上移量
+_CARD_BOTTOM_PAD = Inches(0.15)   # 内容卡底边与页脚的间距
+_BODY_BOTTOM_PAD = Inches(0.08)   # 正文最后一条与内容卡底边的余量
+_CARD_BOTTOM = _FOOTER_TOP - _CARD_BOTTOM_PAD
+BODY_CONTENT_BOTTOM = _CARD_BOTTOM - _BODY_BOTTOM_PAD
+
+# ---- 正文有界排布参数（RB01 deterministic bounded layout）----
+_BODY_PT = 19                     # 正文首选字号（沿用既有值）
+_BODY_MIN_PT = 11                 # 流式布局正文字号下限；低于此转入 whole-body fallback
+_BODY_GAP = Pt(16)                # 首选条间距
+_BODY_GAP_MIN = Pt(6)             # 收缩后的最小条间距
+_MIN_IMAGE_SCALE = 0.25           # 数学 PNG 等比收缩下限；低于此转入 whole-body fallback
+_BODY_FONT_LADDER_STEP = 1.0      # whole-body fallback 字号步进
+_LAYOUT_EPS_IN = 0.01             # 几何比较容差（英寸）
+
+# ---- 内容页副标题（RB02 export semantics）----
+_SUBTITLE_PT = 14
+_SUBTITLE_MIN_PT = 10
+_SUBTITLE_MAX_H = Inches(1.1)
+_SUBTITLE_TOP_PAD = Inches(0.06)   # 标题块与副标题间距
+_SUBTITLE_BODY_GAP = Inches(0.18)  # 副标题与内容卡间距
 
 # 配色：现代教学风（主色蓝 + 辅色青 + 暖白底）
 _BG = RGBColor(0xFA, 0xFC, 0xFE)            # 极浅蓝白背景
@@ -152,6 +180,139 @@ def _estimate_bullet_height(text: str, width_in: float, font_pt: float) -> float
     per_line = max(1.0, width_in * 72 / font_pt)
     lines = max(1, math.ceil(units / per_line))
     return lines * font_pt * 1.45 / 72
+
+
+# ---- RB01：确定性有界正文排布 ----
+
+
+def _solve_body_font(lines: list[str], width_in: float, avail_h_in: float,
+                     start_pt: float = _BODY_PT) -> float:
+    """确定性字号求解：从 start_pt 逐级下探，返回能放进 avail_h 的最大字号。
+
+    never silent-drop：极端密度（如 12×500 字符合法 payload）允许字号低于可读下限，
+    该产品债登记为 PPT_SLIDE_CONTENT_DENSITY_LIMIT；内容绝不被截断或丢弃。
+    """
+    font = float(start_pt)
+    while font > _BODY_FONT_LADDER_STEP:
+        total = sum(_estimate_bullet_height(f"•  {line}", width_in, font) for line in lines)
+        total += (len(lines) - 1) * (_BODY_GAP_MIN / _EMU_PER_INCH) * (font / _BODY_PT)
+        if total <= avail_h_in + _LAYOUT_EPS_IN:
+            break
+        font -= _BODY_FONT_LADDER_STEP
+    return font
+
+
+def _add_plain_body(shapes, body_lines: list[str], body_top: int, body_w: int) -> None:
+    """无数学正文：单个原生文本框，字号经确定性求解保证预计高度不越出正文可用区。"""
+    body_top_in = body_top / _EMU_PER_INCH
+    avail_h_in = (BODY_CONTENT_BOTTOM - body_top) / _EMU_PER_INCH
+    body_w_in = body_w / _EMU_PER_INCH
+    font_pt = _solve_body_font(body_lines, body_w_in, avail_h_in)
+    box = shapes.add_textbox(_CONTENT_LEFT, body_top, body_w, int(avail_h_in * _EMU_PER_INCH))
+    box.text_frame.word_wrap = True
+    for j, line in enumerate(body_lines):
+        if j == 0:
+            para = box.text_frame.paragraphs[0]
+        else:
+            para = box.text_frame.add_paragraph()
+        para.text = f"•  {line}"
+        para.space_after = Pt(_BODY_GAP / Pt(1) * font_pt / _BODY_PT)
+        para.level = 0
+        _set_para_font(para, int(round(font_pt)), _BODY_COLOR)
+
+
+def _measure_flow_items(renderer, body_lines: list[str], body_w_in: float,
+                        box_h_in: float) -> list[dict]:
+    """逐条量测：数学条渲染为 PNG（field 级失败回退源文本），文本条用估算高度。"""
+    items: list[dict] = []
+    for line in body_lines:
+        labeled = f"•  {line}"
+        image = _try_render_field(renderer, labeled, font_pt=_BODY_PT,
+                                  color=_BODY_COLOR, width_in=body_w_in) if renderer else None
+        if image is not None:
+            w, h = _fit_picture(image, body_w_in, box_h_in)
+            items.append({"kind": "picture", "image": image, "w": w, "h": h})
+        else:
+            items.append({"kind": "text", "text": labeled, "font_pt": _BODY_PT,
+                          "h": _estimate_bullet_height(labeled, body_w_in, _BODY_PT)})
+    return items
+
+
+def _flow_total_h(items: list[dict], gap_in: float) -> float:
+    if not items:
+        return 0.0
+    return sum(item["h"] for item in items) + gap_in * (len(items) - 1)
+
+
+def _place_flow_items(shapes, items: list[dict], body_top_in: float,
+                      gap_in: float, body_w_in: float, avail_h_in: float) -> None:
+    """按已成功的排布方案放置所有正文 shape（只放不测，保证几何确定）。"""
+    y = body_top_in
+    for index, item in enumerate(items):
+        if item["kind"] == "picture":
+            _add_field_picture(shapes, item["image"], _CONTENT_LEFT / _EMU_PER_INCH, y,
+                               item["w"], item["h"], align="left")
+        else:
+            box_h_in = max(item["h"], 0.05)
+            box = shapes.add_textbox(_CONTENT_LEFT, int(y * _EMU_PER_INCH),
+                                     int(body_w_in * _EMU_PER_INCH), int(box_h_in * _EMU_PER_INCH))
+            box.text_frame.word_wrap = True
+            para = box.text_frame.paragraphs[0]
+            para.text = item["text"]
+            _set_para_font(para, int(item["font_pt"]), _BODY_COLOR)
+        y += item["h"] + (gap_in if index < len(items) - 1 else 0.0)
+    # 最终防线：浮点累计不得越过权威下界（正常路径由成功校验保证，不会触发）。
+    if y > body_top_in + avail_h_in + _LAYOUT_EPS_IN:
+        field_fallback_log("body-layout-overflow-guard")
+
+
+def _add_bounded_flow_body(shapes, renderer, body_lines: list[str],
+                           body_top: int, body_w: int) -> None:
+    """数学混排正文：先量测全部条目，再在首选间距 → 最小间距 → 等比收缩三级
+    策略中选择第一个能放进正文可用区的方案；全部失败才转入 whole-body fallback。
+    任何路径都不丢字段、不越出 BODY_CONTENT_BOTTOM。"""
+    body_top_in = body_top / _EMU_PER_INCH
+    avail_h_in = (BODY_CONTENT_BOTTOM - body_top) / _EMU_PER_INCH
+    body_w_in = body_w / _EMU_PER_INCH
+    gap_pref_in = _BODY_GAP / _EMU_PER_INCH
+    gap_min_in = _BODY_GAP_MIN / _EMU_PER_INCH
+    single_box_h_in = max(0.2, avail_h_in - gap_min_in)
+
+    items = _measure_flow_items(renderer, body_lines, body_w_in, single_box_h_in)
+
+    if _flow_total_h(items, gap_pref_in) <= avail_h_in + _LAYOUT_EPS_IN:
+        _place_flow_items(shapes, items, body_top_in, gap_pref_in, body_w_in, avail_h_in)
+        return
+    if _flow_total_h(items, gap_min_in) <= avail_h_in + _LAYOUT_EPS_IN:
+        _place_flow_items(shapes, items, body_top_in, gap_min_in, body_w_in, avail_h_in)
+        return
+
+    # 等比收缩：文本字号降到 _BODY_MIN_PT，PNG 按剩余空间等比缩放。
+    scaled: list[dict] = []
+    for item in items:
+        if item["kind"] == "text":
+            scaled.append({**item, "font_pt": _BODY_MIN_PT,
+                           "h": _estimate_bullet_height(item["text"], body_w_in, _BODY_MIN_PT)})
+        else:
+            scaled.append({**item})
+    gaps_h = gap_min_in * max(0, len(scaled) - 1)
+    text_h = sum(i["h"] for i in scaled if i["kind"] == "text")
+    image_h = sum(i["h"] for i in scaled if i["kind"] == "picture")
+    image_avail = avail_h_in - gaps_h - text_h
+    scale = min(1.0, image_avail / image_h) if image_h > 0 else 1.0
+    if image_avail >= -_LAYOUT_EPS_IN and scale >= _MIN_IMAGE_SCALE:
+        for item in scaled:
+            if item["kind"] == "picture":
+                item["w"] *= scale
+                item["h"] *= scale
+        if _flow_total_h(scaled, gap_min_in) <= avail_h_in + _LAYOUT_EPS_IN:
+            _place_flow_items(shapes, scaled, body_top_in, gap_min_in, body_w_in, avail_h_in)
+            return
+
+    # whole-body safe fallback：合法但密度超出任何可读布局 → 全部条目合并进单个
+    # 原生文本框（数学条保留规范源文本），确定性求解字号直至放进正文可用区。
+    field_fallback_log("body-density-fallback")
+    _add_plain_body(shapes, body_lines, body_top, body_w)
 
 
 def _add_footer(shapes, slide_num: int, total: int, left=_MARGIN) -> None:
@@ -302,9 +463,42 @@ def _add_section_slide(prs, slide_spec: dict, slide_num: int, total: int) -> Non
     _add_footer(shapes, slide_num, total)
 
 
+def _add_content_subtitle(shapes, renderer, subtitle_text: str, sub_left_in: float,
+                          sub_w_in: float, subtitle_top_in: float) -> float:
+    """内容页副标题（RB02）：plain → 原生文本，数学 → 字段 PNG，失败 → 规范源文本。
+
+    副标题占高确定性求解并封顶 _SUBTITLE_MAX_H，返回副标题底边（英寸），
+    供调用方推导正文起点；绝不与标题、正文卡、页脚互相覆盖。
+    """
+    sub_max_h_in = _SUBTITLE_MAX_H / _EMU_PER_INCH
+    image = _try_render_field(renderer, subtitle_text, font_pt=_SUBTITLE_PT,
+                              color=_SUBTITLE_COLOR, width_in=sub_w_in) if renderer else None
+    if image is not None:
+        w, h = _fit_picture(image, sub_w_in, sub_max_h_in)
+        _add_field_picture(shapes, image, sub_left_in, subtitle_top_in, w, h, align="left")
+        return subtitle_top_in + h
+
+    font = float(_SUBTITLE_PT)
+    while font > 1.0 and _estimate_bullet_height(subtitle_text, sub_w_in, font) > sub_max_h_in:
+        font -= _BODY_FONT_LADDER_STEP
+    box_h_in = min(sub_max_h_in, max(_estimate_bullet_height(subtitle_text, sub_w_in, font), 0.2))
+    box = shapes.add_textbox(int(sub_left_in * _EMU_PER_INCH), int(subtitle_top_in * _EMU_PER_INCH),
+                             int(sub_w_in * _EMU_PER_INCH), int(box_h_in * _EMU_PER_INCH))
+    box.text_frame.word_wrap = True
+    para = box.text_frame.paragraphs[0]
+    para.text = subtitle_text
+    _set_para_font(para, int(round(font)), _SUBTITLE_COLOR)
+    return subtitle_top_in + box_h_in
+
+
 def _add_content_slide(prs, slide_spec: dict, slide_num: int, total: int,
                        renderer: MathRenderer | None = None) -> None:
-    """内容页：左侧竖条 + 标题（带青绿 accent）+ 白色圆角内容卡 + 正文 + 页脚。"""
+    """内容页：左侧竖条 + 标题（带青绿 accent）+ 可选副标题 + 白色圆角内容卡 + 有界正文 + 页脚。
+
+    RB01：正文任何 shape（原生文本框或数学 PNG）都由确定性有界排布放入
+    [body_top, BODY_CONTENT_BOTTOM]；RB02：subtitle 拥有明确 export 语义且
+    不与标题/正文/页脚互相覆盖。
+    """
     blank = prs.slide_layouts[6]
     slide = prs.slides.add_slide(blank)
     _slide_background(slide, _BG)
@@ -316,6 +510,7 @@ def _add_content_slide(prs, slide_spec: dict, slide_num: int, total: int,
     bar.line.fill.background()
 
     title_text = (slide_spec.get("title") or "").strip()
+    subtitle_text = (slide_spec.get("subtitle") or "").strip()
     bullets = slide_spec.get("bullets") or []
     content_w = _SLIDE_W - _CONTENT_LEFT - _MARGIN
     body_w = content_w
@@ -331,9 +526,9 @@ def _add_content_slide(prs, slide_spec: dict, slide_num: int, total: int,
                                     color=_ACCENT_SOFT, width_in=(content_w - Inches(0.25)) / _EMU_PER_INCH) if renderer and title_text else None
     if title_image is not None:
         _add_field_picture(shapes, title_image, (title_left + Inches(0.25)) / _EMU_PER_INCH, _TITLE_TOP / _EMU_PER_INCH,
-                           (content_w - Inches(0.25)) / _EMU_PER_INCH, Inches(0.75) / _EMU_PER_INCH, align="left")
+                           (content_w - Inches(0.25)) / _EMU_PER_INCH, _TITLE_BOX_H / _EMU_PER_INCH, align="left")
     else:
-        title_box = shapes.add_textbox(title_left + Inches(0.25), _TITLE_TOP, content_w - Inches(0.25), Inches(0.75))
+        title_box = shapes.add_textbox(title_left + Inches(0.25), _TITLE_TOP, content_w - Inches(0.25), _TITLE_BOX_H)
         tf = title_box.text_frame
         tf.word_wrap = True
         p = tf.paragraphs[0]
@@ -342,12 +537,26 @@ def _add_content_slide(prs, slide_spec: dict, slide_num: int, total: int,
         for run in p.runs:
             _set_run_font(run, _CONTENT_TITLE_PT, _ACCENT_SOFT, bold=True)
 
-    # 正文区：阴影层（先画，在底层）+ 白色圆角卡片
-    body_top = _BODY_TOP if title_text else Inches(1.0)
+    # 正文与副标题的纵向起点：有标题时正文基准 _BODY_TOP，无标题时沿用无标题基准。
+    base_body_top = _BODY_TOP if title_text else _BODY_TOP_NO_TITLE
+
+    # RB02：副标题位于标题块与内容卡之间的专属条带，占高有界。
+    if subtitle_text:
+        sub_left_in = (title_left + Inches(0.25)) / _EMU_PER_INCH
+        sub_w_in = (content_w - Inches(0.25)) / _EMU_PER_INCH
+        subtitle_top_in = (_TITLE_TOP + _TITLE_BOX_H + _SUBTITLE_TOP_PAD) / _EMU_PER_INCH
+        subtitle_bottom_in = _add_content_subtitle(shapes, renderer, subtitle_text,
+                                                   sub_left_in, sub_w_in, subtitle_top_in)
+        body_top = int(max(subtitle_bottom_in + _SUBTITLE_BODY_GAP / _EMU_PER_INCH,
+                           base_body_top / _EMU_PER_INCH) * _EMU_PER_INCH)
+    else:
+        body_top = base_body_top
+
+    # 正文区：阴影层（先画，在底层）+ 白色圆角卡片；卡底边由 _CARD_BOTTOM 权威推导。
     card_left = _CONTENT_LEFT - Inches(0.08)
     card_top = body_top - Inches(0.12)
     card_w = content_w + Inches(0.16)
-    card_h = _FOOTER_TOP - card_top - Inches(0.15)
+    card_h = _CARD_BOTTOM - card_top
     shadow_offset = Pt(4)
     shadow = shapes.add_shape(
         MSO_SHAPE.ROUNDED_RECTANGLE,
@@ -372,41 +581,15 @@ def _add_content_slide(prs, slide_spec: dict, slide_num: int, total: int,
     )
 
     if has_math_bullet:
-        # 数学混合版式：逐条纵向流式排布（原生文本要点 + 数学图片混排）。
-        body_w_in = body_w / _EMU_PER_INCH
-        y = body_top / _EMU_PER_INCH
-        gap_in = Pt(16) / _EMU_PER_INCH
-        for line in body_lines:
-            image = _try_render_field(renderer, f"•  {line}", font_pt=_BODY_PT,
-                                      color=_BODY_COLOR, width_in=body_w_in)
-            if image is not None:
-                used_h = _add_field_picture(shapes, image, _CONTENT_LEFT / _EMU_PER_INCH, y,
-                                            body_w_in, Inches(4.8) / _EMU_PER_INCH, align="left")
-                y += used_h + gap_in
-                continue
-            est_h = _estimate_bullet_height(f"•  {line}", body_w_in, _BODY_PT)
-            box = shapes.add_textbox(_CONTENT_LEFT, int(y * _EMU_PER_INCH), body_w, int(est_h * _EMU_PER_INCH))
-            box.text_frame.word_wrap = True
-            para = box.text_frame.paragraphs[0]
-            para.text = f"•  {line}"
-            _set_para_font(para, _BODY_PT, _BODY_COLOR)
-            y += est_h + gap_in
+        # 数学混合版式：量测全部条目 → 三级确定性收缩策略 → 全部失败才 whole-body fallback。
+        _add_bounded_flow_body(shapes, renderer, body_lines, body_top, body_w)
     else:
-        body_box = shapes.add_textbox(_CONTENT_LEFT, body_top, body_w, Inches(4.8))
-        body_tf = body_box.text_frame
-        body_tf.word_wrap = True
-        for j, line in enumerate(body_lines):
-            if j == 0:
-                para = body_tf.paragraphs[0]
-            else:
-                para = body_tf.add_paragraph()
-            para.text = f"•  {line}"
-            para.space_after = Pt(16)
-            para.level = 0
-            _set_para_font(para, _BODY_PT, _BODY_COLOR)
+        # 纯文本版式：单文本框，字号确定性求解，预计高度不越出正文可用区。
+        _add_plain_body(shapes, body_lines, body_top, body_w)
 
     # 页脚：左品牌 + 右页码（专业版式）
-    footer_line = shapes.add_shape(MSO_SHAPE.RECTANGLE, _CONTENT_LEFT, _FOOTER_TOP - Pt(10), content_w, Pt(0.5))
+    footer_line = shapes.add_shape(MSO_SHAPE.RECTANGLE, _CONTENT_LEFT, _FOOTER_TOP - _FOOTER_SEPARATOR_LIFT,
+                                   content_w, Pt(0.5))
     footer_line.fill.solid()
     footer_line.fill.fore_color.rgb = _LINE_LIGHT
     footer_line.line.fill.background()

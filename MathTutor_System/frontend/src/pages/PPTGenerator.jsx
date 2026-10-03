@@ -147,7 +147,16 @@ export default function PPTGenerator() {
         <main className="v2-ppt-preview-zone">
           <SectionCard
             title="幻灯片预览"
-            description={content ? `文件主题：${content.title || topic}` : '生成成功后展示真实返回的 slide 内容。'}
+            /* RB03：presentation 级标题可能含 canonical math，展示必须走 MathText，
+               不得把 $...$ 定界符原样渲染给用户。 */
+            description={content
+              ? (
+                <>
+                  文件主题：
+                  <MathText text={content.title || topic} />
+                </>
+              )
+              : '生成成功后展示真实返回的 slide 内容。'}
             actions={content && slides.length > 0 ? (
               <button type="button" className="v2-btn-secondary" disabled={downloading} onClick={handleDownload}>
                 {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}

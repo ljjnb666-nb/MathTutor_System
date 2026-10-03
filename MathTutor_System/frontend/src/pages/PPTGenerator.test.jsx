@@ -184,4 +184,40 @@ describe('Magic PPT canonical math preview', () => {
     // 不受支持的 \\href 在 trust:false 下回退为源文本，而非链接。
     expect(container.textContent).toContain('javascript:alert(1)')
   })
+
+  it('renders presentation-level title via MathText in the preview card header (RB03)', async () => {
+    const { container } = await generateMathPreview()
+
+    const previewCard = [...container.querySelectorAll('.v2-section-card')]
+      .find((card) => card.querySelector('h2')?.textContent === '幻灯片预览')
+    expect(previewCard).toBeTruthy()
+    const description = previewCard.querySelector('.v2-section-header p')
+    expect(description.textContent).toContain('文件主题：')
+    // canonical 标题必须渲染为真实 KaTeX，而不是 $a^2...$ raw delimiter。
+    expect(description.querySelector('.katex')).not.toBeNull()
+    expect(description.textContent).not.toContain('$a^2')
+    expect(description.textContent).toContain('勾股定理')
+  })
+
+  it('renders content-slide subtitle in preview matching export semantics (RB02)', async () => {
+    api.generatePPT.mockResolvedValue({
+      title: '勾股定理',
+      slides: [
+        { layout: 'title', title: '勾股定理', subtitle: '直角三角形基础' },
+        { layout: 'content', title: '核心公式', subtitle: '学习 $c=5$ 的情形', bullets: ['理解直角三角形'] },
+      ],
+    })
+    const { container } = renderPpt()
+    await userEvent.type(screen.getByPlaceholderText(/勾股定理/), '勾股定理')
+    await userEvent.click(screen.getByRole('button', { name: /生成教学幻灯片/ }))
+    await waitFor(() => expect(screen.getByLabelText('下一页')).toBeEnabled())
+    await userEvent.click(screen.getByLabelText('下一页'))
+
+    const slide = container.querySelector('.v2-ppt-slide')
+    const subtitle = slide.querySelector('p')
+    expect(subtitle).toBeTruthy()
+    expect(subtitle.textContent).toContain('学习')
+    expect(subtitle.textContent).toContain('的情形')
+    expect(subtitle.querySelector('.katex')).not.toBeNull()
+  })
 })
