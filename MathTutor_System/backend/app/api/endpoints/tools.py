@@ -15,7 +15,7 @@ from app.core.subscription import get_current_subscription, require_feature
 from app.models.base import get_db
 from app.models.user import User
 from app.schemas.ppt_dto import PPTContent, PPTSlide
-from app.services.ppt_service import create_pptx_file, generate_lecture_content
+from app.services.ppt_service import PPTLayoutUnfitError, create_pptx_file, generate_lecture_content
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -111,6 +111,13 @@ def api_build_pptx(
         )
     except HTTPException:
         raise
+    except PPTLayoutUnfitError as exc:
+        # schema 合法但物理不可渲染：受控业务错误，不泄漏字段内容/几何/异常类。
+        logger.warning("pptx_build_layout_unfit reason=%s", exc.reason)
+        raise HTTPException(
+            status_code=422,
+            detail="PPT_LAYOUT_UNFIT: 当前幻灯片内容过多，无法在单页中完整排版，请减少内容后重试。",
+        ) from None
     except Exception as e:
         logger.error("pptx_build_failed error_type=%s", type(e).__name__)
         raise HTTPException(status_code=500, detail="PPT_BUILD_ERROR: PPT 文件构建失败。") from None

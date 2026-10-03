@@ -6,6 +6,7 @@ PHASE 2C-5：含显式数学定界符的字段经 ppt_math_renderer 渲染为透
 （字段级：title / subtitle / 单条 bullet），其余字段保持原生可编辑文本；
 字段渲染失败时回退为规范源文本的纯文本展示。
 """
+import logging
 import math
 from io import BytesIO
 from typing import Any, NamedTuple
@@ -27,6 +28,8 @@ from app.services.ppt_math_renderer import (
     MathRenderer,
     field_fallback_log,
 )
+
+logger = logging.getLogger(__name__)
 
 # 版式常量（16:9 宽屏）
 _SLIDE_W = Inches(13.333)
@@ -68,6 +71,15 @@ _TEXTBOX_V_MARGIN = 0             # 文本框上下内边距显式为 0：框高
 _BODY_GAP_PT = 16.0               # 首选段间距（pt）
 _BODY_GAP_MIN_PT = 6.0            # 收缩后的最小段间距（pt）
 
+# ---- RB01-EXT2：物理可渲染性（schema validity != visual renderability）----
+# ABSOLUTE_MIN_TEXT_PT 是服务端可渲染字号的绝对下限：字号可以低于 _BODY_MIN_PT
+# （PPT_SLIDE_CONTENT_DENSITY_LIMIT 产品债允许极端密度以极小字号完整呈现），
+# 但到达该 floor 仍放不下的字段停止生成 deck，转为 PPT_LAYOUT_UNFIT 受控失败，
+# 绝不发出必然裁剪/溢出的文本框。
+ABSOLUTE_MIN_TEXT_PT = 2.0
+_TITLE_SLIDE_TITLE_BOX_H = Inches(1.5)      # 标题页主标题框高（沿用既有版式）
+_TITLE_SLIDE_SUBTITLE_BOX_H = Inches(0.9)   # 标题页副标题框高（沿用既有版式）
+
 # ---- 内容页副标题（RB02 export semantics）----
 _SUBTITLE_PT = 14
 _SUBTITLE_MIN_PT = 10
@@ -103,6 +115,21 @@ _BODY_PT = 19
 _FOOTER_PT = 11
 
 _EMU_PER_INCH = 914400
+
+
+class PPTLayoutUnfitError(Exception):
+    """RB01-EXT2：canonical 内容 schema 合法，但物理上无法在版式约束内渲染。
+
+    schema validity != visual renderability：测量权威判定放不下时停止生成，
+    由 build endpoint 映射为受控业务错误（PPT_LAYOUT_UNFIT）。
+    reason 为稳定代号（body-unfit / content-subtitle-unfit / content-title-unfit /
+    title-slide-title-unfit / title-slide-subtitle-unfit），
+    绝不携带用户文本、内部几何或公式内容。
+    """
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(reason)
 
 
 def _rgb(color: RGBColor) -> tuple[float, float, float]:
@@ -230,11 +257,26 @@ class TextBlockLayout(NamedTuple):
     total_h_in: float
 
 
+def _fit_text_font(text: str, *, max_font_pt: float, usable_w_in: float,
+                   max_h_in: float) -> float | None:
+    """确定性字号求解：从 max_font_pt 逐级下探到 ABSOLUTE_MIN_TEXT_PT，
+    返回首个测量高度 ≤ max_h_in 的字号；到 floor 仍放不下返回 None
+    （调用方必须受控失败，不得发出已知放不下的文本框）。"""
+    font = float(max_font_pt)
+    while font >= ABSOLUTE_MIN_TEXT_PT:
+        if _measure_text_block(text, font, usable_w_in) <= max_h_in + _LAYOUT_EPS_IN:
+            return font
+        font -= _BODY_FONT_LADDER_STEP
+    return None
+
+
 def _plan_body_stack(body_lines: list[str], box_w_in: float, usable_h_in: float) -> TextBlockLayout:
     """确定性求解正文 (font, gap)：首选间距优先，其次最小间距，字号逐级下探；
-    全部候选都用同一测量权威评估。极端密度允许字号低于可读下限，
-    该产品债登记为 PPT_SLIDE_CONTENT_DENSITY_LIMIT；内容绝不截断或丢弃。
-    box_w_in 为文本框全宽；可用宽度由 _usable_text_width 权威扣除。"""
+    全部候选都用同一测量权威评估。极端密度允许字号低于 _BODY_MIN_PT
+    （PPT_SLIDE_CONTENT_DENSITY_LIMIT 产品债），但不得低于 ABSOLUTE_MIN_TEXT_PT；
+    到达 floor 仍放不下 → PPTLayoutUnfitError("body-unfit")，
+    绝不返回已知放不下的 plan。box_w_in 为文本框全宽，可用宽度由
+    _usable_text_width 权威扣除。"""
     usable_w_in = _usable_text_width(box_w_in)
 
     def build(font_pt: float, gap_pt: float) -> TextBlockLayout:
@@ -251,13 +293,13 @@ def _plan_body_stack(body_lines: list[str], box_w_in: float, usable_h_in: float)
             if plan.total_h_in <= usable_h_in + _LAYOUT_EPS_IN:
                 return plan
             font -= _BODY_FONT_LADDER_STEP
-    font = float(_BODY_MIN_PT)
-    while font > _BODY_FONT_LADDER_STEP:
-        font -= _BODY_FONT_LADDER_STEP
+    font = float(_BODY_MIN_PT) - _BODY_FONT_LADDER_STEP
+    while font >= ABSOLUTE_MIN_TEXT_PT:
         plan = build(font, _BODY_GAP_MIN_PT)
         if plan.total_h_in <= usable_h_in + _LAYOUT_EPS_IN:
             return plan
-    return build(font, _BODY_GAP_MIN_PT)
+        font -= _BODY_FONT_LADDER_STEP
+    raise PPTLayoutUnfitError("body-unfit")
 
 
 def _add_plain_body(shapes, body_lines: list[str], body_top: int, body_w: int) -> None:
@@ -429,17 +471,24 @@ def _add_title_slide(prs, slide_spec: dict, presentation_title: str, total: int 
                                     color=_TITLE_COLOR, width_in=tx_w / _EMU_PER_INCH) if renderer else None
     if title_image is not None:
         _add_field_picture(shapes, title_image, tx_left / _EMU_PER_INCH, Inches(1.55) / _EMU_PER_INCH,
-                           tx_w / _EMU_PER_INCH, Inches(1.5) / _EMU_PER_INCH, align="center")
+                           tx_w / _EMU_PER_INCH, _TITLE_SLIDE_TITLE_BOX_H / _EMU_PER_INCH, align="center")
     else:
-        title_box = shapes.add_textbox(tx_left, Inches(1.55), tx_w, Inches(1.5))
+        # RB01-EXT2：标题页 plain/fallback 主标题 fit authority。
+        title_font = _fit_text_font(title_text, max_font_pt=_TITLE_SLIDE_TITLE_PT,
+                                    usable_w_in=_usable_text_width(tx_w / _EMU_PER_INCH),
+                                    max_h_in=_TITLE_SLIDE_TITLE_BOX_H / _EMU_PER_INCH)
+        if title_font is None:
+            raise PPTLayoutUnfitError("title-slide-title-unfit")
+        title_box = shapes.add_textbox(tx_left, Inches(1.55), tx_w, _TITLE_SLIDE_TITLE_BOX_H)
         tf = title_box.text_frame
         tf.word_wrap = True
+        _apply_textbox_margins(title_box)
         p = tf.paragraphs[0]
         p.text = title_text
         p.alignment = 1
         p.space_after = Pt(18)
         for run in p.runs:
-            _set_run_font(run, _TITLE_SLIDE_TITLE_PT, _TITLE_COLOR, bold=True)
+            _set_run_font(run, int(title_font), _TITLE_COLOR, bold=True)
 
     # 双线装饰：主色 + 青绿（圆角细条）
     line_w = Inches(2.2)
@@ -459,16 +508,23 @@ def _add_title_slide(prs, slide_spec: dict, presentation_title: str, total: int 
                                       color=_SUBTITLE_COLOR, width_in=tx_w / _EMU_PER_INCH) if renderer else None
         if sub_image is not None:
             _add_field_picture(shapes, sub_image, tx_left / _EMU_PER_INCH, Inches(3.6) / _EMU_PER_INCH,
-                               tx_w / _EMU_PER_INCH, Inches(0.9) / _EMU_PER_INCH, align="center")
+                               tx_w / _EMU_PER_INCH, _TITLE_SLIDE_SUBTITLE_BOX_H / _EMU_PER_INCH, align="center")
         else:
-            sub_box = shapes.add_textbox(tx_left, Inches(3.6), tx_w, Inches(0.9))
+            # RB01-EXT2：标题页 plain/fallback 副标题 fit authority。
+            sub_font = _fit_text_font(subtitle_text, max_font_pt=_TITLE_SLIDE_SUBTITLE_PT,
+                                      usable_w_in=_usable_text_width(tx_w / _EMU_PER_INCH),
+                                      max_h_in=_TITLE_SLIDE_SUBTITLE_BOX_H / _EMU_PER_INCH)
+            if sub_font is None:
+                raise PPTLayoutUnfitError("title-slide-subtitle-unfit")
+            sub_box = shapes.add_textbox(tx_left, Inches(3.6), tx_w, _TITLE_SLIDE_SUBTITLE_BOX_H)
             sub_tf = sub_box.text_frame
             sub_tf.word_wrap = True
+            _apply_textbox_margins(sub_box)
             sp = sub_tf.paragraphs[0]
             sp.text = subtitle_text
             sp.alignment = 1
             for run in sp.runs:
-                _set_run_font(run, _TITLE_SLIDE_SUBTITLE_PT, _SUBTITLE_COLOR)
+                _set_run_font(run, int(sub_font), _SUBTITLE_COLOR)
 
     # 页脚：左品牌 + 右页码（与内容页一致）
     _add_footer(shapes, 1, total)
@@ -541,12 +597,13 @@ def _add_content_subtitle(shapes, renderer, subtitle_text: str, sub_left_in: flo
         return subtitle_top_in + h
 
     usable_sub_w_in = _usable_text_width(sub_w_in)
-    font = float(_SUBTITLE_PT)
-    while (font > 1.0
-           and _measure_text_block(subtitle_text, font, usable_sub_w_in) > sub_max_h_in):
-        font -= _BODY_FONT_LADDER_STEP
+    font = _fit_text_font(subtitle_text, max_font_pt=_SUBTITLE_PT,
+                          usable_w_in=usable_sub_w_in, max_h_in=sub_max_h_in)
+    if font is None:
+        # 到绝对 floor 仍放不下：受控失败，绝不发出已知会被裁剪的副标题框。
+        raise PPTLayoutUnfitError("content-subtitle-unfit")
     measured_h_in = _measure_text_block(subtitle_text, font, usable_sub_w_in)
-    box_h_in = min(sub_max_h_in, max(measured_h_in, 0.2))
+    box_h_in = max(measured_h_in, 0.2)
     box = shapes.add_textbox(int(sub_left_in * _EMU_PER_INCH), int(subtitle_top_in * _EMU_PER_INCH),
                              int(sub_w_in * _EMU_PER_INCH), int(box_h_in * _EMU_PER_INCH))
     box.text_frame.word_wrap = True
@@ -594,14 +651,21 @@ def _add_content_slide(prs, slide_spec: dict, slide_num: int, total: int,
         _add_field_picture(shapes, title_image, (title_left + Inches(0.25)) / _EMU_PER_INCH, _TITLE_TOP / _EMU_PER_INCH,
                            (content_w - Inches(0.25)) / _EMU_PER_INCH, _TITLE_BOX_H / _EMU_PER_INCH, align="left")
     else:
+        # RB01-EXT2：plain/fallback 标题同样受 fit authority 约束。
+        title_font = _fit_text_font(title_text or " ", max_font_pt=_CONTENT_TITLE_PT,
+                                    usable_w_in=_usable_text_width((content_w - Inches(0.25)) / _EMU_PER_INCH),
+                                    max_h_in=_TITLE_BOX_H / _EMU_PER_INCH)
+        if title_font is None:
+            raise PPTLayoutUnfitError("content-title-unfit")
         title_box = shapes.add_textbox(title_left + Inches(0.25), _TITLE_TOP, content_w - Inches(0.25), _TITLE_BOX_H)
         tf = title_box.text_frame
         tf.word_wrap = True
+        _apply_textbox_margins(title_box)
         p = tf.paragraphs[0]
         p.text = title_text or " "
         p.space_after = Pt(12)
         for run in p.runs:
-            _set_run_font(run, _CONTENT_TITLE_PT, _ACCENT_SOFT, bold=True)
+            _set_run_font(run, int(title_font), _ACCENT_SOFT, bold=True)
 
     # 正文与副标题的纵向起点：有标题时正文基准 _BODY_TOP，无标题时沿用无标题基准。
     base_body_top = _BODY_TOP if title_text else _BODY_TOP_NO_TITLE
@@ -693,10 +757,15 @@ def create_pptx_file(content: dict[str, Any]) -> BytesIO:
         layout = (slide_spec.get("layout") or "content").lower()
         slide_num = i + 1
         renderer.start_slide()
-        if layout == "title":
-            _add_title_slide(prs, slide_spec, presentation_title, n, renderer)
-        else:
-            _add_content_slide(prs, slide_spec, slide_num, n, renderer)
+        try:
+            if layout == "title":
+                _add_title_slide(prs, slide_spec, presentation_title, n, renderer)
+            else:
+                _add_content_slide(prs, slide_spec, slide_num, n, renderer)
+        except PPTLayoutUnfitError as exc:
+            # 只记录稳定代号与安全元数据（页索引），绝不记录字段内容。
+            logger.warning("pptx_layout_unfit reason=%s slide_index=%d", exc.reason, i)
+            raise
 
     buf = BytesIO()
     prs.save(buf)

@@ -162,9 +162,11 @@ from pptx.util import Inches, Pt
 
 import pytest
 
-from app.schemas.ppt_dto import MAX_BULLET_LENGTH
+from app.schemas.ppt_dto import MAX_BULLET_LENGTH, MAX_TITLE_LENGTH, PPTContent
 from app.services.ppt_service import (
+    ABSOLUTE_MIN_TEXT_PT,
     BODY_CONTENT_BOTTOM,
+    PPTLayoutUnfitError,
     _BODY_BOTTOM_PAD,
     _BODY_GAP_PT,
     _BODY_MIN_PT,
@@ -728,6 +730,134 @@ def test_rb01ext_malformed_subtitle_with_newline_survives():
         box.text_frame.text, font_pt, _usable_text_width(box.width / _EMU_PER_INCH))
     assert box.height / _EMU_PER_INCH == pytest.approx(measured, abs=0.02)
     _assert_body_geometry(slide)
+
+
+# ---------- RB01-EXT2：物理可渲染性 gate（schema validity != renderability） ----------
+
+DENSE_250_LINES = "\n".join(["x"] * 250)  # 499 字符、250 个逻辑行，schema 合法
+
+
+def test_rb01ext2_body_impossible_fit_rejected():
+    """A：12×250 逻辑行（共 3000 行）在绝对 floor 下物理放不下 → 受控失败。"""
+    assert len(DENSE_250_LINES) <= MAX_BULLET_LENGTH
+    assert PPTContent.model_validate({
+        "title": "T",
+        "slides": [{"layout": "content", "title": "T", "bullets": [DENSE_250_LINES] * 12}],
+    })  # schema 合法
+    with pytest.raises(PPTLayoutUnfitError) as exc_info:
+        create_pptx_file({
+            "title": "T",
+            "slides": [{"layout": "content", "title": "T", "bullets": [DENSE_250_LINES] * 12}],
+        })
+    assert exc_info.value.reason == "body-unfit"
+    # 错误本身不携带用户文本
+    assert "xxx" not in str(exc_info.value)
+
+
+def test_rb01ext2_boundary_floor_payload_still_renders():
+    """B：恰好在绝对 floor 上能 fit 的 payload 必须成功——判断基于权威测量而非过度拒绝。"""
+    assert ABSOLUTE_MIN_TEXT_PT == 2.0
+    bullets = ["\n".join(["内容行"] * 100)]  # 在 floor=2pt 恰好放进正文区
+    prs = Presentation(create_pptx_file({
+        "title": "T",
+        "slides": [{"layout": "content", "title": "边界", "bullets": bullets}],
+    }))
+    slide = prs.slides[0]
+    _assert_body_geometry(slide)
+    box = _single_bullet_box(slide)
+    para = box.text_frame.paragraphs[0]
+    assert para.text.count("\x0b") == 99
+    assert para.runs[0].font.size == Pt(ABSOLUTE_MIN_TEXT_PT)  # floor 上被权威测量接受
+
+
+def test_rb01ext2_content_subtitle_impossible_fit_rejected():
+    """C：250 逻辑行 subtitle 即使在 floor 字号也远超 _SUBTITLE_MAX_H → 受控失败。"""
+    with pytest.raises(PPTLayoutUnfitError) as exc_info:
+        create_pptx_file({
+            "title": "T",
+            "slides": [{
+                "layout": "content",
+                "title": "T",
+                "subtitle": DENSE_250_LINES,
+                "bullets": ["要点"],
+            }],
+        })
+    assert exc_info.value.reason == "content-subtitle-unfit"
+
+
+def test_rb01ext2_content_title_newline_overflow_rejected():
+    """D：≤255 字符高密度显式换行的 content title 在 floor 下放不进标题框 → 受控失败。"""
+    title = "\n".join(["T"] * 127)  # 253 字符 ≤ 255
+    assert len(title) <= MAX_TITLE_LENGTH
+    with pytest.raises(PPTLayoutUnfitError) as exc_info:
+        create_pptx_file({
+            "title": "T",
+            "slides": [{"layout": "content", "title": title, "bullets": ["要点"]}],
+        })
+    assert exc_info.value.reason == "content-title-unfit"
+
+
+def test_rb01ext2_title_slide_title_newline_overflow_rejected():
+    """E：标题页主标题同样有 fit authority。"""
+    title = "\n".join(["T"] * 127)
+    with pytest.raises(PPTLayoutUnfitError) as exc_info:
+        create_pptx_file({
+            "title": "T",
+            "slides": [{"layout": "title", "title": title}],
+        })
+    assert exc_info.value.reason == "title-slide-title-unfit"
+
+
+def test_rb01ext2_title_slide_subtitle_overflow_rejected():
+    """F：标题页副标题 ≤500 字符但物理放不下 → 受控失败。"""
+    with pytest.raises(PPTLayoutUnfitError) as exc_info:
+        create_pptx_file({
+            "title": "T",
+            "slides": [{"layout": "title", "title": "主标题", "subtitle": DENSE_250_LINES}],
+        })
+    assert exc_info.value.reason == "title-slide-subtitle-unfit"
+
+
+def test_rb01ext2_malformed_math_fallback_still_gated(caplog):
+    """G：renderer 失败回退为 native text 后必须通过同一 fit gate，
+    不能借 renderer failure 绕过 renderability。"""
+    import logging
+
+    bullet = "$\\frac{1$\n" + DENSE_250_LINES  # malformed math + 海量换行 → 原生回退
+    with caplog.at_level(logging.WARNING, logger="app.services.ppt_service"):
+        with pytest.raises(PPTLayoutUnfitError) as exc_info:
+            create_pptx_file({
+                "title": "T",
+                "slides": [{"layout": "content", "title": "T", "bullets": [bullet]}],
+            })
+    assert exc_info.value.reason == "body-unfit"
+    # 日志只含 reason code 与安全元数据，不含用户字段内容
+    assert "body-unfit" in caplog.text
+    assert "slide_index=0" in caplog.text
+    assert "\\frac" not in caplog.text
+    assert "xxx" not in caplog.text
+
+
+def test_rb01ext2_normal_title_and_subtitle_keep_preferred_fonts():
+    """常规短标题/副标题不受 gate 影响：字号保持版式首选值。"""
+    prs = Presentation(create_pptx_file({
+        "title": "T",
+        "slides": [
+            {"layout": "title", "title": "勾股定理", "subtitle": "直角三角形基础"},
+            {"layout": "content", "title": "概念讲解", "subtitle": "学习要点", "bullets": ["要点"]},
+        ],
+    }))
+    title_slide = prs.slides[0]
+    title_box = next(s for s in title_slide.shapes
+                     if s.has_text_frame and s.text_frame.text.strip() == "勾股定理")
+    assert title_box.text_frame.paragraphs[0].runs[0].font.size == Pt(48)
+    sub_box = next(s for s in title_slide.shapes
+                   if s.has_text_frame and s.text_frame.text.strip() == "直角三角形基础")
+    assert sub_box.text_frame.paragraphs[0].runs[0].font.size == Pt(24)
+    content_slide = prs.slides[1]
+    content_title = next(s for s in content_slide.shapes
+                         if s.has_text_frame and s.text_frame.text.strip() == "概念讲解")
+    assert content_title.text_frame.paragraphs[0].runs[0].font.size == Pt(28)
 
 
 if __name__ == "__main__":

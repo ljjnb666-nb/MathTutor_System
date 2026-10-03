@@ -273,3 +273,35 @@ def test_build_pptx_accepts_canonical_layout(monkeypatch, teacher_client, layout
         json={"slides": [{"layout": layout, "title": "T"}]},
     )
     assert response.status_code == 200
+
+
+# ---------- RB01-EXT2：物理不可渲染 payload → 受控 PPT_LAYOUT_UNFIT ----------
+
+
+def test_build_pptx_body_impossible_fit_controlled_422(monkeypatch, teacher_client):
+    _allow_subscription(monkeypatch)
+    dense = "\n".join(["x"] * 250)  # 499 字符 schema 合法，但 12×250 行物理放不下
+    response = teacher_client.post(
+        "/api/tools/build-pptx",
+        json={"slides": [{"layout": "content", "title": "T", "bullets": [dense] * 12}]},
+    )
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail.startswith("PPT_LAYOUT_UNFIT")
+    assert "当前幻灯片内容过多" in detail
+    # 不泄漏原始输入、堆栈或异常类
+    assert "x" * 50 not in response.text
+    assert "Traceback" not in response.text
+    assert "PPTLayoutUnfitError" not in response.text
+
+
+def test_build_pptx_title_slide_subtitle_unfit_controlled_422(monkeypatch, teacher_client):
+    _allow_subscription(monkeypatch)
+    dense = "\n".join(["x"] * 250)
+    response = teacher_client.post(
+        "/api/tools/build-pptx",
+        json={"slides": [{"layout": "title", "title": "主标题", "subtitle": dense}]},
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"].startswith("PPT_LAYOUT_UNFIT")
+    assert "x" * 50 not in response.text
