@@ -13,6 +13,10 @@
 - 所有尺寸、DPI、字体均来自本模块常量或服务端注入，客户端不可控；
 - 输入永远是纯文本：不解析 HTML/XML/SVG，不执行公式，不建超链接；
 - 渲染前先按度量预算校验，超限即回退，绝不分配无界画布；
+- segment 预算是 render attempt 预算（RB04）：在进入 Figure()/canvas.draw()/
+  savefig() 之前按段数预留（reserve），失败不退回（no refund）。畸形/不受支持
+  公式同样消耗预算，因此同一 deck 无法靠制造失败公式扩大昂贵渲染工作量；
+  canvas/pixel/byte 预算仍只对成功产物入账，三种预算语义不混淆；
 - 日志只记录回退原因代号，绝不记录公式内容。
 """
 from __future__ import annotations
@@ -167,19 +171,28 @@ class MathRenderer:
                 # 混合行内裸反斜杠无法安全通过 mathtext 文本区；整字段回退为源文本。
                 raise MathFieldFallbackError("backslash-in-text")
 
+        # RB04：进入 Figure()/canvas.draw()/savefig() 之前预留 attempt 预算。
+        # 失败（malformed/unsupported/canvas/png limit）不退回：昂贵渲染工作量
+        # 由 segment 预算硬封顶，无法靠失败公式无限放大。
+        self._slide_segments += len(math_parts)
+        self._deck_segments += len(math_parts)
+
         lines = self._build_lines(parts)
         png, width_px, height_px = self._render_lines(lines, font_pt=font_pt, color=color, width_in=width_in)
 
-        # 提交各级预算（仅在成功后累计）。
-        self._slide_segments += len(math_parts)
-        self._deck_segments += len(math_parts)
+        # 提交成功产物预算（segment 已在渲染前预留，此处只入账 pixel/byte）。
         self._deck_pixels += width_px * height_px
         self._deck_bytes += len(png)
         return MathFieldImage(png=png, width_px=width_px, height_px=height_px)
 
     @staticmethod
     def _build_lines(parts: list[dict]) -> list[str]:
-        """把解析片段拼成多行字符串：text 段转义 $；display 段独立成行。"""
+        """把解析片段拼成多行字符串：text 段转义 $；display 段独立成行（RF06）。
+
+        display 数学前后都必须断行：`前 $$x=1$$ 后` 一定是
+        ["前", "$x=1$", "后"] 三行，前后普通文本绝不拼回同一 display 行；
+        inline 数学保持与前后文同行。
+        """
         lines: list[str] = []
         current: list[str] = []
 
@@ -197,7 +210,10 @@ class MathRenderer:
                 if part["type"] == "display" and current:
                     flush()
                 current.append("$" + part["value"] + "$")
-        flush()
+                if part["type"] == "display":
+                    flush()
+        if current:
+            flush()
         # matplotlib 按行独立判断是否为 mathtext；空行保留为间隔。
         return lines if any(line for line in lines) else [" "]
 

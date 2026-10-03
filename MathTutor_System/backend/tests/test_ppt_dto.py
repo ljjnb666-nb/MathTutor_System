@@ -125,3 +125,30 @@ def test_field_length_over_limits_rejected():
 def test_content_title_over_limit_rejected():
     with pytest.raises(ValidationError):
         PPTContent.model_validate({"title": "x" * (MAX_TITLE_LENGTH + 1), "slides": VALID_CONTENT["slides"]})
+
+
+# ---------- RB05：canonical layout enum 契约 ----------
+
+
+@pytest.mark.parametrize("layout", ["title", "content"])
+def test_layout_enum_accepts_canonical_values(layout):
+    slide = PPTSlide.model_validate({"layout": layout, "title": "T"})
+    assert slide.layout == layout
+
+
+def test_layout_default_is_content():
+    assert PPTSlide.model_validate({"title": "T"}).layout == "content"
+
+
+@pytest.mark.parametrize("layout", ["section", "unknown", "Title", "CONTENT", "", "divider"])
+def test_layout_enum_rejects_non_canonical_values(layout):
+    with pytest.raises(ValidationError):
+        PPTSlide.model_validate({"layout": layout, "title": "T"})
+
+
+def test_content_with_section_layout_rejected():
+    with pytest.raises(ValidationError):
+        PPTContent.model_validate({
+            "title": "T",
+            "slides": [{"layout": "section", "title": "分节"}],
+        })

@@ -250,3 +250,26 @@ def test_build_pptx_enforces_content_limits(monkeypatch, teacher_client):
 
     empty = {"slides": []}
     assert teacher_client.post("/api/tools/build-pptx", json=empty).status_code == 422
+
+
+# ---------- RB05：canonical layout enum（build 端点拒绝非法 layout，不静默丢弃） ----------
+
+
+@pytest.mark.parametrize("layout", ["section", "unknown", "Title"])
+def test_build_pptx_rejects_non_canonical_layout(monkeypatch, teacher_client, layout):
+    _allow_subscription(monkeypatch)
+    response = teacher_client.post(
+        "/api/tools/build-pptx",
+        json={"slides": [{"layout": layout, "title": "T"}]},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize("layout", ["title", "content"])
+def test_build_pptx_accepts_canonical_layout(monkeypatch, teacher_client, layout):
+    _allow_subscription(monkeypatch)
+    response = teacher_client.post(
+        "/api/tools/build-pptx",
+        json={"slides": [{"layout": layout, "title": "T"}]},
+    )
+    assert response.status_code == 200

@@ -26,6 +26,7 @@ from app.services.ppt_math_renderer import (
     MathFieldFallbackError,
     MathRenderer,
 )
+from app.services.ppt_math_text import parse_math_text
 
 COLOR = (0.2, 0.26, 0.33)
 
@@ -110,7 +111,8 @@ def test_malformed_delimiter_falls_back_without_killing_deck():
     with pytest.raises(MathFieldFallbackError) as exc_info:
         _render(renderer, "$\\frac{1$")
     assert exc_info.value.reason == "malformed-math"
-    # deck 继续：后续合法字段仍可渲染，且预算只计成功字段。
+    # deck 继续：后续合法字段仍可渲染。RB04：失败字段的 attempt 预算不退回，
+    # 由专用 reservation 测试覆盖。
     assert _render(renderer, "$y=2x+1$") is not None
 
 
@@ -288,3 +290,119 @@ def test_fallback_logs_reason_not_formula(caplog):
     with caplog.at_level(logging.INFO, logger="app.services.ppt_math_renderer"):
         field_fallback_log("malformed-math")
     assert "malformed-math" in caplog.text
+
+
+# ---------- RB04：render attempt 预算（渲染前预留，失败不退回） ----------
+
+
+def _spy_render_lines(monkeypatch):
+    """统计真正进入 _render_lines（Figure/canvas.draw）的次数。"""
+    calls = {"render": 0}
+    original = MathRenderer._render_lines
+
+    def counting(self, lines, **kwargs):
+        calls["render"] += 1
+        return original(self, lines, **kwargs)
+
+    monkeypatch.setattr(MathRenderer, "_render_lines", counting)
+    return calls
+
+
+def test_failed_renders_consume_attempt_budget(monkeypatch):
+    calls = _spy_render_lines(monkeypatch)
+    renderer = MathRenderer(max_math_segments_per_deck=3)
+    renderer.start_slide()
+    # 预算内：3 个畸形字段（各 1 段）都真正进入渲染器，全部失败。
+    for _ in range(3):
+        with pytest.raises(MathFieldFallbackError) as exc_info:
+            _render(renderer, "$\\href{javascript:alert(1)}{x}$")
+        assert exc_info.value.reason == "malformed-math"
+    assert calls["render"] == 3
+
+    # 预算耗尽：下一次不再进入 actual renderer，直接被 attempt 预算拒绝。
+    with pytest.raises(MathFieldFallbackError) as exc_info:
+        _render(renderer, "$x$")
+    assert exc_info.value.reason == "segment-limit-deck"
+    assert calls["render"] == 3
+
+
+def test_attempt_budget_has_no_refund_for_mixed_success_and_failure(monkeypatch):
+    calls = _spy_render_lines(monkeypatch)
+    renderer = MathRenderer(max_math_segments_per_deck=3)
+    renderer.start_slide()
+    with pytest.raises(MathFieldFallbackError):
+        _render(renderer, "$\\frac{1$")  # 失败：消耗 1 段，不退回
+    assert _render(renderer, "$a$") is not None          # 成功：消耗 1 段
+    assert _render(renderer, "$b$") is not None          # 成功：消耗第 3 段（边界值可尝试）
+    assert calls["render"] == 3
+    with pytest.raises(MathFieldFallbackError) as exc_info:
+        _render(renderer, "$c$")
+    assert exc_info.value.reason == "segment-limit-deck"
+    assert calls["render"] == 3  # 不再进入渲染器
+
+
+def test_attempt_budget_is_per_slide_and_per_deck(monkeypatch):
+    calls = _spy_render_lines(monkeypatch)
+    renderer = MathRenderer(max_math_segments_per_slide=2, max_math_segments_per_deck=100)
+    renderer.start_slide()
+    with pytest.raises(MathFieldFallbackError):
+        _render(renderer, "$\\frac{1$")  # attempt 1：进入渲染器，失败，消耗 1 段
+    with pytest.raises(MathFieldFallbackError):
+        _render(renderer, "$\\frac{2$")  # attempt 2：边界值仍可尝试，失败
+    assert calls["render"] == 2
+    with pytest.raises(MathFieldFallbackError) as exc_info:
+        _render(renderer, "$x$")
+    assert exc_info.value.reason == "segment-limit-slide"  # slide 预算拒绝，不进渲染器
+    assert calls["render"] == 2
+
+    renderer.start_slide()  # slide 计数重置，但 deck 计数不重置
+    assert _render(renderer, "$y$") is not None
+    assert calls["render"] == 3
+
+
+def test_attempt_budget_rejects_without_entering_renderer_after_failures(monkeypatch):
+    """失败公式不能无限放大昂贵工作量：进入渲染器的次数受 deck 预算硬封顶。"""
+    calls = _spy_render_lines(monkeypatch)
+    budget = 5
+    renderer = MathRenderer(max_math_segments_per_deck=budget)
+    for i in range(50):
+        renderer.start_slide()
+        try:
+            _render(renderer, "$\\href{x}{y}$")
+        except MathFieldFallbackError:
+            pass
+    assert calls["render"] == budget  # 50 次请求最多只有 budget 次真正渲染
+
+
+# ---------- RF06：display 数学独立成行的三段 visual-line 语义 ----------
+
+
+def test_display_math_with_surrounding_text_forms_three_lines():
+    parts = parse_math_text("前 $$x=1$$ 后")
+    lines = MathRenderer._build_lines(parts)
+    assert lines == ["前", "$x=1$", "后"]
+
+
+def test_bracket_display_with_surrounding_text_forms_three_lines():
+    parts = parse_math_text("前 \\[y=2x+1\\] 后")
+    lines = MathRenderer._build_lines(parts)
+    assert lines == ["前", "$y=2x+1$", "后"]
+
+
+def test_inline_math_with_surrounding_text_stays_single_line():
+    parts = parse_math_text("前 $x$ 后")
+    lines = MathRenderer._build_lines(parts)
+    assert lines == ["前 $x$ 后"]
+
+
+def test_consecutive_display_math_each_own_line():
+    parts = parse_math_text("$$a$$ 中间 $$b$$")
+    lines = MathRenderer._build_lines(parts)
+    assert lines == ["$a$", "中间", "$b$"]
+
+
+def test_display_block_renders_taller_than_inline_single_line():
+    display = _render(MathRenderer(), "前 $$x=1$$ 后")
+    inline = _render(MathRenderer(), "前 $x=1$ 后")
+    assert display is not None and inline is not None
+    assert display.height_px > inline.height_px  # 3 行 vs 1 行

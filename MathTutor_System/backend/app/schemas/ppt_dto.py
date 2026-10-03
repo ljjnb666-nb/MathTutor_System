@@ -8,6 +8,8 @@ schema 校验，避免「AI 契约宽松、构建契约严格」的双轨定义�
 \[...\]）的纯文本。KaTeX HTML、MathML、渲染 PNG、SVG、PowerPoint XML
 都不是规范数据，本 DTO 永远不承载它们。
 """
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 MAX_SLIDES = 30
@@ -16,13 +18,17 @@ MAX_TITLE_LENGTH = 255
 MAX_SUBTITLE_LENGTH = 500
 MAX_BULLET_LENGTH = 500
 
+# RB05：canonical layout 契约只承认这两个值；section/unknown 一律 schema 拒绝，
+# 不再「section 静默丢弃、unknown 当 content」。
+SlideLayout = Literal["title", "content"]
+
 
 class PPTSlide(BaseModel):
     """单页幻灯片（SEC-08：页数、每页要点数与文本长度均有硬上限）。"""
 
     model_config = ConfigDict(extra="ignore")
 
-    layout: str = Field(default="content", max_length=32, description="title | content")
+    layout: SlideLayout = Field(default="content")
     title: str = Field(default="", max_length=255)
     subtitle: str = Field(default="", max_length=500)
     bullets: list[str] = Field(default_factory=list, max_length=12)

@@ -173,6 +173,27 @@ def test_over_limit_slides_from_llm_returns_response_invalid(monkeypatch):
     assert str(exc_info.value).startswith("LLM_RESPONSE_INVALID")
 
 
+# ---------- RB05：layout 枚举契约（section/unknown 一律拒绝，不静默丢弃） ----------
+
+
+def test_llm_section_layout_returns_response_invalid(monkeypatch):
+    _patch_provider(monkeypatch, '{"title": "T", "slides": [{"layout": "section", "title": "分节"}]}')
+
+    with pytest.raises(ValueError) as exc_info:
+        generate_lecture_content("T", "Middle", llm_config=_config())
+
+    assert str(exc_info.value).startswith("LLM_RESPONSE_INVALID")
+
+
+def test_llm_unknown_layout_returns_response_invalid(monkeypatch):
+    _patch_provider(monkeypatch, '{"title": "T", "slides": [{"layout": "divider", "title": "X"}]}')
+
+    with pytest.raises(ValueError) as exc_info:
+        generate_lecture_content("T", "Middle", llm_config=_config())
+
+    assert str(exc_info.value).startswith("LLM_RESPONSE_INVALID")
+
+
 def test_invalid_structure_logs_safe_metadata_only(monkeypatch, caplog):
     caplog.set_level(logging.WARNING, logger="app.services.ppt_content_service")
     _patch_provider(monkeypatch, '{"title": "T"}')
