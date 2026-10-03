@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Loader2, Presentation, Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { buildPPTFile, generatePPT } from '../services/api'
+import MathText from '../components/MathText'
 import { EmptyState, PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
 import { normalizeApiError } from '../utils/normalizeApiError'
 
@@ -160,10 +161,10 @@ export default function PPTGenerator() {
               <div className="v2-ppt-stage">
                 <div className="v2-ppt-slide">
                   <div className="v2-ppt-slide-ribbon">{selectedGrade}数学</div>
-                  <h2>{currentSlide.title || content?.title || topic}</h2>
-                  {currentSlide.subtitle && <p>{currentSlide.subtitle}</p>}
+                  <h2><MathText text={currentSlide.title || content?.title || topic} /></h2>
+                  {currentSlide.subtitle && <p><MathText text={currentSlide.subtitle} /></p>}
                   <ul>
-                    {(currentSlide.bullets || []).length > 0 ? currentSlide.bullets.map((item, index) => <li key={`${item}-${index}`}>{item}</li>) : <li>此页暂无要点，下载后可继续编辑。</li>}
+                    {(currentSlide.bullets || []).length > 0 ? currentSlide.bullets.map((item, index) => <li key={`${item}-${index}`}><MathText text={item} /></li>) : <li>此页暂无要点，下载后可继续编辑。</li>}
                   </ul>
                   <span>{String(safeIndex + 1).padStart(2, '0')} / {String(slides.length).padStart(2, '0')}</span>
                 </div>
@@ -186,7 +187,7 @@ export default function PPTGenerator() {
                 {slides.map((slide, index) => (
                   <button key={`${slide.title}-${index}`} type="button" className={safeIndex === index ? 'active' : ''} onClick={() => setPreviewIndex(index)}>
                     <span>{String(index + 1).padStart(2, '0')}</span>
-                    <strong>{slide.title || `第 ${index + 1} 页`}</strong>
+                    <strong><MathText text={slide.title || `第 ${index + 1} 页`} /></strong>
                   </button>
                 ))}
               </div>
