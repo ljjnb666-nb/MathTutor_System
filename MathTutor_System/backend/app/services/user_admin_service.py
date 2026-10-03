@@ -1,4 +1,5 @@
 """Business logic for admin user and subscription management."""
+import logging
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import or_
@@ -22,6 +23,10 @@ from app.models.subscription_history import SubscriptionHistory
 from app.models.user import User, USER_DELETION_ACTIVE
 from app.schemas.plan_dto import SubscriptionHistoryItem
 from app.schemas.user_dto import UserCreate, UserResponse
+
+# RF02-04: batch error handlers log only user_id + error_type — never exception
+# text or any secret-shaped payload.
+logger = logging.getLogger(__name__)
 
 DEFAULT_PAID_DAYS = 30
 

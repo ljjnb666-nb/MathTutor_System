@@ -127,7 +127,9 @@ async def _read_validated_rag_upload(file: UploadFile) -> tuple[str, bytes]:
     content_type = (file.content_type or "").split(";")[0].strip().lower()
     if content_type and content_type not in ALLOWED_RAG_MIME_TYPES:
         raise HTTPException(status_code=400, detail="Unsupported file type")
-    file_bytes = await file.read()
+    # RF02-03: bounded read — at most MAX+1 bytes ever reach Python, so the
+    # allocation has a hard ceiling regardless of what the client sends.
+    file_bytes = await file.read(MAX_RAG_UPLOAD_BYTES + 1)
     if not file_bytes:
         raise HTTPException(status_code=400, detail="File is empty")
     if len(file_bytes) > MAX_RAG_UPLOAD_BYTES:
@@ -193,35 +195,47 @@ async def rag_upload(
     embedding_config: EmbeddingConfig = Depends(get_embedding_config),
 ):
     _require_rag(current_user, db)
-    filename, file_bytes = await _read_validated_rag_upload(file)
+    # RF02-01: sync uploads parse/embed/write too, so they consume the same
+    # per-process admission slot as async uploads — one workload, one slot,
+    # released in finally on every outcome. The sync route exposes no task
+    # status, so the reservation is never promoted to the pollable history.
+    _prune_upload_status()
+    task_id = reserve_upload_slot(current_user)
     try:
-        text = parse_file_from_bytes(file_bytes, filename)
-        if not text.strip():
-            raise HTTPException(status_code=400, detail="Parsed document is empty")
-        document_id = write_rag_for_account_instance(
-            current_user.id, current_user.auth_subject,
-            lambda: get_rag_service(embedding_config=embedding_config).add_document(
-                text,
-                filename,
-                owner_user_id=current_user.id,
-                knowledge_point=(knowledge_point or "").strip(),
-                chunk_type=(chunk_type or "question").strip() or "question",
-            ),
-        )
-        return {"message": "Knowledge base updated", "filename": filename, "document_id": document_id}
-    except StaleRAGAccountError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from None
-    except HTTPException:
-        raise
-    except AIConfigError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from None
-    except DocumentSafetyError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from None
-    except ValueError:
-        raise HTTPException(status_code=400, detail="RAG_UPLOAD_ERROR: 文档无法处理，请检查文件格式后重试。") from None
-    except Exception as exc:
-        logger.error("RAG upload failed external_error_type=%s", type(exc).__name__)
-        raise HTTPException(status_code=500, detail="RAG_PROVIDER_ERROR: 知识库处理失败，请稍后重试。") from None
+        try:
+            filename, file_bytes = await _read_validated_rag_upload(file)
+            reservation = _upload_status[task_id]
+            reservation["status"] = "processing"
+            reservation["message"] = "Processing"
+            text = parse_file_from_bytes(file_bytes, filename)
+            if not text.strip():
+                raise HTTPException(status_code=400, detail="Parsed document is empty")
+            document_id = write_rag_for_account_instance(
+                current_user.id, current_user.auth_subject,
+                lambda: get_rag_service(embedding_config=embedding_config).add_document(
+                    text,
+                    filename,
+                    owner_user_id=current_user.id,
+                    knowledge_point=(knowledge_point or "").strip(),
+                    chunk_type=(chunk_type or "question").strip() or "question",
+                ),
+            )
+            return {"message": "Knowledge base updated", "filename": filename, "document_id": document_id}
+        except StaleRAGAccountError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from None
+        except HTTPException:
+            raise
+        except AIConfigError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from None
+        except DocumentSafetyError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from None
+        except ValueError:
+            raise HTTPException(status_code=400, detail="RAG_UPLOAD_ERROR: 文档无法处理，请检查文件格式后重试。") from None
+        except Exception as exc:
+            logger.error("RAG upload failed external_error_type=%s", type(exc).__name__)
+            raise HTTPException(status_code=500, detail="RAG_PROVIDER_ERROR: 知识库处理失败，请稍后重试。") from None
+    finally:
+        _upload_status.pop(task_id, None)
 
 
 def _do_upload_sync(
@@ -349,13 +363,15 @@ async def rag_upload_status(
     if (int(rec.get("owner_user_id") or -1) != int(current_user.id)
             or rec.get("owner_auth_subject") != current_user.auth_subject):
         raise HTTPException(status_code=404, detail="Task not found")
-    # RB03-A: the TTL may only retire terminal history. A pending/processing/
-    # receiving task older than the TTL still returns its live status — never
-    # popped while the real work may still be running.
-    if (rec.get("status") not in _ACTIVE_STATUSES
-            and time.time() - (rec.get("created_at") or 0) > _STATUS_EXPIRE_SEC):
-        _upload_status.pop(task_id, None)
-        raise HTTPException(status_code=404, detail="Task expired")
+    # RB03-A / RF02-02: the TTL may only retire terminal history, and its clock
+    # starts at completion (finished_at, falling back to created_at only for
+    # legacy terminal records). A task that ran 11 minutes and just finished
+    # stays queryable; pending/processing/receiving are never TTL-popped.
+    if rec.get("status") not in _ACTIVE_STATUSES:
+        terminal_reference_time = rec.get("finished_at") or rec.get("created_at") or 0
+        if time.time() - terminal_reference_time > _STATUS_EXPIRE_SEC:
+            _upload_status.pop(task_id, None)
+            raise HTTPException(status_code=404, detail="Task expired")
     return {
         "task_id": task_id,
         "status": rec.get("status", "pending"),

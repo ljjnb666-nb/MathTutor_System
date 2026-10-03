@@ -22,7 +22,7 @@ class ExplosiveUpload:
     filename = "file.pdf"
     content_type = "application/pdf"
 
-    async def read(self):
+    async def read(self, size=None):
         pytest.fail("read() was called even though admission should have rejected earlier")
 
 
@@ -230,3 +230,154 @@ def test_receiving_reservation_counts_as_active(teacher_b):
     assert rag._upload_status[task_id]["status"] == "receiving"
     assert rag._active_task_count(20) == 1
     assert rag._active_task_count() == 1
+
+
+# ---- RF02-01: sync route shares the admission slot --------------------------
+
+def _call_sync(user, file, monkeypatch):
+    return asyncio.run(rag.rag_upload(
+        file=file, knowledge_point="", chunk_type="question",
+        db=None, current_user=user, embedding_config=None,
+    ))
+
+
+def test_sync_rag_01_owner_limit_rejects_before_read(teacher_b, monkeypatch):
+    monkeypatch.setattr(rag, "parse_file_from_bytes", lambda *a, **k: pytest.fail("parse must not run"))
+    _seed_active("busy-1", owner=20)
+    _seed_active("busy-2", owner=20)
+    with pytest.raises(HTTPException) as exc:
+        _call_sync(teacher_b, ExplosiveUpload(), monkeypatch)
+    assert exc.value.status_code == 429
+
+
+def test_sync_rag_02_global_limit_rejects_before_read(teacher_b):
+    for i in range(rag.MAX_ACTIVE_RAG_UPLOADS_GLOBAL):
+        _seed_active("global-%02d" % i, owner=100 + i)
+    with pytest.raises(HTTPException) as exc:
+        _call_sync(teacher_b, ExplosiveUpload(), None)
+    assert exc.value.status_code == 503
+
+
+def test_sync_rag_03_async_slot_counts_against_sync_route(teacher_b):
+    """Existing async active slots count toward the sync route's owner quota:
+    with the per-owner limit already consumed by async tasks, sync gets 429."""
+    # Two seeded async actives consume the per-owner quota (limit 2), so the
+    # sync route must be rejected by the same shared counter.
+    _seed_active("async-busy", owner=20)
+    _seed_active("async-busy-2", owner=20)
+    with pytest.raises(HTTPException) as exc:
+        _call_sync(teacher_b, ExplosiveUpload(), None)
+    assert exc.value.status_code == 429
+
+
+def test_sync_rag_04_successful_sync_upload_releases_slot(teacher_b, monkeypatch):
+    monkeypatch.setattr(rag, "parse_file_from_bytes", lambda *a, **k: "fixture text")
+    monkeypatch.setattr(
+        rag, "get_rag_service",
+        lambda *a, **k: SimpleNamespace(add_document=lambda *a, **k: "doc-sync"),
+    )
+    monkeypatch.setattr(rag, "write_rag_for_account_instance", lambda owner, subject, fn: fn())
+    response = _call_sync(teacher_b, _file(), monkeypatch)
+    assert response["document_id"] == "doc-sync"
+    assert rag._upload_status == {}  # reservation released on success
+    assert rag._active_task_count() == 0
+
+
+def test_sync_rag_05_unexpected_provider_error_releases_slot(teacher_b, monkeypatch):
+    def explode(*a, **k):
+        raise RuntimeError("postgres://secret-shaped-internal")
+    monkeypatch.setattr(rag, "parse_file_from_bytes", explode)
+    with pytest.raises(HTTPException) as exc:
+        _call_sync(teacher_b, _file(), monkeypatch)
+    assert exc.value.status_code == 500
+    assert "RAG_PROVIDER_ERROR" in exc.value.detail
+    assert "postgres" not in exc.value.detail
+    assert rag._upload_status == {}  # slot released on unexpected failure too
+    assert rag._active_task_count() == 0
+
+
+# ---- RF02-02: terminal TTL starts at completion -----------------------------
+
+def _status_user(user_id=20):
+    user = _make_user(user_id)
+    return user
+
+
+def test_rag_ttl_01_recently_finished_long_task_stays_queryable(teacher_b):
+    now = time.time()
+    rag._upload_status["long-then-done"] = {
+        "owner_user_id": 20, "owner_auth_subject": "subject-20",
+        "status": "done", "message": "Knowledge base updated",
+        "filename": "big.pdf", "created_at": now - 1200, "finished_at": now,
+    }
+    payload = asyncio.run(rag.rag_upload_status("long-then-done", _status_user()))
+    assert payload["status"] == "done"
+    assert "long-then-done" in rag._upload_status
+
+
+def test_rag_ttl_02_old_finished_task_expires_by_finished_at(teacher_b):
+    now = time.time()
+    rag._upload_status["stale-done"] = {
+        "owner_user_id": 20, "owner_auth_subject": "subject-20",
+        "status": "done", "message": "Knowledge base updated",
+        "filename": "big.pdf", "created_at": now - 1200,
+        "finished_at": now - (rag._STATUS_EXPIRE_SEC + 1),
+    }
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(rag.rag_upload_status("stale-done", _status_user()))
+    assert exc.value.status_code == 404
+    assert "stale-done" not in rag._upload_status
+
+
+def test_rag_ttl_03_legacy_terminal_without_finished_at_uses_created_at(teacher_b):
+    now = time.time()
+    rag._upload_status["legacy-done"] = {
+        "owner_user_id": 20, "owner_auth_subject": "subject-20",
+        "status": "done", "message": "Knowledge base updated",
+        "filename": "old.pdf", "created_at": now - (rag._STATUS_EXPIRE_SEC + 10),
+    }
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(rag.rag_upload_status("legacy-done", _status_user()))
+    assert exc.value.status_code == 404
+    assert "legacy-done" not in rag._upload_status
+
+
+def test_rag_ttl_04_active_tasks_never_expire_by_terminal_ttl(teacher_b):
+    now = time.time()
+    for status in ("processing", "receiving", "pending"):
+        task_id = "active-%s" % status
+        rag._upload_status[task_id] = {
+            "owner_user_id": 20, "owner_auth_subject": "subject-20",
+            "status": status, "message": "Working",
+            "filename": "busy.pdf", "created_at": now - 100_000,
+        }
+    for status in ("processing", "receiving", "pending"):
+        payload = asyncio.run(rag.rag_upload_status("active-%s" % status, _status_user()))
+        assert payload["status"] == status
+    assert rag._active_task_count() == 3
+
+
+# ---- RF02-03: bounded read ---------------------------------------------------
+
+class OversizedUpload:
+    """Records the read(size) hint and returns MAX+1 bytes."""
+
+    filename = "big.pdf"
+    content_type = "application/pdf"
+
+    def __init__(self):
+        self.sizes = []
+
+    async def read(self, size=None):
+        self.sizes.append(size)
+        return b"x" * (rag.MAX_RAG_UPLOAD_BYTES + 1)
+
+
+def test_bounded_read_caps_python_allocation_async(teacher_b, monkeypatch):
+    monkeypatch.setattr(rag, "parse_file_from_bytes", lambda *a, **k: pytest.fail("parse must not see oversized bytes"))
+    upload = OversizedUpload()
+    with pytest.raises(HTTPException) as exc:
+        _call_async(teacher_b, upload, monkeypatch)
+    assert exc.value.status_code == 413
+    assert upload.sizes == [rag.MAX_RAG_UPLOAD_BYTES + 1]
+    assert rag._upload_status == {}  # reservation released on the 413 too

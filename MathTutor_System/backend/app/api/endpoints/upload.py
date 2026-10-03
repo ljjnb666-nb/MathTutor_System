@@ -117,7 +117,9 @@ async def parse_word_exam(
     使用前端「设置」中的 API Key 与 Base URL。
     返回 { "questions": [...] }。
     """
-    content = await file.read()
+    # RF02-03: bounded read — at most MAX+1 bytes ever reach Python; the size
+    # check in _validate_exam_upload turns the overflow into 413.
+    content = await file.read(MAX_UPLOAD_BYTES + 1)
     filename = _validate_exam_upload(file, content)
 
     api_key = (llm_config.api_key or "").strip()
