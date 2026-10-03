@@ -2,6 +2,7 @@
 工具类 API：PPT 生成等。
 """
 import logging
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
@@ -32,6 +33,12 @@ def _sanitize_pptx_filename(name: str) -> str:
     s = "".join(c for c in name.strip() if c.isalnum() or c in " _-（）()（）")
     s = s.strip() or "Lesson"
     return s + ".pptx" if not s.lower().endswith(".pptx") else s
+
+
+def _content_disposition(filename: str) -> str:
+    """RFC 5987：HTTP 头只能 latin-1，中文文件名用 filename* 传递，ASCII 兜底。"""
+    ascii_fallback = filename if filename.isascii() else "Lesson.pptx"
+    return f"attachment; filename=\"{ascii_fallback}\"; filename*=UTF-8''{quote(filename)}"
 
 
 class BuildPPTRequest(BaseModel):
@@ -99,7 +106,7 @@ def api_build_pptx(
             content=buffer.getvalue(),
             media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
             headers={
-                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Disposition": _content_disposition(filename),
             },
         )
     except HTTPException:

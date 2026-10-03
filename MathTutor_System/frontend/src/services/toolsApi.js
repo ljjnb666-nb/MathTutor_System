@@ -18,8 +18,17 @@ export function buildPPTFile(content) {
     .then((res) => {
       const blob = res.data
       const disposition = res.headers?.['content-disposition'] || ''
-      const match = disposition.match(/filename="?([^";]+)"?/i)
-      const filename = match ? match[1].trim() : 'Lesson.pptx'
+      // RFC 5987：中文文件名通过 filename*=UTF-8'' 传递，filename= 是 ASCII 兜底。
+      const starMatch = disposition.match(/filename\*=(?:UTF-8'')?([^;]+)/i)
+      const plainMatch = disposition.match(/filename="?([^";]+)"?/i)
+      let filename = (starMatch || plainMatch)?.[1]?.trim() || 'Lesson.pptx'
+      if (starMatch) {
+        try {
+          filename = decodeURIComponent(filename)
+        } catch {
+          // 保留原样，不因畸形编码中断下载。
+        }
+      }
       return { blob, filename }
     })
 }
