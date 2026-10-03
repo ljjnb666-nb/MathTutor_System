@@ -1,7 +1,12 @@
 """
 Magic PPT 生成服务：用 DeepSeek 生成讲稿 JSON，再用 python-pptx 生成 .pptx 文件。
 采用空白布局 + 自定义版式，统一配色与字体层级，呈现更美观、专业的教学风格。
+
+PHASE 2C-5：含显式数学定界符的字段经 ppt_math_renderer 渲染为透明 PNG
+（字段级：title / subtitle / 单条 bullet），其余字段保持原生可编辑文本；
+字段渲染失败时回退为规范源文本的纯文本展示。
 """
+import math
 from io import BytesIO
 from typing import Any
 
@@ -13,6 +18,14 @@ from pptx.util import Inches, Pt
 from app.services.ppt_content_service import (
     clean_json_string as _clean_json_string,
     generate_lecture_content,
+)
+from app.services.ppt_math_text import has_explicit_math
+from app.services.ppt_math_renderer import (
+    RENDER_DPI,
+    MathFieldFallbackError,
+    MathFieldImage,
+    MathRenderer,
+    field_fallback_log,
 )
 
 # 版式常量（16:9 宽屏）
@@ -52,6 +65,12 @@ _SECTION_TITLE_PT = 34
 _CONTENT_TITLE_PT = 28
 _BODY_PT = 19
 _FOOTER_PT = 11
+
+_EMU_PER_INCH = 914400
+
+
+def _rgb(color: RGBColor) -> tuple[float, float, float]:
+    return (color[0] / 255, color[1] / 255, color[2] / 255)
 
 
 def _set_run_font(run, font_pt: int, color: RGBColor, bold: bool = False) -> None:
@@ -94,7 +113,60 @@ def _apply_gradient(shape, color_start: RGBColor, color_end: RGBColor, angle_deg
         shape.fill.fore_color.rgb = color_start
 
 
-def _add_title_slide(prs, slide_spec: dict, presentation_title: str, total: int = 1) -> None:
+def _try_render_field(
+    renderer: MathRenderer, text: str, *, font_pt: float, color: RGBColor, width_in: float
+) -> MathFieldImage | None:
+    """渲染含数学字段；任何字段级失败回退为原生文本（记录稳定代号）。"""
+    try:
+        return renderer.field_image(text, font_pt=font_pt, color=_rgb(color), width_in=width_in)
+    except MathFieldFallbackError as fallback:
+        field_fallback_log(fallback.reason)
+        return None
+
+
+def _fit_picture(image: MathFieldImage, max_w_in: float, max_h_in: float) -> tuple[float, float]:
+    """按原始 DPI 尺寸适配到字段框内（等比，只缩不放过大写）。"""
+    nat_w = image.width_px / RENDER_DPI
+    nat_h = image.height_px / RENDER_DPI
+    w = min(nat_w, max_w_in)
+    h = w * nat_h / nat_w
+    if h > max_h_in:
+        h = max_h_in
+        w = h * nat_w / nat_h
+    return w, h
+
+
+def _add_field_picture(shapes, image: MathFieldImage, left_in: float, top_in: float,
+                       box_w_in: float, box_h_in: float, align: str = "left") -> float:
+    """把字段 PNG 放入指定框；返回实际占用高度（英寸）。"""
+    w, h = _fit_picture(image, box_w_in, box_h_in)
+    left = left_in if align == "left" else left_in + (box_w_in - w) / 2
+    shapes.add_picture(BytesIO(image.png), int(left * _EMU_PER_INCH), int(top_in * _EMU_PER_INCH),
+                       width=int(w * _EMU_PER_INCH), height=int(h * _EMU_PER_INCH))
+    return h
+
+
+def _estimate_bullet_height(text: str, width_in: float, font_pt: float) -> float:
+    """估算原生文本要点占高（全角字符按 1 个全宽计）。"""
+    units = sum(2 if ord(c) > 0x2E80 else 1 for c in text) / 2
+    per_line = max(1.0, width_in * 72 / font_pt)
+    lines = max(1, math.ceil(units / per_line))
+    return lines * font_pt * 1.45 / 72
+
+
+def _add_footer(shapes, slide_num: int, total: int, left=_MARGIN) -> None:
+    footer_left = shapes.add_textbox(left, _FOOTER_TOP - Pt(2), Inches(2.5), Inches(0.35))
+    footer_left.text_frame.paragraphs[0].text = "初中数学"
+    _set_para_font(footer_left.text_frame.paragraphs[0], _FOOTER_PT, _FOOTER_COLOR)
+    footer_right = shapes.add_textbox(_SLIDE_W - _MARGIN - Inches(1.1), _FOOTER_TOP - Pt(2), Inches(1.1), Inches(0.35))
+    footer_right.text_frame.paragraphs[0].text = f"{slide_num:02d} / {total:02d}"
+    footer_right.text_frame.paragraphs[0].alignment = 2
+    for run in footer_right.text_frame.paragraphs[0].runs:
+        _set_run_font(run, 13, _ACCENT_SOFT, bold=True)
+
+
+def _add_title_slide(prs, slide_spec: dict, presentation_title: str, total: int = 1,
+                     renderer: MathRenderer | None = None) -> None:
     """标题页：顶部色条 + 居中大标题 + 副标题 + 双色装饰线。"""
     blank = prs.slide_layouts[6]
     slide = prs.slides.add_slide(blank)
@@ -126,18 +198,24 @@ def _add_title_slide(prs, slide_spec: dict, presentation_title: str, total: int 
     for run in badge_tf.text_frame.paragraphs[0].runs:
         _set_run_font(run, 12, _SECTION_TITLE, bold=True)
 
-    # 标题（居中）
+    # 标题（居中；含显式数学时渲染为图片，其余保持原生文本）
     tx_w = Inches(10)
     tx_left = (_SLIDE_W - tx_w) / 2
-    title_box = shapes.add_textbox(tx_left, Inches(1.55), tx_w, Inches(1.5))
-    tf = title_box.text_frame
-    tf.word_wrap = True
-    p = tf.paragraphs[0]
-    p.text = title_text
-    p.alignment = 1
-    p.space_after = Pt(18)
-    for run in p.runs:
-        _set_run_font(run, _TITLE_SLIDE_TITLE_PT, _TITLE_COLOR, bold=True)
+    title_image = _try_render_field(renderer, title_text, font_pt=_TITLE_SLIDE_TITLE_PT,
+                                    color=_TITLE_COLOR, width_in=tx_w / _EMU_PER_INCH) if renderer else None
+    if title_image is not None:
+        _add_field_picture(shapes, title_image, tx_left / _EMU_PER_INCH, Inches(1.55) / _EMU_PER_INCH,
+                           tx_w / _EMU_PER_INCH, Inches(1.5) / _EMU_PER_INCH, align="center")
+    else:
+        title_box = shapes.add_textbox(tx_left, Inches(1.55), tx_w, Inches(1.5))
+        tf = title_box.text_frame
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.text = title_text
+        p.alignment = 1
+        p.space_after = Pt(18)
+        for run in p.runs:
+            _set_run_font(run, _TITLE_SLIDE_TITLE_PT, _TITLE_COLOR, bold=True)
 
     # 双线装饰：主色 + 青绿（圆角细条）
     line_w = Inches(2.2)
@@ -153,24 +231,23 @@ def _add_title_slide(prs, slide_spec: dict, presentation_title: str, total: int 
     l2.line.fill.background()
 
     if subtitle_text:
-        sub_box = shapes.add_textbox(tx_left, Inches(3.6), tx_w, Inches(0.9))
-        sub_tf = sub_box.text_frame
-        sub_tf.word_wrap = True
-        sp = sub_tf.paragraphs[0]
-        sp.text = subtitle_text
-        sp.alignment = 1
-        for run in sp.runs:
-            _set_run_font(run, _TITLE_SLIDE_SUBTITLE_PT, _SUBTITLE_COLOR)
+        sub_image = _try_render_field(renderer, subtitle_text, font_pt=_TITLE_SLIDE_SUBTITLE_PT,
+                                      color=_SUBTITLE_COLOR, width_in=tx_w / _EMU_PER_INCH) if renderer else None
+        if sub_image is not None:
+            _add_field_picture(shapes, sub_image, tx_left / _EMU_PER_INCH, Inches(3.6) / _EMU_PER_INCH,
+                               tx_w / _EMU_PER_INCH, Inches(0.9) / _EMU_PER_INCH, align="center")
+        else:
+            sub_box = shapes.add_textbox(tx_left, Inches(3.6), tx_w, Inches(0.9))
+            sub_tf = sub_box.text_frame
+            sub_tf.word_wrap = True
+            sp = sub_tf.paragraphs[0]
+            sp.text = subtitle_text
+            sp.alignment = 1
+            for run in sp.runs:
+                _set_run_font(run, _TITLE_SLIDE_SUBTITLE_PT, _SUBTITLE_COLOR)
 
     # 页脚：左品牌 + 右页码（与内容页一致）
-    footer_left = shapes.add_textbox(_MARGIN, _FOOTER_TOP - Pt(2), Inches(2.5), Inches(0.35))
-    footer_left.text_frame.paragraphs[0].text = "初中数学"
-    _set_para_font(footer_left.text_frame.paragraphs[0], _FOOTER_PT, _FOOTER_COLOR)
-    footer_right = shapes.add_textbox(_SLIDE_W - _MARGIN - Inches(1.1), _FOOTER_TOP - Pt(2), Inches(1.1), Inches(0.35))
-    footer_right.text_frame.paragraphs[0].text = f"01 / {total:02d}"
-    footer_right.text_frame.paragraphs[0].alignment = 2
-    for run in footer_right.text_frame.paragraphs[0].runs:
-        _set_run_font(run, 13, _ACCENT_SOFT, bold=True)
+    _add_footer(shapes, 1, total)
 
 
 def _add_section_slide(prs, slide_spec: dict, slide_num: int, total: int) -> None:
@@ -222,17 +299,11 @@ def _add_section_slide(prs, slide_spec: dict, slide_num: int, total: int) -> Non
         _set_run_font(run, 15, RGBColor(0x94, 0xA3, 0xB8))
 
     # 页脚：左品牌 + 右页码
-    footer_left = shapes.add_textbox(_MARGIN, _FOOTER_TOP - Pt(2), Inches(2.5), Inches(0.35))
-    footer_left.text_frame.paragraphs[0].text = "初中数学"
-    _set_para_font(footer_left.text_frame.paragraphs[0], _FOOTER_PT, _FOOTER_COLOR)
-    footer_right = shapes.add_textbox(_SLIDE_W - _MARGIN - Inches(1.1), _FOOTER_TOP - Pt(2), Inches(1.1), Inches(0.35))
-    footer_right.text_frame.paragraphs[0].text = f"{slide_num:02d} / {total:02d}"
-    footer_right.text_frame.paragraphs[0].alignment = 2
-    for run in footer_right.text_frame.paragraphs[0].runs:
-        _set_run_font(run, 13, _ACCENT_SOFT, bold=True)
+    _add_footer(shapes, slide_num, total)
 
 
-def _add_content_slide(prs, slide_spec: dict, slide_num: int, total: int) -> None:
+def _add_content_slide(prs, slide_spec: dict, slide_num: int, total: int,
+                       renderer: MathRenderer | None = None) -> None:
     """内容页：左侧竖条 + 标题（带青绿 accent）+ 白色圆角内容卡 + 正文 + 页脚。"""
     blank = prs.slide_layouts[6]
     slide = prs.slides.add_slide(blank)
@@ -249,21 +320,27 @@ def _add_content_slide(prs, slide_spec: dict, slide_num: int, total: int) -> Non
     content_w = _SLIDE_W - _CONTENT_LEFT - _MARGIN
     body_w = content_w
 
-    # 标题左侧青绿竖线 + 标题文字
+    # 标题左侧青绿竖线 + 标题文字（含显式数学时渲染为图片）
     title_left = _CONTENT_LEFT
     accent_w = Pt(4)
     title_accent = shapes.add_shape(MSO_SHAPE.RECTANGLE, title_left, _TITLE_TOP, accent_w, Inches(0.5))
     title_accent.fill.solid()
     title_accent.fill.fore_color.rgb = _ACCENT_TEAL
     title_accent.line.fill.background()
-    title_box = shapes.add_textbox(title_left + Inches(0.25), _TITLE_TOP, content_w - Inches(0.25), Inches(0.75))
-    tf = title_box.text_frame
-    tf.word_wrap = True
-    p = tf.paragraphs[0]
-    p.text = title_text or " "
-    p.space_after = Pt(12)
-    for run in p.runs:
-        _set_run_font(run, _CONTENT_TITLE_PT, _ACCENT_SOFT, bold=True)
+    title_image = _try_render_field(renderer, title_text, font_pt=_CONTENT_TITLE_PT,
+                                    color=_ACCENT_SOFT, width_in=(content_w - Inches(0.25)) / _EMU_PER_INCH) if renderer and title_text else None
+    if title_image is not None:
+        _add_field_picture(shapes, title_image, (title_left + Inches(0.25)) / _EMU_PER_INCH, _TITLE_TOP / _EMU_PER_INCH,
+                           (content_w - Inches(0.25)) / _EMU_PER_INCH, Inches(0.75) / _EMU_PER_INCH, align="left")
+    else:
+        title_box = shapes.add_textbox(title_left + Inches(0.25), _TITLE_TOP, content_w - Inches(0.25), Inches(0.75))
+        tf = title_box.text_frame
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.text = title_text or " "
+        p.space_after = Pt(12)
+        for run in p.runs:
+            _set_run_font(run, _CONTENT_TITLE_PT, _ACCENT_SOFT, bold=True)
 
     # 正文区：阴影层（先画，在底层）+ 白色圆角卡片
     body_top = _BODY_TOP if title_text else Inches(1.0)
@@ -288,43 +365,66 @@ def _add_content_slide(prs, slide_spec: dict, slide_num: int, total: int) -> Non
     content_card.line.color.rgb = _LINE_LIGHT
     content_card.line.width = Pt(0.5)
 
-    body_box = shapes.add_textbox(_CONTENT_LEFT, body_top, body_w, Inches(4.8))
-    body_tf = body_box.text_frame
-    body_tf.word_wrap = True
-    for j, bullet in enumerate(bullets):
-        line = (bullet if isinstance(bullet, str) else str(bullet)).strip()
-        if not line:
-            continue
-        if j == 0:
-            para = body_tf.paragraphs[0]
-        else:
-            para = body_tf.add_paragraph()
-        para.text = f"•  {line}"
-        para.space_after = Pt(16)
-        para.level = 0
-        _set_para_font(para, _BODY_PT, _BODY_COLOR)
+    body_lines = [(bullet if isinstance(bullet, str) else str(bullet)).strip() for bullet in bullets]
+    body_lines = [line for line in body_lines if line]
+    has_math_bullet = renderer is not None and any(
+        _has_math(f"•  {line}") for line in body_lines
+    )
+
+    if has_math_bullet:
+        # 数学混合版式：逐条纵向流式排布（原生文本要点 + 数学图片混排）。
+        body_w_in = body_w / _EMU_PER_INCH
+        y = body_top / _EMU_PER_INCH
+        gap_in = Pt(16) / _EMU_PER_INCH
+        for line in body_lines:
+            image = _try_render_field(renderer, f"•  {line}", font_pt=_BODY_PT,
+                                      color=_BODY_COLOR, width_in=body_w_in)
+            if image is not None:
+                used_h = _add_field_picture(shapes, image, _CONTENT_LEFT / _EMU_PER_INCH, y,
+                                            body_w_in, Inches(4.8) / _EMU_PER_INCH, align="left")
+                y += used_h + gap_in
+                continue
+            est_h = _estimate_bullet_height(f"•  {line}", body_w_in, _BODY_PT)
+            box = shapes.add_textbox(_CONTENT_LEFT, int(y * _EMU_PER_INCH), body_w, int(est_h * _EMU_PER_INCH))
+            box.text_frame.word_wrap = True
+            para = box.text_frame.paragraphs[0]
+            para.text = f"•  {line}"
+            _set_para_font(para, _BODY_PT, _BODY_COLOR)
+            y += est_h + gap_in
+    else:
+        body_box = shapes.add_textbox(_CONTENT_LEFT, body_top, body_w, Inches(4.8))
+        body_tf = body_box.text_frame
+        body_tf.word_wrap = True
+        for j, line in enumerate(body_lines):
+            if j == 0:
+                para = body_tf.paragraphs[0]
+            else:
+                para = body_tf.add_paragraph()
+            para.text = f"•  {line}"
+            para.space_after = Pt(16)
+            para.level = 0
+            _set_para_font(para, _BODY_PT, _BODY_COLOR)
 
     # 页脚：左品牌 + 右页码（专业版式）
     footer_line = shapes.add_shape(MSO_SHAPE.RECTANGLE, _CONTENT_LEFT, _FOOTER_TOP - Pt(10), content_w, Pt(0.5))
     footer_line.fill.solid()
     footer_line.fill.fore_color.rgb = _LINE_LIGHT
     footer_line.line.fill.background()
-    footer_left = shapes.add_textbox(_CONTENT_LEFT, _FOOTER_TOP - Pt(2), Inches(2.5), Inches(0.35))
-    footer_left.text_frame.paragraphs[0].text = "初中数学"
-    _set_para_font(footer_left.text_frame.paragraphs[0], _FOOTER_PT, _FOOTER_COLOR)
-    footer_right = shapes.add_textbox(_SLIDE_W - _MARGIN - Inches(1.1), _FOOTER_TOP - Pt(2), Inches(1.1), Inches(0.35))
-    footer_right.text_frame.paragraphs[0].text = f"{slide_num:02d} / {total:02d}"
-    footer_right.text_frame.paragraphs[0].alignment = 2
-    for run in footer_right.text_frame.paragraphs[0].runs:
-        _set_run_font(run, 13, _ACCENT_SOFT, bold=True)
+    _add_footer(shapes, slide_num, total, _CONTENT_LEFT)
+
+
+def _has_math(text: str) -> bool:
+    """轻量探测：字段是否含显式定界符数学（与 ppt_math_text 语义一致）。"""
+    return has_explicit_math(text)
 
 
 def create_pptx_file(content: dict[str, Any]) -> BytesIO:
     """
     将讲稿 JSON 转为 .pptx 二进制流。
     - 空白布局 + 自定义版式：统一背景、左侧竖条、页脚
-    - 支持 layout: title / section / content
+    - 支持 layout: title / content
     - 16:9 宽屏，专业教学风配色与字体层级
+    - 含显式数学定界符的字段渲染为透明 PNG；字段级失败回退为源文本
     """
     prs = Presentation()
     prs.slide_width = _SLIDE_W
@@ -338,14 +438,16 @@ def create_pptx_file(content: dict[str, Any]) -> BytesIO:
     ]
     presentation_title = content.get("title") or "课堂讲义"
     n = len(slides_to_render)
+    renderer = MathRenderer()
 
     for i, slide_spec in enumerate(slides_to_render):
         layout = (slide_spec.get("layout") or "content").lower()
         slide_num = i + 1
+        renderer.start_slide()
         if layout == "title":
-            _add_title_slide(prs, slide_spec, presentation_title, n)
+            _add_title_slide(prs, slide_spec, presentation_title, n, renderer)
         else:
-            _add_content_slide(prs, slide_spec, slide_num, n)
+            _add_content_slide(prs, slide_spec, slide_num, n, renderer)
 
     buf = BytesIO()
     prs.save(buf)
