@@ -381,3 +381,28 @@ def test_bounded_read_caps_python_allocation_async(teacher_b, monkeypatch):
     assert exc.value.status_code == 413
     assert upload.sizes == [rag.MAX_RAG_UPLOAD_BYTES + 1]
     assert rag._upload_status == {}  # reservation released on the 413 too
+
+
+# ---- RF02-EXT: scheduling failure releases the reservation ------------------
+
+def test_rag_schedule_01_create_task_failure_releases_slot_and_closes_coroutine(teacher_b, monkeypatch):
+    """asyncio.create_task 抛异常：释放 reservation、关闭未调度 coro、稳定 500。"""
+    captured = {}
+    secret = "postgres://tutor:tutor-pw@10.0.0.9/db SECRET-material"
+
+    def exploding_create_task(coro):
+        captured["coro"] = coro
+        raise RuntimeError(f"event loop rejected task: {secret}")
+
+    monkeypatch.setattr(asyncio, "create_task", exploding_create_task)
+    with pytest.raises(HTTPException) as exc:
+        _call_async(teacher_b, _file(), monkeypatch)
+
+    assert exc.value.status_code == 500
+    assert exc.value.detail == "RAG_QUEUE_ERROR: 知识库任务创建失败，请稍后重试。"
+    assert "RuntimeError" not in exc.value.detail
+    assert secret not in exc.value.detail
+    assert rag._upload_status == {}
+    assert rag._active_task_count() == 0
+    # The never-scheduled coroutine was closed, not left dangling.
+    assert captured["coro"].cr_frame is None

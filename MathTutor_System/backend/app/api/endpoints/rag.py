@@ -337,18 +337,30 @@ async def rag_upload_async(
         _upload_status.pop(task_id, None)
         raise
     _upload_status[task_id].update({"status": "pending", "message": "Queued", "filename": filename})
-    asyncio.create_task(
-        _run_upload_task(
-            task_id,
-            file_bytes,
-            filename,
-            (knowledge_point or "").strip(),
-            (chunk_type or "question").strip() or "question",
-            embedding_config,
-            current_user.id,
-            current_user.auth_subject,
-        )
+    # RF02-EXT: scheduling is inside the cleanup boundary. If create_task fails,
+    # the task was never created — close the orphan coroutine, release the
+    # reservation (no fake terminal record, no stale timeout), and fail with a
+    # stable message. Without this, the slot would leak until process restart.
+    coro = _run_upload_task(
+        task_id,
+        file_bytes,
+        filename,
+        (knowledge_point or "").strip(),
+        (chunk_type or "question").strip() or "question",
+        embedding_config,
+        current_user.id,
+        current_user.auth_subject,
     )
+    try:
+        asyncio.create_task(coro)
+    except Exception as exc:
+        coro.close()
+        _upload_status.pop(task_id, None)
+        logger.error("rag_async_schedule_failed error_type=%s", type(exc).__name__)
+        raise HTTPException(
+            status_code=500,
+            detail="RAG_QUEUE_ERROR: 知识库任务创建失败，请稍后重试。",
+        ) from None
     return JSONResponse(status_code=202, content={"task_id": task_id, "status": "pending", "message": "Queued"})
 
 
