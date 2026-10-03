@@ -65,6 +65,7 @@ def test_login_student_returns_token_that_resolves_current_student():
 
 
 def test_login_student_requires_password_when_hash_exists():
+    """RB02-B: a missing password is the same generic failure as bad credentials."""
     db = make_db()
     add_student(db)
 
@@ -72,7 +73,7 @@ def test_login_student_requires_password_when_hash_exists():
         login_student(db, "alice", None)
 
     assert exc_info.value.status_code == 401
-    assert exc_info.value.detail == "请输入密码"
+    assert exc_info.value.detail == "登录码或密码错误"
     assert exc_info.value.authenticate_header is True
 
 

@@ -2,6 +2,7 @@
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 from fastapi import HTTPException
 
 import bcrypt
@@ -28,7 +29,13 @@ UNIFIED_LOGIN_FAILURE = "登录码或密码错误"
 
 
 def make_db():
-    engine = create_engine("sqlite:///:memory:")
+    # StaticPool + check_same_thread=False: the API-level tests drive TestClient
+    # from another thread against the same in-memory database.
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     Base.metadata.create_all(
         engine,
         tables=[
@@ -90,6 +97,75 @@ def test_legacy_code_only_student_cannot_login():
     with pytest.raises(StudentPortalServiceError) as exc:
         login_student(db, "legacy-code", "any-guess-123")
     assert exc.value.detail == UNIFIED_LOGIN_FAILURE
+
+
+def test_rb02a_predeployment_code_only_token_is_dead():
+    """部署前签发的合法 code-only JWT：凭证降级后必须 401（服务层 + 真实 API）。"""
+    from uuid import uuid4
+
+    from fastapi.testclient import TestClient
+
+    from app.api.endpoints.auth import get_current_user
+    from app.api.endpoints.student_router import get_current_student
+    from app.core.security import create_access_token
+    from app.main import app
+    from app.models.base import get_db
+    from app.services.student_portal_service import get_current_student_from_token
+
+    db = make_db()
+    teacher = seed_teacher(db)
+    student = seed_legacy_code_only_student(db)
+
+    payload = {
+        "type": "student",
+        "sub": student.auth_subject,
+        "sid": student.id,
+        "owner_uid": teacher.id,
+        "owner_sub": teacher.auth_subject,
+    }
+    with pytest.raises(StudentPortalServiceError) as exc:
+        get_current_student_from_token(db, create_access_token(payload))
+    assert exc.value.status_code == 401
+    assert exc.value.authenticate_header is True
+
+    previous = app.dependency_overrides.copy()
+    app.dependency_overrides[get_db] = lambda: db
+    try:
+        client = TestClient(app)
+        response = client.get("/api/student/me", headers={"Authorization": f"Bearer {create_access_token(payload)}"})
+        assert response.status_code == 401
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(previous)
+
+
+def test_rb02b_missing_password_is_not_a_login_code_oracle():
+    """API 层：省略密码时，未知登录码与真实登录码必须同形（都 422），不存在 oracle。"""
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+    from app.models.base import get_db
+
+    db = make_db()
+    seed_teacher(db)
+    credentialed = seed_credentialed_student(db)  # login_code=alice + password
+
+    previous = app.dependency_overrides.copy()
+    app.dependency_overrides[get_db] = lambda: db
+    try:
+        client = TestClient(app)
+        unknown = client.post("/api/student/token", json={"login_code": "no-such-code"})
+        known = client.post("/api/student/token", json={"login_code": credentialed.login_code})
+        assert unknown.status_code == 422
+        assert known.status_code == 422
+
+        # 服务层直调（绕过 DTO）：缺密码也是统一失败话术。
+        with pytest.raises(StudentPortalServiceError) as exc:
+            login_student(db, credentialed.login_code, None)
+        assert exc.value.detail == UNIFIED_LOGIN_FAILURE
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(previous)
 
 
 def test_legacy_weak_password_still_logs_in():

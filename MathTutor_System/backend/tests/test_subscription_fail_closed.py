@@ -116,6 +116,33 @@ def test_capacity_missing_plan_fails_closed_503():
     assert exc.value.status_code == 503
 
 
+def test_capacity_inactive_subscription_rejected():
+    """RB01: expired/inactive subscription must not spend the stored plan's capacity."""
+    db = make_db()
+    user, sub, _ = seed(db, sub_status="expired", students=0)
+    with pytest.raises(HTTPException) as exc:
+        require_plan_capacity(user, sub, db)
+    assert exc.value.status_code == 403
+    assert exc.value.detail == INACTIVE_SUBSCRIPTION_DETAIL
+
+
+def test_create_student_for_user_rejects_expired_subscription_without_side_effects():
+    """RB01 end-to-end service path: expired sub + pro plan + room to spare → no Student row."""
+    from app.schemas.student_dto import StudentCreate
+    from app.services.student_service import create_student_for_user
+
+    db = make_db()
+    # get_current_subscription 需要 free 套餐存在；订阅本身保持 expired+pro。
+    db.add(Plan(code="free", name="免费版", max_students=3, features={}))
+    user, sub, _ = seed(db, sub_status="expired", students=1)  # well under pro.max_students=5
+    with pytest.raises(HTTPException) as exc:
+        create_student_for_user(db, StudentCreate(name="新生", grade="8", class_name="1"), user)
+    assert exc.value.status_code == 403
+    assert exc.value.detail == INACTIVE_SUBSCRIPTION_DETAIL
+    assert db.query(Student).filter(Student.name == "新生").count() == 0
+    assert db.query(Student).count() == 1  # zero side effects
+
+
 def test_capacity_still_enforces_limit():
     db = make_db()
     user, sub, _ = seed(db, students=5)

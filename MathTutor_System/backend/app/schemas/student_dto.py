@@ -69,7 +69,9 @@ class StudentLoginRequest(BaseModel):
     """学生端登录请求"""
 
     login_code: str = Field(..., min_length=1, max_length=32, description="登录码")
-    password: str | None = Field(None, max_length=128, description="密码（若已设置则必填）")
+    # RB02-B：密码必填（1-128），避免「不传密码」区分登录码是否存在；
+    # 不设 min_length=8 —— 历史 8 位以下密码仍须允许登录，新策略只约束新 hash。
+    password: str = Field(..., min_length=1, max_length=128, description="密码")
 
 
 class StudentPasswordUpdate(BaseModel):

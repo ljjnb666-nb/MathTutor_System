@@ -79,10 +79,16 @@ def require_plan_capacity(
     """
     校验当前学生数 < plan.max_students；超出则 403。
     管理员（role=admin）跳过限制。
-    SEC-02：对非 admin，套餐关系损坏（plan 丢失）必须 fail closed（503），不得当作无限制。
+    SEC-02：对非 admin 一律 fail closed —— 订阅非 active（如已过期但 plan_id
+    仍指向付费套餐）不得按该套餐容量创建学生；套餐关系损坏 → 503。
     """
     if current_user.role == "admin":
         return
+    if subscription.status != "active":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=INACTIVE_SUBSCRIPTION_DETAIL,
+        )
     plan = _resolve_plan(subscription, db)
     if plan is None:
         raise HTTPException(

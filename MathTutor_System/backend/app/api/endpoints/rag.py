@@ -38,8 +38,10 @@ _STATUS_EXPIRE_SEC = 600
 _MAX_STATUS_ENTRIES = 100
 MAX_ACTIVE_RAG_UPLOADS_PER_OWNER = 2
 MAX_ACTIVE_RAG_UPLOADS_GLOBAL = 16
-_ACTIVE_TASK_TIMEOUT_SEC = 1800
-_ACTIVE_STATUSES = frozenset({"pending", "processing"})
+# RB03-B: there is NO wall-clock quota release. Without a truly cancellable
+# worker, a stuck task keeps holding its slot (and its buffer) until the
+# process restarts — fail closed beats fake cancellation.
+_ACTIVE_STATUSES = frozenset({"receiving", "pending", "processing"})
 _OWNER_BUSY_DETAIL = "当前已有知识库导入任务正在处理，请稍后重试。"
 _GLOBAL_BUSY_DETAIL = "知识库导入队列繁忙，请稍后重试。"
 
@@ -55,17 +57,6 @@ ALLOWED_RAG_MIME_TYPES = {
 def _require_rag(current_user: User, db: Session) -> None:
     sub = get_current_subscription(current_user, db)
     require_feature(sub, "rag", current_user, db)
-
-
-def _expire_stale_active_tasks() -> None:
-    """Force-fail active tasks that never completed so their slot/buffer release."""
-    deadline = time.time() - _ACTIVE_TASK_TIMEOUT_SEC
-    for rec in _upload_status.values():
-        if rec.get("status") in _ACTIVE_STATUSES and (rec.get("created_at") or 0) < deadline:
-            rec["status"] = "failed"
-            rec["message"] = "任务超时，请重新上传"
-            rec["error"] = "Upload timed out"
-            rec["finished_at"] = time.time()
 
 
 def _active_task_count(owner_user_id: int | None = None) -> int:
@@ -91,6 +82,30 @@ def _prune_upload_status() -> None:
     overflow = len(_upload_status) - _MAX_STATUS_ENTRIES
     for task_id, _rec in terminal[:overflow]:
         _upload_status.pop(task_id, None)
+
+
+def reserve_upload_slot(current_user: User) -> str:
+    """RB03-C: check per-owner/global limits and atomically claim a slot.
+
+    The reservation (status=receiving, an ACTIVE status) is created with no
+    await between the check and the insert, so two concurrent requests can
+    never both pass the same slot check. The caller MUST either promote the
+    reservation to pending once the upload is validated, or remove it — the
+    reservation counts toward the active limits either way.
+    """
+    if _active_task_count(current_user.id) >= MAX_ACTIVE_RAG_UPLOADS_PER_OWNER:
+        raise HTTPException(status_code=429, detail=_OWNER_BUSY_DETAIL)
+    if _active_task_count() >= MAX_ACTIVE_RAG_UPLOADS_GLOBAL:
+        raise HTTPException(status_code=503, detail=_GLOBAL_BUSY_DETAIL)
+    task_id = str(uuid.uuid4())
+    _upload_status[task_id] = {
+        "owner_user_id": current_user.id,
+        "owner_auth_subject": current_user.auth_subject,
+        "status": "receiving",
+        "message": "Receiving",
+        "created_at": time.time(),
+    }
+    return task_id
 
 
 def _validate_rag_filename(filename: str) -> str:
@@ -295,23 +310,19 @@ async def rag_upload_async(
     embedding_config: EmbeddingConfig = Depends(get_embedding_config),
 ):
     _require_rag(current_user, db)
-    filename, file_bytes = await _read_validated_rag_upload(file)
-    _expire_stale_active_tasks()
-    # SEC-04 admission control happens BEFORE a slot or a 12MB buffer is held.
-    if _active_task_count(current_user.id) >= MAX_ACTIVE_RAG_UPLOADS_PER_OWNER:
-        raise HTTPException(status_code=429, detail=_OWNER_BUSY_DETAIL)
-    if _active_task_count() >= MAX_ACTIVE_RAG_UPLOADS_GLOBAL:
-        raise HTTPException(status_code=503, detail=_GLOBAL_BUSY_DETAIL)
-    task_id = str(uuid.uuid4())
-    _upload_status[task_id] = {
-        "owner_user_id": current_user.id,
-        "owner_auth_subject": current_user.auth_subject,
-        "status": "pending",
-        "message": "Queued",
-        "filename": filename,
-        "created_at": time.time(),
-    }
+    # RB03-C: admission control + slot reservation happen BEFORE the first
+    # large read, so a rejected caller never allocates its 12MB buffer, and
+    # two concurrent requests cannot slip through the same slot check.
     _prune_upload_status()
+    task_id = reserve_upload_slot(current_user)
+    try:
+        filename, file_bytes = await _read_validated_rag_upload(file)
+    except Exception:
+        # Validation/read failure releases the reservation: receiving is an
+        # active status only while the upload is actually being received.
+        _upload_status.pop(task_id, None)
+        raise
+    _upload_status[task_id].update({"status": "pending", "message": "Queued", "filename": filename})
     asyncio.create_task(
         _run_upload_task(
             task_id,
@@ -338,7 +349,11 @@ async def rag_upload_status(
     if (int(rec.get("owner_user_id") or -1) != int(current_user.id)
             or rec.get("owner_auth_subject") != current_user.auth_subject):
         raise HTTPException(status_code=404, detail="Task not found")
-    if time.time() - (rec.get("created_at") or 0) > _STATUS_EXPIRE_SEC:
+    # RB03-A: the TTL may only retire terminal history. A pending/processing/
+    # receiving task older than the TTL still returns its live status — never
+    # popped while the real work may still be running.
+    if (rec.get("status") not in _ACTIVE_STATUSES
+            and time.time() - (rec.get("created_at") or 0) > _STATUS_EXPIRE_SEC):
         _upload_status.pop(task_id, None)
         raise HTTPException(status_code=404, detail="Task expired")
     return {
