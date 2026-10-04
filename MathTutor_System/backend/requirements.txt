@@ -30,3 +30,5 @@ matplotlib==3.10.3
 python-alipay-sdk>=3.4.0
 wechatpayv3>=1.2.0
 psycopg[binary]>=3.2,<4
+# REPORT_TIMEZONE（zoneinfo）在无系统 tzdata 的平台（如 Windows 裸环境）必需；PHASE 2D-1B-1
+tzdata>=2024.1
