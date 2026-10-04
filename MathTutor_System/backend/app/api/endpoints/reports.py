@@ -9,6 +9,7 @@ from app.api.endpoints.auth import get_current_user
 from app.core.deps import LLMConfig, get_llm_config
 from app.core.prompts import (
     AFTER_CLASS_COMMENT_PROMPT,
+    GROUNDED_NARRATIVE_PLAN_PROMPT,
     LEARNING_REPORT_PARSE_PROMPT,
     POLISH_DRAFT_PROMPT,
     POLISH_DRAFT_WITH_TEMPLATE_PROMPT,
@@ -23,8 +24,21 @@ from app.schemas.report_dto import (
     LearningReportParseResponse,
     WeakPointItem,
 )
+from app.schemas.report_narrative_dto import (
+    GroundedNarrativeRequest,
+    GroundedNarrativeResponse,
+    NarrativeGrounding,
+)
 from app.schemas.report_snapshot_dto import ReportPeriod, StudentReportSnapshot
 from app.services.llm_service import chat_completion_async
+from app.services.report_narrative_service import (
+    NarrativePlanRejected,
+    build_evidence_catalog,
+    build_plan_prompt_payload,
+    parse_narrative_plan,
+    render_grounded_narrative,
+    validate_narrative_plan,
+)
 from app.services.report_pdf_service import (
     build_student_report_pdf_buffer,
     report_pdf_response,
@@ -232,6 +246,76 @@ def get_student_report_snapshot_api(
             type(e).__name__,
         )
         raise HTTPException(status_code=500, detail="REPORT_SNAPSHOT_ERROR: 生成学情快照失败，请稍后重试。") from None
+
+
+@router.post("/students/{student_id}/narrative", response_model=GroundedNarrativeResponse)
+async def generate_student_grounded_narrative(
+    response: Response,
+    student_id: int,
+    body: GroundedNarrativeRequest,
+    period: ReportPeriod = Query(default="all_time"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    llm_config: LLMConfig = Depends(get_llm_config),
+) -> GroundedNarrativeResponse:
+    """Evidence-bound grounded narrative：LLM 仅返回 NarrativePlan（evidence id /
+    action / style 选择），最终家长正文由 server deterministic renderer 生成。
+
+    authorization 顺序：authenticate → require_own_student（foreign/missing 404，
+    不调用 LLM、不暴露 API key 配置状态）→ api key → snapshot → provider。
+    """
+    student = require_own_student(db.get(Student, student_id), current_user)
+    _require_api_key(llm_config)
+    try:
+        snapshot = build_student_report_snapshot(db, student, period)
+        catalog = build_evidence_catalog(snapshot, body.teacher_observation)
+        payload = build_plan_prompt_payload(catalog, period)
+        messages = [{"role": "user", "content": json.dumps(payload, ensure_ascii=False)}]
+        raw = await chat_completion_async(
+            messages,
+            GROUNDED_NARRATIVE_PLAN_PROMPT,
+            llm_config,
+            temperature=0.2,
+            max_tokens=512,
+        )
+        plan = parse_narrative_plan(raw)
+        validate_narrative_plan(plan, catalog)
+        comment = render_grounded_narrative(snapshot, catalog, plan)
+        response.headers["Cache-Control"] = "private, no-store"
+        return GroundedNarrativeResponse(
+            comment=comment,
+            period=period,
+            grounding=NarrativeGrounding(
+                system_fact_ids=plan.system_fact_ids,
+                teacher_observation_ids=plan.teacher_observation_ids,
+                recommendation_basis_ids=[item.basis_id for item in plan.recommendations],
+            ),
+        )
+    except HTTPException:
+        raise
+    except NarrativePlanRejected:
+        logger.warning(
+            "student_narrative_plan_rejected user_id=%s student_id=%s period=%s error_code=REPORT_NARRATIVE_UNGROUNDED",
+            current_user.id,
+            student_id,
+            period,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail="REPORT_NARRATIVE_UNGROUNDED: AI 返回的学情计划无法通过事实校验，请重试。",
+        ) from None
+    except Exception as e:
+        logger.error(
+            "student_narrative_provider_failed user_id=%s student_id=%s period=%s error_code=REPORT_PROVIDER_ERROR external_error_type=%s",
+            current_user.id,
+            student_id,
+            period,
+            type(e).__name__,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="REPORT_PROVIDER_ERROR: 学情叙述生成失败，请稍后重试。",
+        ) from None
 
 
 @router.get("/students/{student_id}/pdf")
