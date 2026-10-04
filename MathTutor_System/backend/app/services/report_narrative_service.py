@@ -46,16 +46,18 @@ FOCUS_LABELS = {1: "待提升", 2: "一般", 3: "尚可", 4: "较好", 5: "很�
 MASTERY_LABELS = {1: "待提升", 2: "一般", 3: "尚可", 4: "较好", 5: "很好"}
 
 # action → 允许的 evidence kind 矩阵；mismatch 必须 fail closed。
+# maintain_learning_habit 已删除：teacher focus/mastery/keyword 不能 authoritative
+# 证明「存在值得保持的学习习惯」（NARRATIVE-EVIDENCE-SEMANTIC-01）。
 _ACTION_ALLOWED_KINDS: dict[str, frozenset[str]] = {
     "practice_target": frozenset({"current_weak_topic"}),
     "review_pending": frozenset({"mistake_summary"}),
     "support_classroom_focus": frozenset({"teacher_focus"}),
-    "maintain_learning_habit": frozenset({"teacher_focus", "teacher_mastery", "teacher_keyword"}),
     "continue_observation": frozenset({"teacher_focus", "teacher_mastery", "teacher_keyword"}),
 }
 
 _CLOSING_SENTENCES = {
-    "encouraging": "期待在后续学习中继续看到积极的成长。",
+    # 纯未来期望，不预设任何已观察到的进步/稳定事实（NARRATIVE-CLOSING-01）。
+    "encouraging": "期待后续学习中有新的收获。",
     "steady": "可继续结合后续学习记录稳步观察与支持。",
 }
 
@@ -194,7 +196,7 @@ def allowed_recommendation_actions(catalog: list[NarrativeEvidence]) -> list[str
     if "teacher_focus" in kinds:
         allowed.append("support_classroom_focus")
     if teacher_kinds:
-        allowed.extend(["maintain_learning_habit", "continue_observation"])
+        allowed.append("continue_observation")
     return allowed
 
 
@@ -253,11 +255,16 @@ def parse_narrative_plan(raw: str) -> GroundedNarrativePlan:
 
 
 def validate_narrative_plan(plan: GroundedNarrativePlan, catalog: list[NarrativeEvidence]) -> None:
-    """plan 中每个 id 必须存在于 catalog 且 source 归属正确；action 必须与
-    basis 的 kind 匹配（review_pending 另要求 current_pending_count > 0）。
+    """minimum grounding：plan 必须至少选择一条 evidence（system / teacher /
+    recommendation 任一非空）——完全空 plan 视为 ungrounded（NARRATIVE-GROUNDING-EMPTY-01）。
 
+    其后：每个 id 必须存在于 catalog 且 source 归属正确；action 必须与
+    basis 的 kind 匹配（review_pending 另要求 current_pending_count > 0）。
     unknown id / 伪造话题 / action-basis mismatch 一律 NarrativePlanRejected。
     """
+    if not plan.system_fact_ids and not plan.teacher_observation_ids and not plan.recommendations:
+        raise NarrativePlanRejected("plan has no grounding: at least one evidence selection is required")
+
     by_id = {evidence.id: evidence for evidence in catalog}
 
     for evidence_id in plan.system_fact_ids:
@@ -330,15 +337,14 @@ def _render_teacher_evidence(evidence: NarrativeEvidence) -> str:
 
 
 def _render_recommendation(evidence: NarrativeEvidence, action: str) -> str:
-    """recommendation 措辞由 server 决定：不假设学科/题型，不预测效果。"""
+    """recommendation 措辞由 server 决定：不假设学科/题型，不预测效果，
+    且必须被 basis evidence 的语义直接支撑（不生成无证据的「保持好习惯」类推断）。"""
     if action == "practice_target":
         return f"后续可以围绕「{evidence.payload['topic']}」继续安排针对性练习，并结合新的学习结果观察变化。"
     if action == "review_pending":
         return "可以继续结合当前待巩固错题进行复习和订正。"
     if action == "support_classroom_focus":
         return "后续课堂上可继续关注并支持学生的专注表现。"
-    if action == "maintain_learning_habit":
-        return "可以继续保持当前的学习习惯与节奏。"
     if action == "continue_observation":
         return "后续可结合课堂观察与学习记录继续观察变化。"
     raise NarrativePlanRejected("unsupported recommendation action")

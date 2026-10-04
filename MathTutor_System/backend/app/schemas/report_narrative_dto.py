@@ -17,10 +17,12 @@ from app.schemas.report_snapshot_dto import ReportPeriod
 
 NarrativeClosingStyle = Literal["encouraging", "steady"]
 
+# v1 action 集合：每项必须有对应 evidence kind 的 authoritative 支撑。
+# maintain_learning_habit 已移除 —— teacher focus/mastery/keyword 无法证明
+# 「存在值得保持的学习习惯」（NARRATIVE-EVIDENCE-SEMANTIC-01）。
 NarrativeAction = Literal[
     "practice_target",
     "review_pending",
-    "maintain_learning_habit",
     "support_classroom_focus",
     "continue_observation",
 ]

@@ -568,7 +568,10 @@ You may only:
 - choose one closing style from the allowed closing styles
 
 Never create new IDs. Never create facts. Never output student names.
-Never output prose. Never output numbers or percentages.
+Never output prose.
+Never output student numeric facts, scores, counts, or percentages outside
+the required schema. The only fixed numeric literal permitted by the plan
+schema is "version": 1.
 
 Return exactly one JSON object matching NarrativePlan v1, with no markdown fences and no extra text:
 {

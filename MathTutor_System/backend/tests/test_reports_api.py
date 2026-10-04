@@ -1019,3 +1019,55 @@ def test_narrative_legacy_01_after_class_unchanged(world):
     )
     assert resp.status_code == 400
     assert "未配置 API Key" in resp.json()["detail"]  # legacy contract 不变
+
+
+# ---------------------------------------------------------------- RB01 (NARRATIVE-EVIDENCE-SEMANTIC-01)
+
+
+def test_narrative_grounding_empty_01_empty_plan_502(world, monkeypatch):
+    """grounding 完全为空的 plan 绝不能 200。"""
+    app.dependency_overrides[get_llm_config] = lambda: KEYED_LLM
+    _install_narrative_provider(monkeypatch, [_plan_raw()])
+    resp = world["client"].post(NARRATIVE_URL, json={})
+    assert resp.status_code == 502
+    assert resp.json()["detail"].startswith("REPORT_NARRATIVE_UNGROUNDED")
+
+
+def test_narrative_removed_action_ungrounded(world, monkeypatch):
+    """已删除的 maintain_learning_habit：provider 任何尝试返回 → fail closed。"""
+    app.dependency_overrides[get_llm_config] = lambda: KEYED_LLM
+    _install_narrative_provider(
+        monkeypatch,
+        [_plan_raw(teacher=["teacher.keyword:0"], recs=[{"basis_id": "teacher.keyword:0", "action": "maintain_learning_habit"}])],
+    )
+    resp = world["client"].post(
+        NARRATIVE_URL, json={"teacher_observation": {"focus_level": 1, "keywords": ["粗心"]}}
+    )
+    assert resp.status_code == 502
+    assert resp.json()["detail"].startswith("REPORT_NARRATIVE_UNGROUNDED")
+
+
+def test_narrative_zero_data_still_200_after_rb01(world, monkeypatch):
+    """empty-plan 修复不得把 authoritative no-data evidence 当成 no grounding。"""
+    db = world["db"]
+    db.add(Student(id=3, user_id=10, name="零数据学生", grade="七年级", class_name="3班"))
+    db.commit()
+    app.dependency_overrides[get_llm_config] = lambda: KEYED_LLM
+    _install_narrative_provider(
+        monkeypatch,
+        [_plan_raw(system=["assignment.none", "grading.none"], style="steady")],
+    )
+    resp = world["client"].post("/api/reports/students/3/narrative", json={})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "本报告周期内暂无已布置试卷记录。" in data["comment"]
+    assert "本报告周期内暂无可用于统计正确率的批改数据。" in data["comment"]
+    assert data["grounding"]["system_fact_ids"] == ["assignment.none", "grading.none"]
+    # encouraging closing（RB01 新文案）在 API 层同样成立
+    _install_narrative_provider(
+        monkeypatch,
+        [_plan_raw(system=["assignment.none", "grading.none"], style="encouraging")],
+    )
+    resp = world["client"].post("/api/reports/students/3/narrative", json={})
+    assert resp.status_code == 200
+    assert "期待后续学习中有新的收获。" in resp.json()["comment"]

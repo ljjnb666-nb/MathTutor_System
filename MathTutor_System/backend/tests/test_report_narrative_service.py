@@ -163,8 +163,8 @@ def test_allowed_actions_follow_catalog_and_counts():
     assert "practice_target" in allowed
     assert "review_pending" in allowed
     assert "support_classroom_focus" in allowed
-    assert "maintain_learning_habit" in allowed
     assert "continue_observation" in allowed
+    assert "maintain_learning_habit" not in allowed  # v1 已删除（无 authoritative 支撑）
 
     no_pending = build_evidence_catalog(make_snapshot(pending=0, weak=("函数",)))
     assert "review_pending" not in allowed_recommendation_actions(no_pending)
@@ -191,7 +191,6 @@ def test_plan_payload_minimizes_student_data():
     assert set(data["allowed_actions"]) == {
         "practice_target",
         "review_pending",
-        "maintain_learning_habit",
         "continue_observation",
     }
 
@@ -442,8 +441,12 @@ def test_render_closing_styles_deterministic():
     catalog = build_evidence_catalog(snapshot)
     encouraging = render_grounded_narrative(snapshot, catalog, make_plan(style="encouraging"))
     steady = render_grounded_narrative(snapshot, catalog, make_plan(style="steady"))
-    assert encouraging.endswith("期待在后续学习中继续看到积极的成长。")
+    assert encouraging.endswith("期待后续学习中有新的收获。")
     assert steady.endswith("可继续结合后续学习记录稳步观察与支持。")
+    # 两种 closing 都不得预设 progress / decline / stable / improvement 事实
+    for comment in (encouraging, steady):
+        for phrase in ("继续看到积极的成长", "进步", "提升明显", "表现稳定"):
+            assert phrase not in comment
 
 
 def test_render_teacher_keyword_stays_data_only():
@@ -453,9 +456,60 @@ def test_render_teacher_keyword_stays_data_only():
     catalog = build_evidence_catalog(snapshot, TeacherObservationInput(keywords=[malicious]))
     plan = make_plan(teacher=("teacher.keyword:0",))
     comment = render_grounded_narrative(snapshot, catalog, plan)
-    assert comment == f"小密同学本阶段的学习情况如下：老师标注的课堂观察关键词包括「{malicious}」。期待在后续学习中继续看到积极的成长。"
+    assert comment == f"小密同学本阶段的学习情况如下：老师标注的课堂观察关键词包括「{malicious}」。期待后续学习中有新的收获。"
     assert "正确率 100%" not in comment
     assert "score=100" not in comment
+
+
+# ---------------------------------------------------------------- RB01 semantics
+
+
+def test_action_semantic_01_negative_teacher_observation():
+    """spec 6：负面教师观察不得推导「保持学习习惯」类无证据建议。"""
+    catalog = build_evidence_catalog(
+        make_snapshot(),
+        TeacherObservationInput(focus_level=1, mastery_level=1, keywords=["粗心"]),
+    )
+    allowed = allowed_recommendation_actions(catalog)
+    assert "maintain_learning_habit" not in allowed  # v1 已删除
+    assert set(allowed) == {"review_pending", "support_classroom_focus", "continue_observation"}
+
+    # action enum 已删除 → provider 返回该 action 时 plan schema 直接拒绝
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        make_plan(recs=[{"basis_id": "teacher.keyword:0", "action": "maintain_learning_habit"}])
+
+
+def test_grounding_empty_01_empty_plan_fail_closed():
+    """spec 3 / 7：完全空 plan（grounding 为空）必须 NarrativePlanRejected。"""
+    catalog = build_evidence_catalog(full_snapshot())
+    empty = make_plan()
+    with pytest.raises(NarrativePlanRejected):
+        validate_narrative_plan(empty, catalog)
+
+
+def test_zero_data_none_evidence_plan_still_valid():
+    """spec 4 / 8：empty-plan 修复不得误伤 authoritative no-data evidence。"""
+    snapshot = make_snapshot(assigned=(0, 0), has_mistake=False)
+    catalog = build_evidence_catalog(snapshot)
+    plan = make_plan(system=("assignment.none", "grading.none"), style="steady")
+    validate_narrative_plan(plan, catalog)  # 不抛即通过
+    comment = render_grounded_narrative(snapshot, catalog, plan)
+    assert "本报告周期内暂无已布置试卷记录。" in comment
+    assert "本报告周期内暂无可用于统计正确率的批改数据。" in comment
+    assert comment.endswith("可继续结合后续学习记录稳步观察与支持。")
+
+
+def test_closing_01_encouraging_has_no_presupposed_progress():
+    """spec 9：encouraging closing 是纯未来期望，不得预设已观察到进步。"""
+    snapshot = make_snapshot(assigned=(0, 0), has_mistake=False)
+    catalog = build_evidence_catalog(snapshot)
+    plan = make_plan(system=("assignment.none", "grading.none"), style="encouraging")
+    comment = render_grounded_narrative(snapshot, catalog, plan)
+    assert "期待后续学习中有新的收获。" in comment
+    for phrase in ("继续看到积极的成长", "进步", "提升明显", "表现稳定"):
+        assert phrase not in comment
 
 
 # ---------------------------------------------------------------- renderer source regression
@@ -475,5 +529,8 @@ def test_renderer_source_has_no_unsupported_inference():
         "本周新掌握",
         "最近掌握",
         "本期掌握了",
+        # NARRATIVE-EVIDENCE-SEMANTIC-01：已删除的无证据措辞不得回归
+        "继续保持当前的学习习惯与节奏",
+        "继续看到积极的成长",
     ):
         assert phrase not in source, f"unsupported inference wording in renderer: {phrase!r}"
