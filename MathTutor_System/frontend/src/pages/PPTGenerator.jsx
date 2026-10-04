@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Download, FileText, Loader2, Presentation, Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { buildPPTFile, generatePPT } from '../services/api'
+import MathText from '../components/MathText'
 import { EmptyState, PageHeader, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
 import { normalizeApiError } from '../utils/normalizeApiError'
 
@@ -146,7 +147,16 @@ export default function PPTGenerator() {
         <main className="v2-ppt-preview-zone">
           <SectionCard
             title="幻灯片预览"
-            description={content ? `文件主题：${content.title || topic}` : '生成成功后展示真实返回的 slide 内容。'}
+            /* RB03：presentation 级标题可能含 canonical math，展示必须走 MathText，
+               不得把 $...$ 定界符原样渲染给用户。 */
+            description={content
+              ? (
+                <>
+                  文件主题：
+                  <MathText text={content.title || topic} />
+                </>
+              )
+              : '生成成功后展示真实返回的 slide 内容。'}
             actions={content && slides.length > 0 ? (
               <button type="button" className="v2-btn-secondary" disabled={downloading} onClick={handleDownload}>
                 {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
@@ -160,10 +170,10 @@ export default function PPTGenerator() {
               <div className="v2-ppt-stage">
                 <div className="v2-ppt-slide">
                   <div className="v2-ppt-slide-ribbon">{selectedGrade}数学</div>
-                  <h2>{currentSlide.title || content?.title || topic}</h2>
-                  {currentSlide.subtitle && <p>{currentSlide.subtitle}</p>}
+                  <h2><MathText text={currentSlide.title || content?.title || topic} /></h2>
+                  {currentSlide.subtitle && <p><MathText text={currentSlide.subtitle} /></p>}
                   <ul>
-                    {(currentSlide.bullets || []).length > 0 ? currentSlide.bullets.map((item, index) => <li key={`${item}-${index}`}>{item}</li>) : <li>此页暂无要点，下载后可继续编辑。</li>}
+                    {(currentSlide.bullets || []).length > 0 ? currentSlide.bullets.map((item, index) => <li key={`${item}-${index}`}><MathText text={item} /></li>) : <li>此页暂无要点，下载后可继续编辑。</li>}
                   </ul>
                   <span>{String(safeIndex + 1).padStart(2, '0')} / {String(slides.length).padStart(2, '0')}</span>
                 </div>
@@ -186,7 +196,7 @@ export default function PPTGenerator() {
                 {slides.map((slide, index) => (
                   <button key={`${slide.title}-${index}`} type="button" className={safeIndex === index ? 'active' : ''} onClick={() => setPreviewIndex(index)}>
                     <span>{String(index + 1).padStart(2, '0')}</span>
-                    <strong>{slide.title || `第 ${index + 1} 页`}</strong>
+                    <strong><MathText text={slide.title || `第 ${index + 1} 页`} /></strong>
                   </button>
                 ))}
               </div>
