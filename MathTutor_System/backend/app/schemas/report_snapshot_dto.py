@@ -5,15 +5,27 @@ StudentReportSnapshot DTO（PHASE 2D-1B-1 契约锁定）。
 - Snapshot 是纯 persisted system facts 的确定性投影；不含教师观察 / 排课 / AI 文本 /
   performance_score / 任何周期 mastery 或周期 review 指标。
 - 内部 DB DateTime 一律 naive UTC；本 DTO 对外 datetime 一律 aware UTC（offset=0），
-  B2 的 API JSON 不产生浏览器时区歧义。
+  B2 的 API JSON 不产生浏览器时区歧义。该 wire invariant 由 AwareUtcDatetime
+  validator 在模型层强制（naive → validation error；aware 非 UTC → 归一 UTC），
+  不只依赖 builder discipline。
 - counts 允许真实为 0；仅 accuracy 在 answered==0（denominator 缺失）时为 None。
 """
-from datetime import date, datetime
-from typing import Literal
+from datetime import date, datetime, timezone
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import AfterValidator, BaseModel, Field
 
 ReportPeriod = Literal["one_week", "four_weeks", "all_time"]
+
+
+def _require_aware_utc(value: datetime) -> datetime:
+    """wire invariant：naive datetime 拒绝；aware 非 UTC 归一到 UTC。"""
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError("datetime must be timezone-aware (UTC); naive datetime is not allowed")
+    return value.astimezone(timezone.utc)
+
+
+AwareUtcDatetime = Annotated[datetime, AfterValidator(_require_aware_utc)]
 
 
 class SnapshotStudent(BaseModel):
@@ -32,7 +44,7 @@ class SnapshotPeriod(BaseModel):
     start_date: date | None = Field(default=None, description="all_time 为 None；否则为报告时区本地日历日（含端点）")
     end_date: date = Field(description="报告时区本地 today（含端点）")
     timezone: str = Field(description="REPORT_TIMEZONE IANA 名称，如 Asia/Shanghai")
-    generated_at: datetime = Field(description="快照生成时刻，aware UTC")
+    generated_at: AwareUtcDatetime = Field(description="快照生成时刻，aware UTC")
 
 
 class SnapshotCoverage(BaseModel):
@@ -65,7 +77,7 @@ class SnapshotTrendPoint(BaseModel):
 
     exam_id: int
     title: str
-    graded_at: datetime = Field(description="批改事件时间，aware UTC")
+    graded_at: AwareUtcDatetime = Field(description="批改事件时间，aware UTC")
     answered: int
     correct: int
     accuracy: float | None

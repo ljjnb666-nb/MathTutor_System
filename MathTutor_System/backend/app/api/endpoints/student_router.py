@@ -1,8 +1,9 @@
 """
 学生端专用接口：登录、当前学生信息、错题本、学情、试卷。所有接口依赖 get_current_student，仅能访问当前登录学生自己的数据。
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import StreamingResponse
+import logging
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
@@ -12,9 +13,11 @@ from app.models.mistake import MistakeRecord
 from app.models.student import Student
 from app.schemas.exam_dto import ExamResponse, GradeResponse, SubmitAnswersRequest
 from app.schemas.mistake_dto import MistakeResponse
+from app.schemas.report_snapshot_dto import ReportPeriod
 from app.schemas.student_dto import StudentLoginRequest, StudentMeResponse, StudentPasswordUpdate
 from app.schemas.user_dto import Token
-from app.services.report_pdf_service import build_student_report_pdf_buffer
+from app.services.report_pdf_service import build_student_report_pdf_buffer, report_pdf_response
+from app.services.report_snapshot_service import build_student_report_snapshot
 from app.services.student_portal_service import (
     StudentPortalServiceError,
     get_current_student_from_token,
@@ -31,6 +34,7 @@ from app.services.student_portal_service import (
     update_student_password,
 )
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 security_bearer = HTTPBearer(auto_error=False)
 
@@ -213,19 +217,16 @@ def student_grade_exam(
 
 @router.get("/report/pdf")
 def student_report_pdf(
+    period: ReportPeriod = Query(default="all_time"),
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
-) -> StreamingResponse:
-    """下载当前学生的学情分析报告 PDF。"""
+) -> Response:
+    """下载当前学生的学情分析报告 PDF：身份固定为 current_student（不接受 URL student_id），
+    PDF 由 StudentReportSnapshot 重建，与教师端共用同一 snapshot service / renderer。"""
     try:
-        buffer = build_student_report_pdf_buffer(db, current_student)
-        return StreamingResponse(
-            buffer,
-            media_type="application/pdf",
-            headers={
-                "Content-Disposition": 'attachment; filename="学情报告.pdf"',
-            },
-        )
+        snapshot = build_student_report_snapshot(db, current_student, period)
+        buffer = build_student_report_pdf_buffer(snapshot)
+        return report_pdf_response(buffer)
     except HTTPException:
         raise
     except Exception as e:

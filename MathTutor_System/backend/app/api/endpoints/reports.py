@@ -1,10 +1,8 @@
 import json
 import logging
 import re
-import traceback
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
 from app.api.endpoints.auth import get_current_user
@@ -25,8 +23,14 @@ from app.schemas.report_dto import (
     LearningReportParseResponse,
     WeakPointItem,
 )
+from app.schemas.report_snapshot_dto import ReportPeriod, StudentReportSnapshot
 from app.services.llm_service import chat_completion_async
-from app.services.report_pdf_service import build_student_report_pdf_buffer, require_own_student
+from app.services.report_pdf_service import (
+    build_student_report_pdf_buffer,
+    report_pdf_response,
+    require_own_student,
+)
+from app.services.report_snapshot_service import build_student_report_snapshot
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -186,23 +190,90 @@ async def parse_learning_report(
         raise HTTPException(status_code=500, detail="REPORT_PROVIDER_ERROR: 学情报告解析失败，请稍后重试。") from None
 
 
-@router.get("/{student_id}")
-def get_student_report_pdf(
+def _build_own_student_report_pdf(
+    db: Session,
+    current_user: User,
     student_id: int,
+    period: ReportPeriod,
+):
+    """own-student → snapshot → PDF 的唯一路径；canonical 与 legacy 共用。"""
+    student = require_own_student(db.get(Student, student_id), current_user)
+    snapshot = build_student_report_snapshot(db, student, period)
+    buffer = build_student_report_pdf_buffer(snapshot)
+    return report_pdf_response(buffer)
+
+
+@router.get("/students/{student_id}/snapshot", response_model=StudentReportSnapshot)
+def get_student_report_snapshot_api(
+    response: Response,
+    student_id: int,
+    period: ReportPeriod = Query(default="all_time"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> StreamingResponse:
-    """Generate a PDF learning report for a student owned by the current user."""
+) -> StudentReportSnapshot:
+    """canonical snapshot：DB → build_student_report_snapshot → StudentReportSnapshot。
+
+    foreign / missing student 一律 404（不泄漏他租户学生存在性）；无 admin bypass。
+    """
     try:
         student = require_own_student(db.get(Student, student_id), current_user)
-        buffer = build_student_report_pdf_buffer(db, student)
-        return StreamingResponse(
-            buffer,
-            media_type="application/pdf",
-            headers={"Content-Disposition": 'attachment; filename="report.pdf"'},
-        )
+        snapshot = build_student_report_snapshot(db, student, period)
+        # REPORT-SNAPSHOT-CACHE-01：学生学情 JSON 与 PDF 同级敏感数据，禁止缓存。
+        response.headers["Cache-Control"] = "private, no-store"
+        return snapshot
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("student_report_pdf_failed external_error_type=%s", type(e).__name__)
+        logger.error(
+            "student_report_snapshot_failed user_id=%s student_id=%s period=%s error_type=%s",
+            current_user.id,
+            student_id,
+            period,
+            type(e).__name__,
+        )
+        raise HTTPException(status_code=500, detail="REPORT_SNAPSHOT_ERROR: 生成学情快照失败，请稍后重试。") from None
+
+
+@router.get("/students/{student_id}/pdf")
+def get_student_report_pdf_canonical(
+    student_id: int,
+    period: ReportPeriod = Query(default="all_time"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """canonical teacher PDF：与 snapshot API 共用同一 snapshot，PDF 仅是纯展示层。"""
+    try:
+        return _build_own_student_report_pdf(db, current_user, student_id, period)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "student_report_pdf_failed user_id=%s student_id=%s period=%s error_type=%s",
+            current_user.id,
+            student_id,
+            period,
+            type(e).__name__,
+        )
+        raise HTTPException(status_code=500, detail="REPORT_GENERATION_ERROR: 生成报告失败。") from None
+
+
+@router.get("/{student_id}")
+def get_student_report_pdf_legacy(
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """legacy compatibility wrapper：固定 all_time，与 canonical PDF 共用
+    snapshot / renderer / headers，不再保留旧 DB 计算路径。"""
+    try:
+        return _build_own_student_report_pdf(db, current_user, student_id, "all_time")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "student_report_pdf_legacy_failed user_id=%s student_id=%s error_type=%s",
+            current_user.id,
+            student_id,
+            type(e).__name__,
+        )
         raise HTTPException(status_code=500, detail="REPORT_GENERATION_ERROR: 生成报告失败。") from None
