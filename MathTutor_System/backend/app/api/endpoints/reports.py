@@ -2,7 +2,7 @@ import json
 import logging
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
 from app.api.endpoints.auth import get_current_user
@@ -205,6 +205,7 @@ def _build_own_student_report_pdf(
 
 @router.get("/students/{student_id}/snapshot", response_model=StudentReportSnapshot)
 def get_student_report_snapshot_api(
+    response: Response,
     student_id: int,
     period: ReportPeriod = Query(default="all_time"),
     db: Session = Depends(get_db),
@@ -216,7 +217,10 @@ def get_student_report_snapshot_api(
     """
     try:
         student = require_own_student(db.get(Student, student_id), current_user)
-        return build_student_report_snapshot(db, student, period)
+        snapshot = build_student_report_snapshot(db, student, period)
+        # REPORT-SNAPSHOT-CACHE-01：学生学情 JSON 与 PDF 同级敏感数据，禁止缓存。
+        response.headers["Cache-Control"] = "private, no-store"
+        return snapshot
     except HTTPException:
         raise
     except Exception as e:

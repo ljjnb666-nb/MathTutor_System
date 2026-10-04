@@ -332,6 +332,16 @@ def test_api_snapshot_fields_01_forbidden_fields_absent(world):
         assert field not in raw
 
 
+def test_api_snapshot_cache_01_private_no_store(world):
+    """REPORT-SNAPSHOT-CACHE-01：学情 JSON 与 PDF 同级敏感数据，成功响应禁止缓存；
+    query 参数不得绕过 header。"""
+    for query in ("", "?period=one_week", "?period=all_time"):
+        resp = world["client"].get(f"/api/reports/students/1/snapshot{query}")
+        assert resp.status_code == 200
+        assert resp.headers["cache-control"] == "private, no-store"
+        assert resp.headers["content-type"].startswith("application/json")
+
+
 # ---------------------------------------------------------------- PDF API
 
 
