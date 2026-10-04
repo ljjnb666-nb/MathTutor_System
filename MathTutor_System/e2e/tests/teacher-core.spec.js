@@ -107,7 +107,7 @@ test.describe('REAL_E2E teacher schedule CRUD', () => {
     await teacherPage.getByPlaceholder('如：二次函数复习').fill(unique)
     await teacherPage.getByRole('button', { name: '添加', exact: true }).click()
 
-    await expect(teacherPage.getByText(unique)).toBeVisible({ timeout: 15_000 })
+    await expect(teacherPage.getByRole('heading', { name: unique, exact: true })).toBeVisible({ timeout: 15_000 })
 
     // Edit: the week-calendar card is an <article.v2-schedule-block> holding
     // both the heading and the action buttons.
@@ -116,7 +116,7 @@ test.describe('REAL_E2E teacher schedule CRUD', () => {
     await expect(teacherPage.locator('#schedule-modal-title')).toHaveText('编辑排课')
     await teacherPage.getByPlaceholder('如：二次函数复习').fill(`${unique}-改`)
     await teacherPage.getByRole('button', { name: '保存', exact: true }).click()
-    await expect(teacherPage.getByText(`${unique}-改`)).toBeVisible({ timeout: 15_000 })
+    await expect(teacherPage.getByRole('heading', { name: `${unique}-改`, exact: true })).toBeVisible({ timeout: 15_000 })
 
     // Delete with the native confirm (accepted by the page-level handler)
     const editedCard = teacherPage.locator('article.v2-schedule-block').filter({ has: teacherPage.getByRole('heading', { name: `${unique}-改` }) })
