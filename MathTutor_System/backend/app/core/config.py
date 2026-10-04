@@ -1,8 +1,9 @@
 """Typed application settings with legacy constant exports for compatibility."""
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -59,6 +60,9 @@ class AppSettings(BaseSettings):
     rag_top_k: int = Field(default=3, alias="RAG_TOP_K")
     cors_origins_raw: str = Field(default="", alias="CORS_ORIGINS")
 
+    # PHASE 2D-1B-1：报告周期 / 掌握度的唯一时区权威；DB DateTime 一律 naive UTC。
+    report_timezone: str = Field(default="Asia/Shanghai", alias="REPORT_TIMEZONE")
+
     alipay_app_id: str = Field(default="", alias="ALIPAY_APP_ID")
     alipay_private_key: str = Field(default="", alias="ALIPAY_PRIVATE_KEY")
     alipay_public_key: str = Field(default="", alias="ALIPAY_PUBLIC_KEY")
@@ -80,6 +84,19 @@ class AppSettings(BaseSettings):
         extra="ignore",
         populate_by_name=True,
     )
+
+    @field_validator("report_timezone")
+    @classmethod
+    def _validate_report_timezone(cls, value: str) -> str:
+        """启动期 fail-fast：非法 IANA 时区名直接拒绝，运行中绝不静默 fallback。"""
+        name = (value or "").strip()
+        if not name:
+            raise ValueError("REPORT_TIMEZONE must not be empty")
+        try:
+            ZoneInfo(name)
+        except Exception as exc:
+            raise ValueError(f"REPORT_TIMEZONE is not a valid IANA timezone: {name!r}") from exc
+        return name
 
     @property
     def is_production(self) -> bool:
@@ -157,6 +174,13 @@ DEEPSEEK_EMBED_MODEL = settings.deepseek_embed_model.strip()
 AI_REQUEST_TIMEOUT = settings.ai_request_timeout
 RAG_TOP_K = max(1, min(15, settings.rag_top_k))
 CORS_ORIGINS = settings.cors_origins
+
+REPORT_TIMEZONE = settings.report_timezone
+
+
+def get_report_timezone() -> ZoneInfo:
+    """报告口径时区（ZoneInfo 实例按 name 自带缓存）；名称合法性已在加载期校验。"""
+    return ZoneInfo(settings.report_timezone)
 
 ALIPAY_APP_ID = settings.alipay_app_id.strip()
 ALIPAY_PRIVATE_KEY = settings.alipay_private_key.strip()
