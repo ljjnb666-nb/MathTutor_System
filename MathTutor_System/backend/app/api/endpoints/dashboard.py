@@ -5,7 +5,7 @@
 from datetime import date, datetime
 import logging
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
@@ -23,12 +23,20 @@ router = APIRouter()
 
 
 class RecentExamItem(BaseModel):
-    """最近试卷项"""
+    """最近试卷项
+
+    student_id / graded_at 是 Dashboard 判定试卷状态的事实 authority
+    （graded_at 非空=已批改；仅 student_id=已布置待批改；两者皆空=未布置归档）。
+    student_name 仅为展示字段，不得用于推断布置状态。
+    grade_summary 仅为向后兼容保留，NOT canonical grading authority：
+    逐题批改权威仍是 grade_results，禁止用 correct/total 判定批改事实。
+    """
 
     id: int
     title: str
     created_at: datetime
     student_name: str | None = None
+    student_id: int | None = None
     graded_at: datetime | None = None
     grade_summary: dict | None = None
 
@@ -70,7 +78,9 @@ def get_dashboard_stats(
 ) -> DashboardStatsResponse:
     """
     获取仪表盘统计数据：总题数、试卷数、学生数、最近试卷、知识点分布 Top 5。
-    仅统计本人创建的数据，空表时返回 0 与空列表。
+    仅统计本人创建的数据，空表时返回 0 与空列表（AUTHORITATIVE ZERO）。
+    内部查询失败时 fail-closed：返回 500 + DASHBOARD_STATS_FAILED，
+    绝不降级为全零 200（避免把真实空数据与故障折叠成同一 contract）。
     """
     try:
         q_filter = _question_visible_filter(Question, current_user)
@@ -93,7 +103,15 @@ def get_dashboard_stats(
         )
 
         recent_rows = (
-            db.query(Exam.id, Exam.title, Exam.created_at, Student.name, Exam.graded_at, Exam.grade_summary)
+            db.query(
+                Exam.id,
+                Exam.title,
+                Exam.created_at,
+                Exam.student_id,
+                Student.name,
+                Exam.graded_at,
+                Exam.grade_summary,
+            )
             .outerjoin(Student, Exam.student_id == Student.id)
             .filter(e_filter)
             .order_by(Exam.created_at.desc())
@@ -106,8 +124,11 @@ def get_dashboard_stats(
                 title=r.title,
                 created_at=r.created_at,
                 student_name=r.name,
-                graded_at=getattr(r, "graded_at", None),
-                grade_summary=getattr(r, "grade_summary", None),
+                # student_id 来自 Exam 行本身，是布置事实 authority；
+                # 不通过 Student.name 反推是否已布置。
+                student_id=r.student_id,
+                graded_at=r.graded_at,
+                grade_summary=r.grade_summary,
             )
             for r in recent_rows
         ]
@@ -132,13 +153,13 @@ def get_dashboard_stats(
             recent_exams=recent_exams,
             knowledge_distribution=knowledge_distribution,
         )
+    except HTTPException:
+        raise
     except Exception as e:
+        # fail-closed：内部故障必须 non-2xx；只记录异常类名，不泄露
+        # SQL / 数据库错误 / 学生姓名 / 试卷标题 / 原始异常文本。
         logger.error("dashboard_stats_failed error_type=%s", type(e).__name__)
-        return DashboardStatsResponse(
-            total_questions=0,
-            total_exams=0,
-            total_students=0,
-            today_review_count=0,
-            recent_exams=[],
-            knowledge_distribution=[],
-        )
+        raise HTTPException(
+            status_code=500,
+            detail="DASHBOARD_STATS_FAILED: 工作台统计数据加载失败，请稍后重试。",
+        ) from None
