@@ -123,7 +123,7 @@ export default function Dashboard() {
   const isExpiringSoon = daysLeft != null && daysLeft >= 0 && daysLeft <= 7
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 v2-page-shell">
       {/* 1. 工作台顶栏：克制、专业的问候与工作状态提示 */}
       <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5 sm:p-6 shadow-sm">
         <div>
