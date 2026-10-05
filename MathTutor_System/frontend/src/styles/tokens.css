@@ -1,0 +1,172 @@
+/**
+ * TutorPro Design System - Semantic Tokens
+ * Linear / Notion / Stripe Dashboard inspired, professional, restrained AI Education SaaS
+ * Single Source of Truth (SSOT) for Light and Dark themes
+ */
+
+:root,
+html[data-theme="dark"] {
+  /* ========== 颜色系统 - 深色主题 (Dark Mode) ========== */
+
+  /* 基础背景层级 (Canvas & Surfaces) */
+  --color-bg-canvas: #090D16;           /* 画布深底色 (Clean Slate Navy) */
+  --color-bg-primary: #0F172A;          /* 主界面底色 */
+  --color-bg-secondary: #162032;        /* 次级底色 */
+  --color-bg-tertiary: #1E293B;         /* 三级底色 / 悬浮态 */
+  --color-bg-surface: #111A2E;          /* 卡片 / 面板表面 */
+  --color-bg-surface-raised: #1A263D;   /* 浮起表面 (Dropdown / Modal / Popover) */
+  --color-bg-surface-hover: #1E2C46;    /* 表面悬浮态 */
+  --color-bg-subtle: #131E33;           /* 弱化区域背景 (表格交替行/浅色块) */
+  --color-bg-input: #0B1220;            /* 表单输入控件背景 */
+  --color-bg-overlay: rgba(6, 10, 18, 0.78); /* 模态窗/遮罩层 */
+
+  /* 文本色 (Text Contrast Hierarchy) */
+  --color-text-primary: #F8FAFC;        /* 主文本 (高对比度) */
+  --color-text-secondary: #94A3B8;      /* 次级文本 (中灰色，用于副标题、描述) */
+  --color-text-muted: #64748B;          /* 弱化文本 (辅助提示、时间戳、占位符) */
+  --color-text-disabled: #475569;       /* 禁用文本 */
+  --color-text-inverse: #0F172A;        /* 反色文本 (用于纯白/极亮背景) */
+
+  /* 边框色 (Border Hierarchy) */
+  --color-border-subtle: rgba(148, 163, 184, 0.08); /* 极细微分割线 */
+  --color-border-default: rgba(148, 163, 184, 0.16);/* 默认组件边框 */
+  --color-border-strong: rgba(148, 163, 184, 0.28); /* 强调边框 / 分割线 */
+  --color-border-hover: rgba(129, 140, 248, 0.45);  /* 悬停边框 */
+  --color-border-focus: #6366F1;                    /* 聚焦指示边框 */
+
+  /* 品牌色系统 (TutorPro Brand - Intelligent Indigo) */
+  --color-brand-50: #EEF2FF;
+  --color-brand-100: #E0E7FF;
+  --color-brand-200: #C7D2FE;
+  --color-brand-300: #A5B4FC;
+  --color-brand-400: #818CF8;
+  --color-brand-500: #6366F1;          /* 核心主品牌色 */
+  --color-brand-600: #4F46E5;
+  --color-brand-700: #4338CA;
+  --color-brand-800: #3730A3;
+  --color-brand-900: #312E81;
+  --color-brand-subtle: rgba(99, 102, 241, 0.14); /* 品牌浅底高亮 */
+  --color-brand-text: #818CF8;          /* 深色模式下的品牌文本色 */
+
+  /* 语义状态色 (Semantic Status) */
+  --color-success: #10B981;
+  --color-success-bg: rgba(16, 185, 129, 0.12);
+  --color-success-border: rgba(16, 185, 129, 0.28);
+  --color-success-text: #34D399;
+
+  --color-warning: #F59E0B;
+  --color-warning-bg: rgba(245, 158, 11, 0.12);
+  --color-warning-border: rgba(245, 158, 11, 0.28);
+  --color-warning-text: #FBBF24;
+
+  --color-danger: #EF4444;
+  --color-danger-bg: rgba(239, 68, 68, 0.12);
+  --color-danger-border: rgba(239, 68, 68, 0.28);
+  --color-danger-text: #F87171;
+
+  --color-info: #3B82F6;
+  --color-info-bg: rgba(59, 130, 246, 0.12);
+  --color-info-border: rgba(59, 130, 246, 0.28);
+  --color-info-text: #60A5FA;
+
+  /* 多学科中立数据图表色系 (Data Series) */
+  --color-series-1: #6366F1; /* 靛蓝 */
+  --color-series-2: #06B6D4; /* 青蓝 */
+  --color-series-3: #10B981; /* 翡翠 */
+  --color-series-4: #F59E0B; /* 琥珀 */
+  --color-series-5: #8B5CF6; /* 紫罗兰 */
+  --color-series-6: #EC4899; /* 玫红 */
+
+  /* 阴影系统 (Restrained Shadows) */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 24px -4px rgba(0, 0, 0, 0.45), 0 4px 8px -2px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 24px 36px -8px rgba(0, 0, 0, 0.55), 0 8px 16px -4px rgba(0, 0, 0, 0.4);
+  --shadow-drawer: 16px 0 48px rgba(0, 0, 0, 0.6);
+  --shadow-dropdown: 0 10px 30px -4px rgba(0, 0, 0, 0.5);
+
+  /* 字体系统 */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", Menlo, Monaco, Consolas, monospace;
+
+  /* 尺寸与间距 */
+  --radius-xs: 0.25rem;   /* 4px */
+  --radius-sm: 0.375rem;  /* 6px */
+  --radius-md: 0.5rem;    /* 8px */
+  --radius-lg: 0.75rem;   /* 12px */
+  --radius-xl: 1rem;      /* 16px */
+  --radius-full: 9999px;
+
+  /* 布局基线尺寸 */
+  --sidebar-width: 15rem;          /* 240px */
+  --sidebar-collapsed-width: 4rem; /* 64px */
+  --topheader-height: 3.75rem;     /* 60px */
+  --mobile-header-height: 3.5rem;  /* 56px */
+
+  /* 动效过渡 */
+  --transition-fast: 120ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-normal: 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-smooth: 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ========== 浅色主题 (Light Mode) ========== */
+html[data-theme="light"] {
+  /* 基础背景层级 */
+  --color-bg-canvas: #F8FAFC;           /* 画布底色 (Cool Light Slate) */
+  --color-bg-primary: #FFFFFF;          /* 主界面底色 */
+  --color-bg-secondary: #F1F5F9;        /* 次级底色 */
+  --color-bg-tertiary: #E2E8F0;         /* 三级底色 / 悬浮态 */
+  --color-bg-surface: #FFFFFF;          /* 卡片 / 面板表面 */
+  --color-bg-surface-raised: #FFFFFF;   /* 浮起表面 */
+  --color-bg-surface-hover: #F8FAFC;    /* 表面悬浮态 */
+  --color-bg-subtle: #F8FAFC;           /* 弱化区域背景 */
+  --color-bg-input: #FFFFFF;            /* 表单输入背景 */
+  --color-bg-overlay: rgba(15, 23, 42, 0.45); /* 遮罩层 */
+
+  /* 文本色 */
+  --color-text-primary: #0F172A;        /* 深炭黑主文本 */
+  --color-text-secondary: #475569;      /* 次级灰色文本 */
+  --color-text-muted: #64748B;          /* 弱化灰色文本 */
+  --color-text-disabled: #94A3B8;       /* 禁用文本 */
+  --color-text-inverse: #FFFFFF;        /* 反色文本 */
+
+  /* 边框色 */
+  --color-border-subtle: rgba(15, 23, 42, 0.06);
+  --color-border-default: rgba(15, 23, 42, 0.12);
+  --color-border-strong: rgba(15, 23, 42, 0.20);
+  --color-border-hover: rgba(99, 102, 241, 0.6);
+  --color-border-focus: #4F46E5;
+
+  /* 品牌色系统 */
+  --color-brand-subtle: #EEF2FF;
+  --color-brand-text: #4F46E5;
+
+  /* 语义状态色 */
+  --color-success: #059669;
+  --color-success-bg: #ECFDF5;
+  --color-success-border: #A7F3D0;
+  --color-success-text: #065F46;
+
+  --color-warning: #D97706;
+  --color-warning-bg: #FFFBEB;
+  --color-warning-border: #FDE68A;
+  --color-warning-text: #92400E;
+
+  --color-danger: #DC2626;
+  --color-danger-bg: #FEF2F2;
+  --color-danger-border: #FECACA;
+  --color-danger-text: #991B1B;
+
+  --color-info: #2563EB;
+  --color-info-bg: #EFF6FF;
+  --color-info-border: #BFDBFE;
+  --color-info-text: #1E40AF;
+
+  /* 阴影系统 */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.03);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+  --shadow-drawer: 12px 0 36px rgba(15, 23, 42, 0.15);
+  --shadow-dropdown: 0 10px 25px -5px rgba(15, 23, 42, 0.12);
+}

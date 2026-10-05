@@ -1,0 +1,42 @@
+# TutorPro 全产品前端 UI 审计矩阵 (UI Audit Matrix)
+
+> 依据 TutorPro UI-R1 规范与最高优先级约束（GATE 1 ~ GATE 12）建立的全量页面审计基线。覆盖教师端、管理后台、公共认证及历史内嵌组件共 22 个模块，确保零功能遗漏、零虚假数据、全学科中立。
+
+---
+
+## 1. 页面功能与架构审计矩阵
+
+| 序号 | PAGE | ROUTE | ROLE | PURPOSE | CURRENT_API | PRIMARY_ACTIONS | SECONDARY_ACTIONS | STATE | RESPONSIVE_RISK | REDESIGN_DIRECTION |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | **LoginPage** | `/login` | Public / Guest | 身份鉴权与产品登录入口 | `authApi.login`, `SESSION_EXPIRED_KEY` | 账号/密码输入、登录提交、显示/隐藏密码 | 401会话超时自动提示、表单校验、跳转主控台 | Default, Loading (登录中), Error (用户名/密码错误) | 移动端软键盘弹起挤压面板、居中偏移 | 专业简洁 SaaS 入口，TutorPro 品牌主视觉，全学科中立，去除数学符号与霓虹电竞光效 |
+| 2 | **Dashboard** | `/` | Teacher / Admin | 教师 AI 教学工作台总览与日常教学任务调度 | `studentApi.getStudents`, `examApi.getExams`, `scheduleApi.getSchedules`, `mistakeApi.getMistakes` | 查看今日课表、快速发起 AI 备课、切换学生档案、查看待批改试卷 | 筛选近期动态、进入对应功能详情、刷新数据 | Loading (骨架屏), Empty (无今日排课/无学生档案), Success, Error | 多卡片瀑布流移动端折行挤压、KPI 卡溢出 | 摒弃虚假 KPI 与假趋势，围绕“今日教学、待办任务、最近动态、快速入口”重构 Teacher AI Workspace |
+| 3 | **SmartGen** | `/smart-gen` | Teacher | AI 智能题目与练习内容生成工作区 | `generationApi.generate`, `questionApi.saveQuestions`, `textbookApi` | 设定学科知识点/难度/题型/数量、触发 AI 生成、题目编辑、保存入库 | 单题重新生成、加入试卷草稿、公式预览、清空重置 | Idle (初始配置), Generating (生成中+进度), Result (结果预览与交互编辑), Error | 三栏工作区在 1024/768 屏幕下宽度不足，移动端需要抽屉式折叠配置栏 | 演进为专业 Content Creation Studio，左配置、中结果、右属性，全学科题型适配，保留数学公式精准渲染 |
+| 4 | **AIChat** | `/chat` | Teacher | 教学场景全功能 AI 对话与助手对话工作区 | `chatApi.createSession`, `listSessions`, `sendMessage`, `getMessages` | 发送对话提问、新建会话、切换历史会话、查看回答 | 复制回复、重新生成、引用知识库/学生上下文、删除会话 | Empty (无会话/欢迎引导), Streaming/Loading, Success, NetworkError (支持重试) | 移动端历史记录侧栏遮挡、输入框输入时高度计算与键盘遮挡 | 区别于通用 ChatGPT，紧密绑定学生上下文与知识库来源，清晰标注系统事实 vs AI 建议 |
+| 5 | **TeacherAgent** | `/teacher-agent` | Teacher | 目标驱动型 AI 教学智能体任务工作流 | `teacherAgentApi.runTask`, `studentApi.getStudents`, `knowledgeBaseApi.getDocs` | 输入教学目标、选择学生/知识库、启动 Agent、确认/修改 AI 方案草稿 | 查看执行步骤日志、单步重试、导出教学方案与练习任务 | ReadOnly (初始状态), Planning (规划中), Executing (执行中), Review (待教师确认), Finished | 多步骤折叠面板在平板端横向溢出，日志终端窗口高度过大 | 强化 Teacher-in-the-loop 原则，区隔 Goal/Plan/Action/Draft/Review，AI 草稿必须由教师明确审核才能落地 |
+| 6 | **QuestionBank** | `/question-bank` | Teacher / Admin | 校本与个人教学题库检索、批量维护与组卷 | `questionApi.getQuestions`, `deleteQuestion`, `batchDelete`, `knowledgeApi` | 题干检索、知识点/题型/难度多维筛选、分页浏览、查看题目解析 | 单题编辑、删除题目、批量导出、一键添加至组卷栏 | Loading, Empty (检索无结果), Error (获取失败可重试), ConfirmModal (危险删除) | 大数据量表格/题卡在 390 手机端排版炸裂，公式撑大行高 | 高信息密度 Data-dense 视图，桌面端支持紧凑表格与卡片切换，移动端平滑转为流式 ListCard |
+| 7 | **KnowledgeBase** | `/knowledge-base` | Teacher / Admin | 教学资料、讲义、课标、教材索引与文档检索库 | `knowledgeBaseApi.getDocuments`, `uploadDocument`, `deleteDocument`, `getDocumentChunks` | 上传教学文档 (pdf/docx/txt)、检索知识切片、查看解析状态、删除文件 | 切片详情抽屉、重试解析失败文档、知识点关联查看 | Uploading (上传中), Processing (解析向量化中), Ready (已就绪), Error (解析失败) | 文件拖拽区域在移动端尺寸过大，切片详情表格溢出屏幕 | 升级为企业级资料库管理架构，支持多学科分类标签与真实索引进度，去除纯装饰性卡片 |
+| 8 | **ImportExam** | `/exams/import` | Teacher | 外部纸质/电子试卷 OCR 解析、结构化校对与入库 | `examApi.importExamFile`, `parseExamText`, `saveExam` | 选择/拖拽试卷文件、触发结构化解析、校对题目文字与公式、保存入库 | 手动增删改识别后的题目、调整分值与题型、放弃草稿 | FileSelected, Parsing (解析中 Skeleton), Verified (校对编辑态), Error | 校对双栏（左原卷预览/右识别题卡）在平板和手机端无法并排 | 采用分步向导（Upload → Parse → Verify & Edit → Save），在移动端支持分步切屏校对 |
+| 9 | **PPTGenerator** | `/ppt` | Teacher | Magic PPT 教学课件全自动大纲生成与幻灯片排版工作台 | `pptApi.generateOutline`, `generateSlides`, `exportPPTX` | 输入课件主题/学情、生成课件大纲、生成幻灯片预览、导出 PPTX | 幻灯片单页编辑、重新生成当前页、切换模板版式、公式渲染 | OutlineDraft (大纲编辑), SlidePreview (幻灯片预览), Exporting, Error | 幻灯片 16:9 画布在竖屏与手机端缩放失真，底部页码列表折行 | 全屏 FullCanvas 工作台体验，自适应视口比例，全学科教案与课件排版支持 |
+| 10 | **SchedulePage** | `/schedule` | Teacher | 教师周课表与学生辅导日程安排管理 | `scheduleApi.getSchedules`, `createSchedule`, `updateSchedule`, `deleteSchedule` | 周/日课表视图切换、点击时间槽新建排课、拖拽/修改排课时间、删除排课 | 学生档案快速筛选、课程冲突校验提示、上课提醒配置 | Empty (本周无课程), Loading, Modal (排课表单), ConflictWarning | 7列周日历在平板与手机端横向挤压文字重叠 | 桌面端呈现专业 Timetable 日历，移动端自适应收拢为“今日日程 + 纵向时间线日程列表” |
+| 11 | **HomeworkProgress** | `/homework-progress` | Teacher | 学生作业与阶段测验批改进度、作答明细跟踪 | `homeworkApi.getProgress`, `examApi.getExams`, `studentApi.getStudents` | 筛选测验任务/班级/学生、查看作答提交状态、点击进入批改详情 | 提醒未提交、导出批改总表、筛选未批改题目 | Loading, Empty (无测验记录), Status (未开始/作答中/已提交/已批阅) | 多列表格在小屏幕横向滚动遮挡操作列 | 明确映射真实测验完成事实，不制造虚假提交率百分比；小屏提供卡片式学生任务进展流 |
+| 12 | **MistakeBook** | `/mistake-book` | Teacher | 学生学业错题归因、复习靶向巩固与清错管理 | `mistakeApi.getMistakes`, `updateMistakeStatus`, `createMistakeManual` | 待攻克/已攻克 Tab 切换、按学科知识点筛选、标记攻克状态、录入错题 | 查看错题原题与错因解析、批量生成变式巩固题、删除错题记录 | Pending (待掌握), Mastered (已攻克), ManualEntry (手动添加弹窗), Empty | 错题图文对比卡片在窄屏下操作按钮掉行 | 错题本工作台，状态清晰（待复习 vs 已掌握），支持题目溯源与全学科错因标签分类 |
+| 13 | **KnowledgeGraph** | `/knowledge-graph` | Teacher | 全学科知识图谱拓扑关系与学生学情掌握热力视图 | `knowledgeGraphApi.getGraph`, `studentApi.getStudentMastery` | 画布缩放/平移、点击知识节点聚焦能力域、查看关联前置与后置知识 | 切换学生个体掌握度热力映射、针对薄弱点一键发起出题练习 | GraphLoading, NodeSelected, EmptyGraph, FilterOverlay | 全画布在移动触控设备上双指缩放与页面滚动事件冲突 | 专业可交互图谱画布，支持全学科层级结构（学科 → 单元 → 知识点/能力维度），保留清晰触控手势防误触 |
+| 14 | **Reports** | `/reports` | Teacher | 学情真实快照分析与家校沟通报告生成与导出 | `reportApi.getReports`, `getStudentReportSnapshot`, `generateGroundedNarrative`, `downloadPdf` | 选择学生、加载客观事实快照、生成证据链叙述、下载真实 PDF 报告 | 切换周度/月度快照、修改教师观察评语、重试失败生成 | SnapshotReady, GeneratingNarrative, Error, Empty (学生无数据) | 长篇报告内容与统计图表在手机端打印排版错位 | 严格遵循真实快照与事实证据绑定，不虚构成长趋势；报告支持干净打印样式与移动端可读性 |
+| 15 | **ExamList** | `/exams` | Teacher / Admin | 试卷资产库管理、检索、状态流转与组卷管理 | `examApi.getExams`, `deleteExam`, `studentApi.getStudents` | 关键词搜索试卷、按关联学生/创建时间筛选、查看试卷、删除试卷 | 新建空白卷、从题库快速组卷、打印试卷、导出标准格式 | Loading, Empty (无试卷), Error, ConfirmDelete | 表格操作按钮列固定导致移动端溢出 | 规范化 Data-dense 表格，移动端采用列表摘要卡片，一键直达 ExamPreview 预览与批改 |
+| 16 | **ExamPreview** | `/exams/:id` | Teacher | 试卷详情全真排版预览、答案解析折叠与试卷打印工作区 | `examApi.getExamById`, `updateExamTitle`, `reorderQuestions`, `printExam` | 查看试卷卷头/大题/小题排版、显隐参考答案与解析、在线修改试卷标题 | 调整题目顺序、修改单题分值、触发浏览器规范打印、导出排版文档 | Loading, EditableTitle, AnswersToggled, PrintMode | 密集数学排版在小屏宽度截断，公式横向撑破外层容器 | 还原标准化纸质试卷阅读体验，支持屏幕自适应预览模式与 A4 打印优化模式，保留精准公式与富文本排版 |
+| 17 | **StudentMgmt** | `/student-mgmt` | Teacher / Admin | 学生学籍花名册维护、班级档案与学情档案入口 | `studentApi.getStudents`, `createStudent`, `updateStudent`, `deleteStudent` | 搜索/筛选学生、新增学生档案、编辑年级班级信息、删除档案 | 快速切换当前全局学生上下文、跳转查看该生学情图谱与报告 | Loading, Empty, Modal (新增/编辑表单), ConfirmDelete | 表单弹窗在小屏键盘唤起时提交按钮被遮盖 | 专业学生档案总览，清晰展示姓名、年级、班级、绑定状态，支持多学科拓展字段预留 |
+| 18 | **Pricing** | `/pricing` | Teacher / Admin | TutorPro 订阅版本权益对比与商业套餐说明 | `subscriptionApi.getPlans`, `getCurrentSubscription`, `createOrder` (真实按系统能力接入) | 查看免费版/专业版/机构版功能矩阵对比、查看当前有效套餐期限 | 升级套餐按钮（若支付暂未接通则显式禁用并提示，绝不假装支付成功） | ActivePlan (当前方案已激活), DisabledPayment (安全禁用态) | 复杂多列定价对比表格在 390 宽度下无法容纳 3 列以上 | 清晰对比卡片，移动端提供左右滑动手风琴切换，严格遵守真实支付边界不造假 |
+| 19 | **Settings** | `/settings` | Teacher / Admin | 个人账户、外观主题模式、AI 运行时参数与系统安全偏好设置 | `settingsApi.getAiConfig`, `saveAiConfig`, `testAiConnection`, `userApi.updateProfile` | 切换外观主题 (Light/Dark/Auto)、配置 AI 服务商/模型/端点/Key、连通性测试 | 修改登录密码、查看系统版本与存储空间配额 | TestingConnection, SaveSuccess, SaveError, MaskedKey | 侧边 Tab 列表在移动端占用过多横向宽度 | 标准化双栏设置中枢，左侧语义分类，右侧清晰表单，输入框安全掩码，测试结果反馈清晰中文状态 |
+| 20 | **AdminUserPage** | `/admin-users` | Admin | 平台级用户权限管控、教师账号开通、重置密码与安全生命周期治理 | `adminApi.getUsers`, `createUser`, `updateUserRole`, `resetUserPassword`, `deleteUser` | 用户检索与角色筛选、开通新教师账号、重置密码、修改角色 (Teacher/Admin) | 禁用账号、彻底删除租户账号、查看账号最近活跃 | Loading, Modal (新增用户/重置密码), ConfirmDangerousAction (高危红区) | 管理端密集表格在小屏幕排版坍塌 | 严谨高密度管理后台气质，危险操作（删除/重置密码/角色变更）清晰二次确认，权限边界清晰隔离 |
+| 21 | **AfterClassReport** | (内嵌组件 / `/after-class-report` 重定向) | Teacher | 课后单次课堂表现评价与个性化评语生成器 | `reportApi.generateComment`, `reportApi.polishDraft` | 输入课堂知识掌握表现、选择预设关键词、触发 AI 评语草稿生成 | 教师手写草稿、AI 润色优化评语、一键应用到当前课后报告中 | Idle, Generating, Polishing, Success, Error | 文本域过小与移动端操作按钮换行 | 保持作为 Reports 内部受控工作流，输入与润色两级确认，真实映射课堂观察事实 |
+| 22 | **LearningReport** | (内嵌组件 / `/learning-report` 重定向) | Teacher | 阶段性多维综合学情评价与结构化评语解析提取器 | `reportApi.parseLearningReportDraft`, `reportApi.generateStructuredReport` | 输入教师手写学情长文本、触发结构化解析、生成各维度掌握评定 | 手动微调维度打分、编辑诊断建议、同步写入正式学情报告 | Parsing, ParsedStructuredData, Error, Submitting | 结构化多字段表单在平板上高度溢出 | 作为 Reports 内部核心子流程，AI 仅负责初稿结构化提取，最终掌握度与结论由教师最终定稿 |
+
+---
+
+## 2. 跨页面核心共性问题总结
+
+1. **品牌遗留**：现有 Sidebar、Login、PPT、Dashboard 等处大量出现 `MathTutor`、`PRO STUDIO`、`∑`、`数学备课助手`，必须全面迁移至 `TutorPro` 与全学科品牌标语。
+2. **样式堆叠与视觉噪音**：旧系统大量依赖深蓝黑曜石、高强度渐变背景、每张卡片都有 `pro-glass-card` 发光阴影，导致视觉疲劳，且浅色模式缺失细腻打磨。
+3. **导航架构杂乱**：所有 AI 功能直接作为平行导航项平铺在侧栏，未体现教师备课、上课、批改、分析的真实教学工作流。
+4. **移动端适配痛点**：全屏画布、复杂工作区和数据密集表格在 390px 视口下普遍存在按钮被遮挡、横向滚动、下拉菜单被父容器裁剪等问题。
+5. **状态体系不统一**：部分页面自行定义加载转圈，部分无骨架屏，报错文案偶尔暴露英文底层错误。
