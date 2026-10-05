@@ -12,7 +12,6 @@ import {
   AlertCircle,
   CreditCard,
   CalendarCheck,
-  CheckCircle2,
 } from 'lucide-react'
 import {
   BarChart,
@@ -296,10 +295,57 @@ export default function Dashboard() {
         </div>
       </section>
 
+      {/* 3.5 今日工作：教师级全局状态（today_review_count 是当前教师全部学生合计，
+          必须以"全部学生"口径展示，不得暗示与当前聚焦学生相关） */}
+      <section aria-labelledby="section-today-work">
+        <h2 id="section-today-work" className="sr-only">
+          今日工作
+        </h2>
+        <button
+          type="button"
+          data-testid="today-work-strip"
+          onClick={() => navigate('/mistake-book?review_due=1')}
+          className="w-full flex items-center gap-4 rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-5 py-4 hover:border-[var(--color-brand-400)] hover:shadow-sm transition-all text-left group"
+        >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600">
+            <CalendarCheck className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-[var(--color-text-muted)]">
+              今日工作 · 全部学生待复习
+            </p>
+            <div className="mt-0.5 flex items-baseline gap-2">
+              {loadingStats ? (
+                <Skeleton width="40px" height="26px" />
+              ) : statsError ? (
+                <span className="text-sm font-semibold text-[var(--color-danger)]">
+                  暂不可用
+                </span>
+              ) : (
+                <>
+                  <span className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] tabular-nums">
+                    {stats?.today_review_count ?? 0}
+                  </span>
+                  {(stats?.today_review_count ?? 0) === 0 && (
+                    <span className="text-xs text-[var(--color-text-muted)]">
+                      今日暂无学生到期复习
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+          <div className="ml-auto hidden sm:flex items-center gap-1 text-xs font-semibold text-[var(--color-brand-600)] group-hover:text-[var(--color-brand-500)] transition-colors shrink-0">
+            前往错题巩固
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </div>
+        </button>
+      </section>
+
       {/* 4. 教学业务工作区：当前关注学生 + 最近试卷存档 */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
         {/* 左栏：当前学生上下文卡片 (Current Student Panel) */}
-        <div className="lg:col-span-5">
+        <div className="lg:col-span-5" data-testid="current-student-panel">
           <Card
             title="当前聚焦学生"
             subtitle="针对选定学生的真实学习记录与待处理项"
@@ -330,76 +376,40 @@ export default function Dashboard() {
                   </Button>
                 </div>
 
-                {/* 针对该学生的真实可用操作指标 */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* 待攻克错题 */}
-                  <button
-                    type="button"
-                    onClick={() => navigate('/mistake-book')}
-                    className="flex flex-col justify-between rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-3.5 text-left hover:border-[var(--color-border-strong)] hover:bg-[var(--color-bg-secondary)] transition-all"
-                  >
-                    <div className="flex items-center justify-between text-[var(--color-text-muted)] w-full">
-                      <span className="text-xs font-medium">待巩固错题</span>
-                      <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
-                    </div>
-                    <div className="my-2">
-                      {loadingMistakes ? (
-                        <Skeleton width="48px" height="28px" />
-                      ) : mistakesError ? (
-                        <span className="text-sm font-semibold text-[var(--color-danger)]">
-                          暂不可用
-                        </span>
-                      ) : (
-                        <span className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] tabular-nums">
-                          {pendingMistakeCount ?? 0}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-[var(--color-text-muted)]">
-                      {loadingMistakes
-                        ? '正在查询…'
-                        : mistakesError
-                        ? '数据加载异常'
-                        : pendingMistakeCount === 0
-                        ? '当前暂无待巩固错题'
-                        : '点击前往错题本攻克'}
-                    </p>
-                  </button>
-
-                  {/* 今日待复习 (基于全局真实 stats 统计) */}
-                  <button
-                    type="button"
-                    onClick={() => navigate('/mistake-book?review_due=1')}
-                    className="flex flex-col justify-between rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-3.5 text-left hover:border-[var(--color-border-strong)] hover:bg-[var(--color-bg-secondary)] transition-all"
-                  >
-                    <div className="flex items-center justify-between text-[var(--color-text-muted)] w-full">
-                      <span className="text-xs font-medium">今日待复习</span>
-                      <CalendarCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                    </div>
-                    <div className="my-2">
-                      {loadingStats ? (
-                        <Skeleton width="48px" height="28px" />
-                      ) : statsError ? (
-                        <span className="text-sm font-semibold text-[var(--color-danger)]">
-                          暂不可用
-                        </span>
-                      ) : (
-                        <span className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] tabular-nums">
-                          {stats?.today_review_count ?? 0}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-[var(--color-text-muted)]">
-                      {loadingStats
-                        ? '正在查询…'
-                        : statsError
-                        ? '数据加载异常'
-                        : (stats?.today_review_count ?? 0) === 0
-                        ? '今日暂无待复习记录'
-                        : '点击开始今日到期复习'}
-                    </p>
-                  </button>
-                </div>
+                {/* 针对该学生的真实可用操作指标（仅展示 student-scoped 数据：
+                    stats.today_review_count 是教师全体学生合计，不得出现在此卡片） */}
+                <button
+                  type="button"
+                  onClick={() => navigate('/mistake-book')}
+                  className="w-full flex flex-col justify-between rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-3.5 text-left hover:border-[var(--color-border-strong)] hover:bg-[var(--color-bg-secondary)] transition-all"
+                >
+                  <div className="flex items-center justify-between text-[var(--color-text-muted)] w-full">
+                    <span className="text-xs font-medium">待巩固错题</span>
+                    <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                  </div>
+                  <div className="my-2">
+                    {loadingMistakes ? (
+                      <Skeleton width="48px" height="28px" />
+                    ) : mistakesError ? (
+                      <span className="text-sm font-semibold text-[var(--color-danger)]">
+                        暂不可用
+                      </span>
+                    ) : (
+                      <span className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] tabular-nums">
+                        {pendingMistakeCount ?? 0}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-[var(--color-text-muted)]">
+                    {loadingMistakes
+                      ? '正在查询…'
+                      : mistakesError
+                      ? '数据加载异常'
+                      : pendingMistakeCount === 0
+                      ? '当前暂无待巩固错题'
+                      : '点击前往错题本攻克'}
+                  </p>
+                </button>
               </div>
             ) : (
               <EmptyState
@@ -414,7 +424,7 @@ export default function Dashboard() {
         </div>
 
         {/* 右栏：最近试卷存档 (Recent Exams) */}
-        <div className="lg:col-span-7">
+        <div className="lg:col-span-7" data-testid="recent-exams-panel">
           <Card
             title="最近试卷存档"
             subtitle="真实保存的教学测评与试卷资产"
@@ -434,6 +444,12 @@ export default function Dashboard() {
                   <Skeleton key={i} height="52px" className="rounded-xl" />
                 ))}
               </div>
+            ) : statsError ? (
+              /* stats 失败时禁止用空态冒充"没有试卷"，必须是区域级错误态 */
+              <ErrorState
+                title="最近试卷暂不可用"
+                message="统计数据加载失败，试卷列表暂时无法展示，请稍后重试。"
+              />
             ) : !stats?.recent_exams?.length ? (
               <EmptyState
                 icon={FileText}
@@ -468,19 +484,15 @@ export default function Dashboard() {
                         </div>
                       </div>
                       <div className="shrink-0">
-                        {exam.student_id != null || exam.graded_at ? (
-                          exam.graded_at ? (
-                            <StatusBadge
-                              status="success"
-                              label={`已批改${
-                                exam.grade_summary?.total != null
-                                  ? ` ${exam.grade_summary.correct}/${exam.grade_summary.total}`
-                                  : ''
-                              }`}
-                            />
-                          ) : (
-                            <StatusBadge status="warning" label="待批改" />
-                          )
+                        {/* 权威状态规则（backend RF01 契约）：
+                            graded_at != null → 已批改
+                            student_id != null && graded_at == null → 待批改
+                            student_id == null && graded_at == null → 已归档
+                            grade_summary 不用于事实计数展示 */}
+                        {exam.graded_at ? (
+                          <StatusBadge status="success" label="已批改" />
+                        ) : exam.student_id != null ? (
+                          <StatusBadge status="warning" label="待批改" />
                         ) : (
                           <Badge variant="neutral" size="sm">已归档</Badge>
                         )}
@@ -512,9 +524,15 @@ export default function Dashboard() {
             </div>
             <div className="min-w-0">
               <p className="text-xs text-[var(--color-text-muted)]">题库题目</p>
-              <p className="text-xl font-bold text-[var(--color-text-primary)] tabular-nums">
-                {loadingStats ? '—' : stats?.total_questions ?? 0}
-              </p>
+              {loadingStats ? (
+                <p className="text-xl font-bold text-[var(--color-text-primary)] tabular-nums">—</p>
+              ) : statsError ? (
+                <p className="text-sm font-semibold text-[var(--color-danger)]">暂不可用</p>
+              ) : (
+                <p className="text-xl font-bold text-[var(--color-text-primary)] tabular-nums">
+                  {stats?.total_questions ?? 0}
+                </p>
+              )}
             </div>
           </button>
 
@@ -528,9 +546,15 @@ export default function Dashboard() {
             </div>
             <div className="min-w-0">
               <p className="text-xs text-[var(--color-text-muted)]">学生档案</p>
-              <p className="text-xl font-bold text-[var(--color-text-primary)] tabular-nums">
-                {loadingStats ? '—' : stats?.total_students ?? 0}
-              </p>
+              {loadingStats ? (
+                <p className="text-xl font-bold text-[var(--color-text-primary)] tabular-nums">—</p>
+              ) : statsError ? (
+                <p className="text-sm font-semibold text-[var(--color-danger)]">暂不可用</p>
+              ) : (
+                <p className="text-xl font-bold text-[var(--color-text-primary)] tabular-nums">
+                  {stats?.total_students ?? 0}
+                </p>
+              )}
             </div>
           </button>
 
@@ -544,9 +568,15 @@ export default function Dashboard() {
             </div>
             <div className="min-w-0">
               <p className="text-xs text-[var(--color-text-muted)]">试卷归档</p>
-              <p className="text-xl font-bold text-[var(--color-text-primary)] tabular-nums">
-                {loadingStats ? '—' : stats?.total_exams ?? 0}
-              </p>
+              {loadingStats ? (
+                <p className="text-xl font-bold text-[var(--color-text-primary)] tabular-nums">—</p>
+              ) : statsError ? (
+                <p className="text-sm font-semibold text-[var(--color-danger)]">暂不可用</p>
+              ) : (
+                <p className="text-xl font-bold text-[var(--color-text-primary)] tabular-nums">
+                  {stats?.total_exams ?? 0}
+                </p>
+              )}
             </div>
           </button>
         </div>
@@ -558,6 +588,12 @@ export default function Dashboard() {
         >
           {loadingStats ? (
             <div className="h-56 w-full animate-pulse rounded-xl bg-[var(--color-bg-subtle)]" />
+          ) : statsError ? (
+            /* stats 失败时禁止用空态冒充"题库为空"，必须是区域级错误态 */
+            <ErrorState
+              title="题库分布暂不可用"
+              message="统计数据加载失败，知识点分布暂时无法展示，请稍后重试。"
+            />
           ) : chartData.length === 0 ? (
             <EmptyState
               icon={Database}
