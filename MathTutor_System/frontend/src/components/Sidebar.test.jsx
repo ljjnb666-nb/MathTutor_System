@@ -98,4 +98,37 @@ describe('Sidebar V3-04 regression tests', () => {
     expect(selectStudent).toHaveBeenCalledWith(10)
     expect(screen.queryByRole('option', { name: /张三/ })).not.toBeInTheDocument()
   })
+
+  it('4. renders TutorPro branding and removes legacy MathTutor Pro text', () => {
+    render(<TestWrapper />)
+
+    expect(screen.getByText('TutorPro')).toBeInTheDocument()
+    expect(screen.getByText('AI Teaching Workspace')).toBeInTheDocument()
+    expect(screen.queryByText('MathTutor')).not.toBeInTheDocument()
+    expect(screen.queryByText('AI Studio Edition')).not.toBeInTheDocument()
+  })
+
+  it('5. supports collapsed desktop mode hiding full text labels', () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Sidebar isCollapsed={true} />
+      </MemoryRouter>
+    )
+
+    // In collapsed mode, the text label "AI Teaching Workspace" is hidden
+    expect(screen.queryByText('AI Teaching Workspace')).not.toBeInTheDocument()
+  })
+
+  it('6. hides admin section for teachers and displays for admin users', () => {
+    mockAuthUser.role = 'teacher'
+    const { rerender } = render(<TestWrapper />)
+    expect(screen.queryByText('管理后台')).not.toBeInTheDocument()
+    expect(screen.queryByText('用户管理')).not.toBeInTheDocument()
+
+    mockAuthUser.role = 'admin'
+    rerender(<TestWrapper />)
+    expect(screen.getByText('管理后台')).toBeInTheDocument()
+    expect(screen.getByText('用户管理')).toBeInTheDocument()
+  })
 })
+
