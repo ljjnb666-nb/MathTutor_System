@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { useState } from 'react'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, screen, fireEvent, cleanup, within } from '@testing-library/react'
 import {
   Button,
   IconButton,
@@ -10,6 +11,7 @@ import {
   Badge,
   StatusBadge,
   Modal,
+  Drawer,
   Card,
   Metric,
   EmptyState,
@@ -17,6 +19,9 @@ import {
 } from './index'
 
 describe('TutorPro UI Primitives', () => {
+  afterEach(() => {
+    cleanup()
+  })
   it('renders Button variants and handles click and loading state', () => {
     const handleClick = vi.fn()
     const { rerender } = render(
@@ -102,19 +107,184 @@ describe('TutorPro UI Primitives', () => {
     expect(screen.getByText('已掌握')).toBeInTheDocument()
   })
 
-  it('renders Modal with dialog semantics and calls onClose on Escape', () => {
-    const handleClose = vi.fn()
+  it('OVERLAY-A11Y-01: open moves focus inside modal', () => {
+    function ModalOpenHarness() {
+      const [open, setOpen] = useState(false)
+      return (
+        <div>
+          <button data-testid="open-trigger" onClick={() => setOpen(true)}>
+            打开模态窗
+          </button>
+          <Modal isOpen={open} onClose={() => setOpen(false)} title="新建教学任务">
+            <input data-testid="task-name" placeholder="任务名称" />
+            <button data-testid="save-btn">保存</button>
+          </Modal>
+        </div>
+      )
+    }
+
+    render(<ModalOpenHarness />)
+    const trigger = screen.getByTestId('open-trigger')
+    trigger.focus()
+    expect(document.activeElement).toBe(trigger)
+
+    fireEvent.click(trigger)
+    const dialog = screen.getByRole('dialog', { name: '新建教学任务' })
+    expect(dialog).toBeInTheDocument()
+    // Focus has moved inside dialog
+    expect(dialog.contains(document.activeElement)).toBe(true)
+  })
+
+  it('OVERLAY-A11Y-02: Tab wraps last → first', () => {
     render(
-      <Modal isOpen={true} onClose={handleClose} title="新建教学任务">
+      <Modal isOpen={true} onClose={() => {}} title="循环聚焦测试">
+        <input data-testid="first-input" placeholder="输入" />
+        <button data-testid="last-action">确定操作</button>
+      </Modal>
+    )
+
+    const lastBtn = screen.getByTestId('last-action')
+    lastBtn.focus()
+    expect(document.activeElement).toBe(lastBtn)
+
+    // Press Tab on last focusable
+    fireEvent.keyDown(window, { key: 'Tab' })
+
+    const dialog = screen.getByRole('dialog')
+    const focusables = dialog.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')
+    const firstFocusable = focusables[0]
+
+    expect(document.activeElement).toBe(firstFocusable)
+  })
+
+  it('OVERLAY-A11Y-03: Shift+Tab wraps first → last', () => {
+    render(
+      <Modal isOpen={true} onClose={() => {}} title="逆向循环聚焦测试">
+        <input data-testid="first-input" placeholder="输入" />
+        <button data-testid="last-action">确定操作</button>
+      </Modal>
+    )
+
+    const dialog = screen.getByRole('dialog')
+    const focusables = dialog.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')
+    const firstFocusable = focusables[0]
+    const lastFocusable = focusables[focusables.length - 1]
+
+    firstFocusable.focus()
+    expect(document.activeElement).toBe(firstFocusable)
+
+    // Press Shift+Tab on first focusable
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true })
+
+    expect(document.activeElement).toBe(lastFocusable)
+  })
+
+  it('OVERLAY-A11Y-04: close restores trigger focus', () => {
+    function ModalRestoreHarness() {
+      const [open, setOpen] = useState(false)
+      return (
+        <div>
+          <button data-testid="restore-trigger" onClick={() => setOpen(true)}>
+            触发按钮
+          </button>
+          <Modal isOpen={open} onClose={() => setOpen(false)} title="焦点恢复测试">
+            <button data-testid="modal-content-btn">弹窗内按钮</button>
+          </Modal>
+        </div>
+      )
+    }
+
+    render(<ModalRestoreHarness />)
+    const trigger = screen.getByTestId('restore-trigger')
+    trigger.focus()
+    expect(document.activeElement).toBe(trigger)
+
+    // Open modal
+    fireEvent.click(trigger)
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toBeInTheDocument()
+
+    // Close modal via close button
+    const closeBtn = within(dialog).getByRole('button', { name: '关闭' })
+    fireEvent.click(closeBtn)
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    // Focus should be restored to trigger
+    expect(document.activeElement).toBe(trigger)
+  })
+
+  it('OVERLAY-A11Y-05: Drawer same contract (open focus, Tab trap, close restore)', () => {
+    function DrawerHarness() {
+      const [open, setOpen] = useState(false)
+      return (
+        <div>
+          <button data-testid="drawer-trigger" onClick={() => setOpen(true)}>
+            打开侧边抽屉
+          </button>
+          <Drawer isOpen={open} onClose={() => setOpen(false)} title="教学侧边抽屉">
+            <input data-testid="drawer-input" placeholder="输入项" />
+            <button data-testid="drawer-last-btn">最后按钮</button>
+          </Drawer>
+        </div>
+      )
+    }
+
+    render(<DrawerHarness />)
+    const trigger = screen.getByTestId('drawer-trigger')
+    trigger.focus()
+    expect(document.activeElement).toBe(trigger)
+
+    // 1. Open drawer -> focus inside
+    fireEvent.click(trigger)
+    const drawer = screen.getByRole('dialog', { name: '教学侧边抽屉' })
+    expect(drawer).toBeInTheDocument()
+    expect(drawer.contains(document.activeElement)).toBe(true)
+
+    // 2. Tab trap wrap last -> first
+    const lastBtn = screen.getByTestId('drawer-last-btn')
+    lastBtn.focus()
+    expect(document.activeElement).toBe(lastBtn)
+    fireEvent.keyDown(window, { key: 'Tab' })
+
+    const focusables = drawer.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')
+    const firstFocusable = focusables[0]
+    expect(document.activeElement).toBe(firstFocusable)
+
+    // 3. Shift+Tab trap wrap first -> last
+    firstFocusable.focus()
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(lastBtn)
+
+    // 4. Close drawer -> restore trigger focus
+    const closeBtn = within(drawer).getByRole('button', { name: '关闭' })
+    fireEvent.click(closeBtn)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(document.activeElement).toBe(trigger)
+  })
+
+  it('OVERLAY-A11Y-06: Escape closes both Modal and Drawer', () => {
+    const handleModalClose = vi.fn()
+    const { unmount: unmountModal } = render(
+      <Modal isOpen={true} onClose={handleModalClose} title="Escape测试弹窗">
         <p>任务配置表单</p>
       </Modal>
     )
 
-    expect(screen.getByRole('dialog', { name: '新建教学任务' })).toBeInTheDocument()
-    expect(screen.getByText('任务配置表单')).toBeInTheDocument()
-
+    expect(screen.getByRole('dialog', { name: 'Escape测试弹窗' })).toBeInTheDocument()
     fireEvent.keyDown(window, { key: 'Escape' })
-    expect(handleClose).toHaveBeenCalled()
+    expect(handleModalClose).toHaveBeenCalledTimes(1)
+    unmountModal()
+
+    const handleDrawerClose = vi.fn()
+    render(
+      <Drawer isOpen={true} onClose={handleDrawerClose} title="Escape测试抽屉">
+        <p>抽屉内容</p>
+      </Drawer>
+    )
+
+    expect(screen.getByRole('dialog', { name: 'Escape测试抽屉' })).toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(handleDrawerClose).toHaveBeenCalledTimes(1)
   })
 
   it('renders Card with header and content', () => {

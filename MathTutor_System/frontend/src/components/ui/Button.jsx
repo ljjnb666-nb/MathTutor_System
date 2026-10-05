@@ -28,16 +28,16 @@ export const Button = forwardRef(function Button(
 
   const variantClasses = {
     primary:
-      'bg-indigo-600 text-white shadow-sm hover:bg-indigo-500 active:bg-indigo-700 disabled:opacity-50 disabled:pointer-events-none',
+      'bg-[var(--color-brand-600)] text-white shadow-sm hover:bg-[var(--color-brand-500)] active:bg-[var(--color-brand-700)] disabled:opacity-50 disabled:pointer-events-none',
     secondary:
-      'bg-slate-800 text-slate-100 border border-slate-700 hover:bg-slate-700 active:bg-slate-800 disabled:opacity-50 disabled:pointer-events-none dark:bg-slate-800 dark:border-slate-700 light:bg-slate-100 light:text-slate-800 light:border-slate-200 light:hover:bg-slate-200',
+      'bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)] border border-[var(--color-border-default)] hover:bg-[var(--color-bg-tertiary)] hover:border-[var(--color-border-strong)] disabled:opacity-50 disabled:pointer-events-none',
     outline:
-      'border border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white active:bg-slate-900 disabled:opacity-50 disabled:pointer-events-none dark:border-slate-700 dark:text-slate-300 light:border-slate-300 light:text-slate-700 light:hover:bg-slate-100',
+      'border border-[var(--color-border-default)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-strong)] disabled:opacity-50 disabled:pointer-events-none',
     ghost:
-      'text-slate-400 hover:bg-slate-800 hover:text-slate-100 active:bg-slate-900 disabled:opacity-50 disabled:pointer-events-none dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 light:text-slate-600 light:hover:bg-slate-100 light:hover:text-slate-900',
+      'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)] disabled:opacity-50 disabled:pointer-events-none',
     danger:
-      'bg-rose-600 text-white shadow-sm hover:bg-rose-500 active:bg-rose-700 disabled:opacity-50 disabled:pointer-events-none',
-  }[variant] || 'bg-indigo-600 text-white hover:bg-indigo-500'
+      'bg-[var(--color-danger)] text-white shadow-sm hover:opacity-90 active:opacity-100 disabled:opacity-50 disabled:pointer-events-none',
+  }[variant] || 'bg-[var(--color-brand-600)] text-white hover:bg-[var(--color-brand-500)]'
 
   const isDisabled = disabled || loading
 

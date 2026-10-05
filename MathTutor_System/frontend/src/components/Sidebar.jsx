@@ -7,7 +7,6 @@ import {
   Plus,
   LogOut,
   X,
-  Compass,
   GraduationCap,
   PanelLeftClose,
   PanelLeft,
@@ -18,12 +17,12 @@ import { useSubscription } from '../contexts/SubscriptionContext'
 import { getVisibleNavGroups } from '../config/navigation'
 
 const AVATAR_COLORS = [
-  'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30',
-  'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
-  'bg-amber-500/20 text-amber-400 border border-amber-500/30',
-  'bg-violet-500/20 text-violet-400 border border-violet-500/30',
-  'bg-rose-500/20 text-rose-400 border border-rose-500/30',
-  'bg-sky-500/20 text-sky-400 border border-sky-500/30',
+  'bg-indigo-500/15 text-indigo-400 border border-indigo-500/25',
+  'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25',
+  'bg-amber-500/15 text-amber-400 border border-amber-500/25',
+  'bg-violet-500/15 text-violet-400 border border-violet-500/25',
+  'bg-rose-500/15 text-rose-400 border border-rose-500/25',
+  'bg-sky-500/15 text-sky-400 border border-sky-500/25',
 ]
 
 function getAvatarStyle(name) {
@@ -105,29 +104,27 @@ export default function Sidebar({ onCloseDrawer, isCollapsed = false, onToggleCo
 
   return (
     <aside
-      className={`relative flex h-full flex-col border-r select-none transition-all duration-200 ${
-        isMobileDrawer
-          ? 'w-full bg-[#0E1524] text-slate-200 border-slate-800'
-          : `${isCollapsed ? 'w-16' : 'w-60'} bg-[#0E1524] text-slate-200 border-slate-800/80 dark:bg-[#0E1524] dark:border-slate-800/80 light:bg-white light:text-slate-800 light:border-slate-200`
+      className={`relative flex h-full flex-col border-r select-none transition-all duration-200 bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border-[var(--color-border-default)] ${
+        isMobileDrawer ? 'w-full shadow-2xl' : isCollapsed ? 'w-16' : 'w-60'
       }`}
     >
       {/* 1. TutorPro 品牌头部 */}
-      <div className="flex h-15 items-center justify-between px-4 border-b border-slate-800/80 dark:border-slate-800/80 light:border-slate-200">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white shadow-sm shadow-indigo-500/20">
+      <div className="flex h-14 items-center justify-between px-4 border-b border-[var(--color-border-default)]">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-brand-600)] text-white shadow-sm shadow-indigo-500/20">
             <GraduationCap className="h-4 w-4" aria-hidden="true" />
           </div>
           {!isCollapsed && (
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-bold tracking-tight text-white dark:text-white light:text-slate-900">
+                <span className="text-sm font-bold tracking-tight text-[var(--color-text-primary)]">
                   TutorPro
                 </span>
-                <span className="rounded bg-indigo-500/10 px-1 py-0.2 text-[9px] font-semibold text-indigo-400 border border-indigo-500/20">
+                <span className="rounded bg-[var(--color-brand-subtle)] px-1 py-0.2 text-[9px] font-semibold text-[var(--color-brand-text)] border border-[var(--color-border-subtle)]">
                   AI
                 </span>
               </div>
-              <p className="truncate text-[10px] text-slate-400 font-medium">
+              <p className="truncate text-[10px] text-[var(--color-text-muted)] font-medium">
                 AI Teaching Workspace
               </p>
             </div>
@@ -139,7 +136,7 @@ export default function Sidebar({ onCloseDrawer, isCollapsed = false, onToggleCo
           <button
             type="button"
             onClick={onCloseDrawer}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--color-text-muted)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
             aria-label="关闭菜单"
           >
             <X className="h-4 w-4" />
@@ -151,7 +148,7 @@ export default function Sidebar({ onCloseDrawer, isCollapsed = false, onToggleCo
           <button
             type="button"
             onClick={onToggleCollapse}
-            className="hidden md:flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+            className="hidden md:flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--color-text-muted)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
             aria-label="收起侧栏"
             title="收起侧栏"
           >
@@ -162,11 +159,11 @@ export default function Sidebar({ onCloseDrawer, isCollapsed = false, onToggleCo
 
       {/* 桌面端在折叠状态下展示展开入口 */}
       {!isMobileDrawer && isCollapsed && onToggleCollapse && (
-        <div className="p-2 border-b border-slate-800/80 dark:border-slate-800/80 light:border-slate-200 flex justify-center">
+        <div className="p-2 border-b border-[var(--color-border-default)] flex justify-center">
           <button
             type="button"
             onClick={onToggleCollapse}
-            className="h-8 w-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+            className="h-8 w-8 flex items-center justify-center rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
             aria-label="展开侧栏"
             title="展开侧栏"
           >
@@ -177,51 +174,51 @@ export default function Sidebar({ onCloseDrawer, isCollapsed = false, onToggleCo
 
       {/* 2. 学生上下文切换卡片 (Student Switcher) */}
       {!isCollapsed ? (
-        <div className="relative border-b border-slate-800/80 p-2.5 dark:border-slate-800/80 light:border-slate-200" ref={panelRef}>
+        <div className="relative border-b border-[var(--color-border-default)] p-2.5" ref={panelRef}>
           <button
             type="button"
             onClick={() => setSwitcherOpen((v) => !v)}
-            className="group flex w-full items-center gap-2.5 rounded-lg border border-slate-800 bg-slate-900/60 p-2 text-left transition-all hover:border-slate-700 hover:bg-slate-900 active:scale-[0.99] dark:bg-slate-900/60 dark:border-slate-800 light:bg-slate-50 light:border-slate-200 light:hover:bg-slate-100"
+            className="group flex w-full items-center gap-2.5 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-2 text-left transition-all hover:border-[var(--color-border-strong)] hover:bg-[var(--color-bg-surface-hover)] active:scale-[0.99]"
             aria-expanded={switcherOpen}
             aria-haspopup="listbox"
           >
             <div
               className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-semibold ${
-                currentStudent ? getAvatarStyle(currentStudent.name) : 'bg-slate-800 text-slate-400'
+                currentStudent ? getAvatarStyle(currentStudent.name) : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)]'
               }`}
             >
               {currentStudent ? getInitial(currentStudent.name) : '?'}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                <p className="truncate text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-success)]" />
+                <p className="truncate text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
                   当前学生
                 </p>
               </div>
-              <p className="truncate text-xs font-semibold text-slate-200 mt-0.5 dark:text-slate-200 light:text-slate-800">
+              <p className="truncate text-xs font-semibold text-[var(--color-text-primary)] mt-0.5">
                 {currentStudent ? currentStudent.name : '未选择档案'}
               </p>
             </div>
             <ChevronDown
-              className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform duration-200 ${
-                switcherOpen ? 'rotate-180 text-indigo-400' : ''
+              className={`h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)] transition-transform duration-200 ${
+                switcherOpen ? 'rotate-180 text-[var(--color-brand-text)]' : ''
               }`}
             />
           </button>
 
           {/* 下拉浮层 (严格满足 Sidebar.test.jsx 所需所有元素与文本) */}
           {switcherOpen && (
-            <div className="absolute left-2.5 right-2.5 top-full z-40 mt-1.5 max-h-72 overflow-hidden rounded-xl border border-slate-700/90 bg-[#121B2F] shadow-xl backdrop-blur-md dark:bg-[#121B2F] dark:border-slate-700/90 light:bg-white light:border-slate-200">
-              <div className="border-b border-slate-800 p-2 dark:border-slate-800 light:border-slate-200">
+            <div className="absolute left-2.5 right-2.5 top-full z-40 mt-1.5 max-h-72 overflow-hidden rounded-xl border border-[var(--color-border-strong)] bg-[var(--color-bg-surface-raised)] shadow-xl backdrop-blur-md">
+              <div className="border-b border-[var(--color-border-default)] p-2">
                 <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-text-muted)]" />
                   <input
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder="搜索学生或班级…"
-                    className="w-full rounded-md border border-slate-700 bg-slate-900/90 py-1.5 pl-8 pr-2.5 text-xs text-slate-200 placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:bg-slate-900/90 dark:border-slate-700 light:bg-slate-50 light:border-slate-200 light:text-slate-800"
+                    className="w-full rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-input)] py-1.5 pl-8 pr-2.5 text-xs text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-brand-500)] focus:outline-none focus:ring-1 focus:ring-[var(--color-brand-500)]"
                   />
                 </div>
               </div>
@@ -235,10 +232,10 @@ export default function Sidebar({ onCloseDrawer, isCollapsed = false, onToggleCo
                         role="option"
                         aria-selected={currentStudent?.id === s.id}
                         onClick={() => handleSelect(s.id)}
-                        className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-xs transition-colors hover:bg-indigo-600/15 ${
+                        className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-xs transition-colors hover:bg-[var(--color-brand-subtle)] ${
                           currentStudent?.id === s.id
-                            ? 'bg-indigo-600/20 font-semibold text-indigo-400'
-                            : 'text-slate-300 dark:text-slate-300 light:text-slate-700'
+                            ? 'bg-[var(--color-brand-subtle)] font-semibold text-[var(--color-brand-text)]'
+                            : 'text-[var(--color-text-secondary)]'
                         }`}
                       >
                         <div
@@ -249,7 +246,7 @@ export default function Sidebar({ onCloseDrawer, isCollapsed = false, onToggleCo
                           {getInitial(s.name)}
                         </div>
                         <span className="truncate flex-1">{s.name}</span>
-                        <span className="truncate text-[10px] text-slate-500">
+                        <span className="truncate text-[10px] text-[var(--color-text-muted)]">
                           {s.grade ? `${s.grade} ` : ''}
                           {s.class_name || ''}
                         </span>
@@ -257,21 +254,21 @@ export default function Sidebar({ onCloseDrawer, isCollapsed = false, onToggleCo
                     </li>
                   ))
                 ) : (
-                  <li className="px-3 py-3 text-center text-xs text-slate-500">
+                  <li className="px-3 py-3 text-center text-xs text-[var(--color-text-muted)]">
                     未找到匹配的学生
                   </li>
                 )}
               </ul>
 
-              <div className="border-t border-slate-800 p-1.5 dark:border-slate-800 light:border-slate-200">
+              <div className="border-t border-[var(--color-border-default)] p-1.5">
                 <button
                   type="button"
                   onClick={handleAddStudent}
                   disabled={atStudentLimit}
                   className={`flex w-full items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all ${
                     atStudentLimit
-                      ? 'cursor-not-allowed text-slate-600'
-                      : 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-600/25'
+                      ? 'cursor-not-allowed text-[var(--color-text-disabled)]'
+                      : 'bg-[var(--color-brand-subtle)] text-[var(--color-brand-text)] border border-[var(--color-brand-300)] hover:bg-[var(--color-brand-100)]'
                   }`}
                   title={atStudentLimit ? '当前套餐学生数已满，请升级' : undefined}
                 >
@@ -283,11 +280,11 @@ export default function Sidebar({ onCloseDrawer, isCollapsed = false, onToggleCo
           )}
         </div>
       ) : (
-        <div className="p-2 border-b border-slate-800/80 flex justify-center">
+        <div className="p-2 border-b border-[var(--color-border-default)] flex justify-center">
           <div
             title={currentStudent ? `当前学生: ${currentStudent.name}` : '未选择学生'}
             className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-semibold ${
-              currentStudent ? getAvatarStyle(currentStudent.name) : 'bg-slate-800 text-slate-400'
+              currentStudent ? getAvatarStyle(currentStudent.name) : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)]'
             }`}
           >
             {currentStudent ? getInitial(currentStudent.name) : '?'}
@@ -300,7 +297,7 @@ export default function Sidebar({ onCloseDrawer, isCollapsed = false, onToggleCo
         {visibleNavGroups.map((group, gIdx) => (
           <div key={gIdx} className="space-y-0.5">
             {group.title && !isCollapsed && (
-              <p className="px-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              <p className="px-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
                 {group.title}
               </p>
             )}
@@ -317,8 +314,8 @@ export default function Sidebar({ onCloseDrawer, isCollapsed = false, onToggleCo
                       isCollapsed ? 'justify-center' : ''
                     } ${
                       isActive
-                        ? 'bg-indigo-600 text-white font-semibold shadow-sm shadow-indigo-600/25'
-                        : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-100 active:scale-[0.99] dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-100 light:text-slate-600 light:hover:bg-slate-100 light:hover:text-slate-900'
+                        ? 'bg-[var(--color-brand-600)] text-white font-semibold shadow-sm shadow-indigo-600/25'
+                        : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)] active:scale-[0.99]'
                     }`
                   }
                 >
@@ -332,7 +329,7 @@ export default function Sidebar({ onCloseDrawer, isCollapsed = false, onToggleCo
       </nav>
 
       {/* 4. 底部设置与退出 */}
-      <div className="border-t border-slate-800/80 p-2.5 space-y-1 dark:border-slate-800/80 light:border-slate-200">
+      <div className="border-t border-[var(--color-border-default)] p-2.5 space-y-1">
         <NavLink
           to="/settings"
           onClick={onCloseDrawer ?? undefined}
@@ -342,8 +339,8 @@ export default function Sidebar({ onCloseDrawer, isCollapsed = false, onToggleCo
               isCollapsed ? 'justify-center' : ''
             } ${
               isActive
-                ? 'bg-indigo-600 text-white font-semibold shadow-sm'
-                : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 dark:text-slate-400 dark:hover:bg-slate-800/60 light:text-slate-600 light:hover:bg-slate-100'
+                ? 'bg-[var(--color-brand-600)] text-white font-semibold shadow-sm'
+                : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]'
             }`
           }
         >
@@ -355,7 +352,7 @@ export default function Sidebar({ onCloseDrawer, isCollapsed = false, onToggleCo
           type="button"
           onClick={handleLogout}
           title={isCollapsed ? '退出登录' : undefined}
-          className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-rose-400 hover:bg-rose-950/20 hover:text-rose-300 transition-all ${
+          className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-[var(--color-danger-text)] hover:bg-[var(--color-danger-bg)] hover:text-[var(--color-danger)] transition-all ${
             isCollapsed ? 'justify-center' : ''
           }`}
         >

@@ -1,6 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useId } from 'react'
 import { X } from 'lucide-react'
 import { IconButton } from './Button'
+
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 export function Modal({
   isOpen,
@@ -13,20 +16,84 @@ export function Modal({
   className = '',
 }) {
   const overlayRef = useRef(null)
+  const dialogRef = useRef(null)
+  const previousFocusRef = useRef(null)
+  const generatedId = useId()
+
+  const titleId = title ? `modal-title-${generatedId}` : undefined
+  const descriptionId = description ? `modal-desc-${generatedId}` : undefined
 
   useEffect(() => {
-    function handleKeyDown(e) {
-      if (e.key === 'Escape' && isOpen) {
-        onClose?.()
+    if (!isOpen) return
+
+    // 1. 记录打开前的焦点元素以备关闭时恢复 (OVERLAY-A11Y-04)
+    previousFocusRef.current = document.activeElement
+
+    // 2. 锁定页面背景滚动
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    // 3. 打开后优先聚焦对话框内的第一个可交互控件，若无则聚焦对话框主体 (OVERLAY-A11Y-01)
+    function focusInitial() {
+      if (!dialogRef.current) return
+      const focusables = dialogRef.current.querySelectorAll(FOCUSABLE_SELECTOR)
+      if (focusables.length > 0) {
+        focusables[0].focus()
+      } else {
+        dialogRef.current.focus()
       }
     }
-    if (isOpen) {
-      document.body.style.overflow = 'hidden'
-      window.addEventListener('keydown', handleKeyDown)
+    focusInitial()
+    const timer = setTimeout(focusInitial, 0)
+
+    // 4. Tab 焦点循环陷阱 (OVERLAY-A11Y-02, OVERLAY-A11Y-03) 与 Escape 快捷退出 (OVERLAY-A11Y-06)
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        onClose?.()
+        return
+      }
+
+      if (e.key === 'Tab') {
+        if (!dialogRef.current) return
+        const focusables = Array.from(dialogRef.current.querySelectorAll(FOCUSABLE_SELECTOR))
+        if (focusables.length === 0) {
+          e.preventDefault()
+          return
+        }
+
+        const first = focusables[0]
+        const last = focusables[focusables.length - 1]
+
+        if (e.shiftKey) {
+          if (document.activeElement === first || document.activeElement === dialogRef.current) {
+            e.preventDefault()
+            last.focus()
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault()
+            first.focus()
+          }
+        }
+      }
     }
+
+    window.addEventListener('keydown', handleKeyDown)
+
     return () => {
-      document.body.style.overflow = ''
+      clearTimeout(timer)
+      document.body.style.overflow = originalOverflow
       window.removeEventListener('keydown', handleKeyDown)
+
+      // 5. 关闭时恢复此前触发焦点 (OVERLAY-A11Y-04)
+      if (
+        previousFocusRef.current &&
+        typeof previousFocusRef.current.focus === 'function' &&
+        document.contains(previousFocusRef.current)
+      ) {
+        previousFocusRef.current.focus()
+      }
     }
   }, [isOpen, onClose])
 
@@ -42,34 +109,36 @@ export function Modal({
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={title ? 'modal-title' : undefined}
-      aria-describedby={description ? 'modal-description' : undefined}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
     >
       {/* 遮罩背景 */}
       <div
         ref={overlayRef}
         onClick={onClose}
-        className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-[var(--color-bg-overlay)] backdrop-blur-sm transition-opacity"
         aria-hidden="true"
       />
 
       {/* 模态框主体 */}
       <div
-        className={`relative w-full ${sizeClasses} rounded-2xl border border-slate-700/80 bg-slate-900 shadow-2xl transition-all z-10 dark:bg-slate-900 dark:border-slate-700/80 light:bg-white light:border-slate-200 ${className}`}
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
+        className={`relative w-full ${sizeClasses} rounded-2xl border border-[var(--color-border-strong)] bg-[var(--color-bg-surface-raised)] shadow-2xl transition-all z-10 focus:outline-none ${className}`}
       >
         {/* 头部 */}
-        <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4 dark:border-slate-800 light:border-slate-200">
+        <div className="flex items-center justify-between border-b border-[var(--color-border-default)] px-6 py-4">
           <div>
             {title && (
-              <h2 id="modal-title" className="text-base font-bold text-slate-100 dark:text-slate-100 light:text-slate-900">
+              <h2 id={titleId} className="text-base font-bold text-[var(--color-text-primary)]">
                 {title}
               </h2>
             )}
             {description && (
-              <p id="modal-description" className="mt-0.5 text-xs text-slate-400">
+              <p id={descriptionId} className="mt-0.5 text-xs text-[var(--color-text-muted)]">
                 {description}
               </p>
             )}
@@ -79,7 +148,7 @@ export function Modal({
             label="关闭"
             size="sm"
             onClick={onClose}
-            className="text-slate-400 hover:text-white dark:hover:text-white light:hover:text-slate-900"
+            className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
           />
         </div>
 
@@ -90,7 +159,7 @@ export function Modal({
 
         {/* 底部操作区 */}
         {footer && (
-          <div className="flex items-center justify-end gap-3 border-t border-slate-800 px-6 py-3.5 bg-slate-900/50 rounded-b-2xl dark:border-slate-800 dark:bg-slate-900/50 light:border-slate-200 light:bg-slate-50">
+          <div className="flex items-center justify-end gap-3 border-t border-[var(--color-border-default)] px-6 py-3.5 bg-[var(--color-bg-subtle)] rounded-b-2xl">
             {footer}
           </div>
         )}
@@ -108,19 +177,82 @@ export function Drawer({
   size = 'md',        // 'sm' | 'md' | 'lg'
   className = '',
 }) {
+  const dialogRef = useRef(null)
+  const previousFocusRef = useRef(null)
+  const generatedId = useId()
+  const titleId = title ? `drawer-title-${generatedId}` : undefined
+
   useEffect(() => {
-    function handleKeyDown(e) {
-      if (e.key === 'Escape' && isOpen) {
-        onClose?.()
+    if (!isOpen) return
+
+    // 1. 记录此前焦点 (OVERLAY-A11Y-05)
+    previousFocusRef.current = document.activeElement
+
+    // 2. 锁定滚动
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    // 3. 打开后移入焦点
+    function focusInitial() {
+      if (!dialogRef.current) return
+      const focusables = dialogRef.current.querySelectorAll(FOCUSABLE_SELECTOR)
+      if (focusables.length > 0) {
+        focusables[0].focus()
+      } else {
+        dialogRef.current.focus()
       }
     }
-    if (isOpen) {
-      document.body.style.overflow = 'hidden'
-      window.addEventListener('keydown', handleKeyDown)
+    focusInitial()
+    const timer = setTimeout(focusInitial, 0)
+
+    // 4. Tab 循环陷阱与 Escape 监听
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        onClose?.()
+        return
+      }
+
+      if (e.key === 'Tab') {
+        if (!dialogRef.current) return
+        const focusables = Array.from(dialogRef.current.querySelectorAll(FOCUSABLE_SELECTOR))
+        if (focusables.length === 0) {
+          e.preventDefault()
+          return
+        }
+
+        const first = focusables[0]
+        const last = focusables[focusables.length - 1]
+
+        if (e.shiftKey) {
+          if (document.activeElement === first || document.activeElement === dialogRef.current) {
+            e.preventDefault()
+            last.focus()
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault()
+            first.focus()
+          }
+        }
+      }
     }
+
+    window.addEventListener('keydown', handleKeyDown)
+
     return () => {
-      document.body.style.overflow = ''
+      clearTimeout(timer)
+      document.body.style.overflow = originalOverflow
       window.removeEventListener('keydown', handleKeyDown)
+
+      // 5. 退出时恢复此前焦点
+      if (
+        previousFocusRef.current &&
+        typeof previousFocusRef.current.focus === 'function' &&
+        document.contains(previousFocusRef.current)
+      ) {
+        previousFocusRef.current.focus()
+      }
     }
   }, [isOpen, onClose])
 
@@ -136,20 +268,23 @@ export function Drawer({
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
       className="fixed inset-0 z-50 overflow-hidden"
     >
       <div
         onClick={onClose}
-        className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-[var(--color-bg-overlay)] backdrop-blur-sm transition-opacity"
         aria-hidden="true"
       />
       <div
-        className={`fixed inset-y-0 ${positionClasses} flex w-full ${sizeClasses} flex-col border-l border-slate-800 bg-slate-900 shadow-2xl z-10 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] dark:bg-slate-900 dark:border-slate-800 light:bg-white light:border-slate-200 ${className}`}
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+        aria-labelledby={titleId}
+        className={`fixed inset-y-0 ${positionClasses} flex w-full ${sizeClasses} flex-col border-l border-[var(--color-border-default)] bg-[var(--color-bg-surface-raised)] shadow-2xl z-10 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] focus:outline-none ${className}`}
       >
-        <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4 dark:border-slate-800 light:border-slate-200">
-          <h2 className="text-sm font-bold text-slate-100 dark:text-slate-100 light:text-slate-900">
+        <div className="flex items-center justify-between border-b border-[var(--color-border-default)] px-5 py-4">
+          <h2 id={titleId} className="text-sm font-bold text-[var(--color-text-primary)]">
             {title}
           </h2>
           <IconButton icon={X} label="关闭" size="sm" onClick={onClose} />

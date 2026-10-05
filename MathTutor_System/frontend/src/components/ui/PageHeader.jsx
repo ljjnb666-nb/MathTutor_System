@@ -16,26 +16,26 @@ export function PageHeader({
     >
       <div>
         {breadcrumbs.length > 0 && (
-          <nav aria-label="面包屑导航" className="mb-1.5 flex items-center gap-1.5 text-xs text-slate-400">
+          <nav aria-label="面包屑导航" className="mb-1.5 flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
             {breadcrumbs.map((crumb, idx) => (
               <span key={idx} className="flex items-center gap-1.5">
-                {idx > 0 && <ChevronRight className="h-3 w-3 text-slate-600" aria-hidden="true" />}
+                {idx > 0 && <ChevronRight className="h-3 w-3 text-[var(--color-border-strong)]" aria-hidden="true" />}
                 {crumb.to ? (
-                  <a href={crumb.to} className="hover:text-slate-200 transition-colors">
+                  <a href={crumb.to} className="hover:text-[var(--color-text-primary)] transition-colors">
                     {crumb.label}
                   </a>
                 ) : (
-                  <span className="text-slate-300 font-medium">{crumb.label}</span>
+                  <span className="text-[var(--color-text-secondary)] font-medium">{crumb.label}</span>
                 )}
               </span>
             ))}
           </nav>
         )}
-        <h1 className="text-xl font-bold tracking-tight text-slate-100 sm:text-2xl dark:text-slate-100 light:text-slate-900">
+        <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-2xl">
           {title}
         </h1>
         {description && (
-          <p className="mt-1 text-xs text-slate-400 max-w-2xl leading-relaxed">
+          <p className="mt-1 text-xs text-[var(--color-text-muted)] max-w-2xl leading-relaxed">
             {description}
           </p>
         )}
@@ -48,12 +48,12 @@ export function PageHeader({
 }
 
 const AVATAR_PALETTE = [
-  'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  'bg-amber-500/20 text-amber-400 border-amber-500/30',
-  'bg-violet-500/20 text-violet-400 border-violet-500/30',
-  'bg-rose-500/20 text-rose-400 border-rose-500/30',
-  'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+  'bg-blue-500/15 text-blue-400 border-blue-500/30',
+  'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+  'bg-amber-500/15 text-amber-400 border-amber-500/30',
+  'bg-violet-500/15 text-violet-400 border-violet-500/30',
+  'bg-rose-500/15 text-rose-400 border-rose-500/30',
+  'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
 ]
 
 export function Avatar({
@@ -77,7 +77,7 @@ export function Avatar({
       <img
         src={src}
         alt={name || '头像'}
-        className={`rounded-full object-cover shrink-0 border border-slate-700 ${sizeClasses} ${className}`}
+        className={`rounded-full object-cover shrink-0 border border-[var(--color-border-default)] ${sizeClasses} ${className}`}
       />
     )
   }

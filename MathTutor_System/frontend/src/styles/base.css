@@ -2,8 +2,6 @@
  * TutorPro Base Styles & CSS Architecture
  */
 
-@import './tokens.css';
-
 *, *::before, *::after {
   box-sizing: border-box;
 }

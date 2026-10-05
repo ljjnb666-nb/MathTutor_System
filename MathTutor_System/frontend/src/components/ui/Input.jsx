@@ -24,15 +24,15 @@ export const Input = forwardRef(function Input(
       {label && (
         <label
           htmlFor={inputId}
-          className="block text-xs font-semibold text-slate-300 mb-1.5 dark:text-slate-300 light:text-slate-700"
+          className="block text-xs font-semibold text-[var(--color-text-secondary)] mb-1.5"
         >
           {label}
-          {required && <span className="text-rose-500 ml-1" aria-hidden="true">*</span>}
+          {required && <span className="text-[var(--color-danger)] ml-1" aria-hidden="true">*</span>}
         </label>
       )}
       <div className="relative">
         {Icon && iconPosition === 'left' && (
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-[var(--color-text-muted)]">
             <Icon className="h-4 w-4" aria-hidden="true" />
           </div>
         )}
@@ -42,27 +42,29 @@ export const Input = forwardRef(function Input(
           type={type}
           disabled={disabled}
           required={required}
-          className={`w-full rounded-lg border bg-slate-900/80 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-900/80 dark:border-slate-700 dark:text-slate-100 light:bg-white light:border-slate-300 light:text-slate-900 light:placeholder-slate-400 ${
+          className={`w-full rounded-lg border bg-[var(--color-bg-input)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:[var(--color-text-muted)] transition-colors focus:border-[var(--color-brand-500)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-500)]/20 disabled:cursor-not-allowed disabled:opacity-60 ${
             Icon && iconPosition === 'left' ? 'pl-9' : ''
           } ${Icon && iconPosition === 'right' ? 'pr-9' : ''} ${
-            error ? '!border-rose-500 !ring-rose-500/20' : 'border-slate-700'
+            error
+              ? '!border-[var(--color-danger)] !ring-[var(--color-danger-border)]'
+              : 'border-[var(--color-border-default)]'
           } ${inputClassName}`}
           aria-invalid={error ? 'true' : 'false'}
           aria-describedby={error ? `${inputId}-error` : helperText ? `${inputId}-helper` : undefined}
           {...props}
         />
         {Icon && iconPosition === 'right' && (
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-[var(--color-text-muted)]">
             <Icon className="h-4 w-4" aria-hidden="true" />
           </div>
         )}
       </div>
       {error ? (
-        <p id={`${inputId}-error`} className="mt-1.5 text-xs text-rose-500 font-medium" role="alert">
+        <p id={`${inputId}-error`} className="mt-1.5 text-xs text-[var(--color-danger-text)] font-medium" role="alert">
           {error}
         </p>
       ) : helperText ? (
-        <p id={`${inputId}-helper`} className="mt-1.5 text-xs text-slate-400">
+        <p id={`${inputId}-helper`} className="mt-1.5 text-xs text-[var(--color-text-muted)]">
           {helperText}
         </p>
       ) : null}
@@ -92,10 +94,10 @@ export const Textarea = forwardRef(function Textarea(
       {label && (
         <label
           htmlFor={textareaId}
-          className="block text-xs font-semibold text-slate-300 mb-1.5 dark:text-slate-300 light:text-slate-700"
+          className="block text-xs font-semibold text-[var(--color-text-secondary)] mb-1.5"
         >
           {label}
-          {required && <span className="text-rose-500 ml-1" aria-hidden="true">*</span>}
+          {required && <span className="text-[var(--color-danger)] ml-1" aria-hidden="true">*</span>}
         </label>
       )}
       <textarea
@@ -104,19 +106,21 @@ export const Textarea = forwardRef(function Textarea(
         rows={rows}
         disabled={disabled}
         required={required}
-        className={`w-full rounded-lg border bg-slate-900/80 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-900/80 dark:border-slate-700 dark:text-slate-100 light:bg-white light:border-slate-300 light:text-slate-900 light:placeholder-slate-400 ${
-          error ? '!border-rose-500 !ring-rose-500/20' : 'border-slate-700'
+        className={`w-full rounded-lg border bg-[var(--color-bg-input)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:[var(--color-text-muted)] transition-colors focus:border-[var(--color-brand-500)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-500)]/20 disabled:cursor-not-allowed disabled:opacity-60 ${
+          error
+            ? '!border-[var(--color-danger)] !ring-[var(--color-danger-border)]'
+            : 'border-[var(--color-border-default)]'
         } ${textareaClassName}`}
         aria-invalid={error ? 'true' : 'false'}
         aria-describedby={error ? `${textareaId}-error` : helperText ? `${textareaId}-helper` : undefined}
         {...props}
       />
       {error ? (
-        <p id={`${textareaId}-error`} className="mt-1.5 text-xs text-rose-500 font-medium" role="alert">
+        <p id={`${textareaId}-error`} className="mt-1.5 text-xs text-[var(--color-danger-text)] font-medium" role="alert">
           {error}
         </p>
       ) : helperText ? (
-        <p id={`${textareaId}-helper`} className="mt-1.5 text-xs text-slate-400">
+        <p id={`${textareaId}-helper`} className="mt-1.5 text-xs text-[var(--color-text-muted)]">
           {helperText}
         </p>
       ) : null}
@@ -149,10 +153,10 @@ export const Select = forwardRef(function Select(
       {label && (
         <label
           htmlFor={selectId}
-          className="block text-xs font-semibold text-slate-300 mb-1.5 dark:text-slate-300 light:text-slate-700"
+          className="block text-xs font-semibold text-[var(--color-text-secondary)] mb-1.5"
         >
           {label}
-          {required && <span className="text-rose-500 ml-1" aria-hidden="true">*</span>}
+          {required && <span className="text-[var(--color-danger)] ml-1" aria-hidden="true">*</span>}
         </label>
       )}
       <div className="relative">
@@ -163,8 +167,10 @@ export const Select = forwardRef(function Select(
           onChange={onChange}
           disabled={disabled}
           required={required}
-          className={`w-full appearance-none rounded-lg border bg-slate-900/80 px-3 py-2 pr-8 text-sm text-slate-100 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-900/80 dark:border-slate-700 dark:text-slate-100 light:bg-white light:border-slate-300 light:text-slate-900 ${
-            error ? '!border-rose-500 !ring-rose-500/20' : 'border-slate-700'
+          className={`w-full appearance-none rounded-lg border bg-[var(--color-bg-input)] px-3 py-2 pr-8 text-sm text-[var(--color-text-primary)] transition-colors focus:border-[var(--color-brand-500)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-500)]/20 disabled:cursor-not-allowed disabled:opacity-60 ${
+            error
+              ? '!border-[var(--color-danger)] !ring-[var(--color-danger-border)]'
+              : 'border-[var(--color-border-default)]'
           } ${selectClassName}`}
           aria-invalid={error ? 'true' : 'false'}
           {...props}
@@ -177,18 +183,18 @@ export const Select = forwardRef(function Select(
               ))
             : children}
         </select>
-        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400">
+        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-[var(--color-text-muted)]">
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
           </svg>
         </div>
       </div>
       {error ? (
-        <p id={`${selectId}-error`} className="mt-1.5 text-xs text-rose-500 font-medium" role="alert">
+        <p id={`${selectId}-error`} className="mt-1.5 text-xs text-[var(--color-danger-text)] font-medium" role="alert">
           {error}
         </p>
       ) : helperText ? (
-        <p id={`${selectId}-helper`} className="mt-1.5 text-xs text-slate-400">
+        <p id={`${selectId}-helper`} className="mt-1.5 text-xs text-[var(--color-text-muted)]">
           {helperText}
         </p>
       ) : null}

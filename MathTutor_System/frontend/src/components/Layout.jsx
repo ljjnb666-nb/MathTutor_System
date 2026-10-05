@@ -44,28 +44,28 @@ export default function Layout() {
       {/* 键盘无障碍：跳过导航直达主内容区 */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-indigo-600 focus:px-4 focus:py-2 focus:text-white focus:outline-none shadow-xl"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-[var(--color-brand-600)] focus:px-4 focus:py-2 focus:text-white focus:outline-none shadow-xl"
       >
         跳过导航至主内容
       </a>
 
       {/* 移动端顶栏 (Mobile Top Bar) */}
-      <header className="md:hidden fixed top-0 left-0 right-0 z-30 flex h-14 items-center justify-between border-b border-slate-800 bg-[#0B0F18]/95 px-4 backdrop-blur-md pt-[env(safe-area-inset-top)] min-h-[calc(3.5rem+env(safe-area-inset-top))] dark:bg-[#0B0F18]/95 dark:border-slate-800 light:bg-white/95 light:border-slate-200">
+      <header className="md:hidden fixed top-0 left-0 right-0 z-30 flex h-14 items-center justify-between border-b border-[var(--color-border-default)] bg-[var(--color-bg-primary)]/95 px-4 backdrop-blur-md pt-[env(safe-area-inset-top)] min-h-[calc(3.5rem+env(safe-area-inset-top))]">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white shadow-sm shadow-indigo-500/30">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--color-brand-600)] text-white shadow-sm shadow-indigo-500/30">
             <GraduationCap className="h-4 w-4" />
           </div>
-          <span className="text-sm font-bold tracking-tight text-white dark:text-white light:text-slate-900">
+          <span className="text-sm font-bold tracking-tight text-[var(--color-text-primary)]">
             TutorPro
           </span>
-          <span className="rounded bg-indigo-500/10 px-1 py-0.2 text-[9px] font-semibold text-indigo-400 border border-indigo-500/20">
+          <span className="rounded bg-[var(--color-brand-subtle)] px-1 py-0.2 text-[9px] font-semibold text-[var(--color-brand-text)] border border-[var(--color-border-subtle)]">
             AI
           </span>
         </div>
         <button
           type="button"
           onClick={() => setIsMobileMenuOpen(true)}
-          className="flex h-8 w-8 items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800/60 rounded-lg transition-colors dark:text-slate-300 light:text-slate-700 light:hover:bg-slate-100"
+          className="flex h-8 w-8 items-center justify-center text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-secondary)] rounded-lg transition-colors"
           aria-label="打开导航菜单"
         >
           <Menu className="h-5 w-5" />
@@ -75,7 +75,7 @@ export default function Layout() {
       {/* 移动端抽屉遮罩 (Mobile Overlay) */}
       {isMobileMenuOpen && (
         <div
-          className="md:hidden fixed inset-0 z-40 bg-slate-950/70 backdrop-blur-sm transition-opacity"
+          className="md:hidden fixed inset-0 z-40 bg-[var(--color-bg-overlay)] backdrop-blur-sm transition-opacity"
           onClick={() => setIsMobileMenuOpen(false)}
           aria-hidden="true"
         />

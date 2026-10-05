@@ -1,10 +1,8 @@
 /**
- * MathTutor UI V2 Design Tokens
- * 深色海军蓝主题 - 紫色/蓝色/青色强调
- *
- * 使用方式：
- * - 在组件中使用 CSS 变量：background: var(--color-bg-primary);
- * - 或使用 Tailwind 扩展类：bg-obsidian-900
+ * LEGACY COMPATIBILITY TOKENS
+ * 保留仅为向后兼容尚未重构的旧版页面 (UiV2 / Legacy pages)
+ * 注意：TutorPro 新设计体系权威单一真实来源 (SSOT) 为 styles/tokens.css
+ * 请勿在此添加新 Token，所有新语义 Token 请维护至 styles/tokens.css
  */
 
 /* ========== 深色主题（默认） ========== */

@@ -11,16 +11,16 @@ export function EmptyState({
 }) {
   return (
     <div
-      className={`flex flex-col items-center justify-center p-8 text-center rounded-xl border border-dashed border-slate-800 bg-slate-900/40 dark:bg-slate-900/40 dark:border-slate-800 light:bg-slate-50 light:border-slate-300 ${className}`}
+      className={`flex flex-col items-center justify-center p-8 text-center rounded-xl border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] ${className}`}
     >
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-800/80 text-slate-400 mb-3.5 dark:bg-slate-800/80 light:bg-slate-200 light:text-slate-600">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] mb-3.5">
         <Icon className="h-6 w-6" aria-hidden="true" />
       </div>
-      <h3 className="text-sm font-bold text-slate-200 dark:text-slate-200 light:text-slate-800">
+      <h3 className="text-sm font-bold text-[var(--color-text-primary)]">
         {title}
       </h3>
       {description && (
-        <p className="mt-1 max-w-sm text-xs text-slate-400 leading-relaxed">
+        <p className="mt-1 max-w-sm text-xs text-[var(--color-text-muted)] leading-relaxed">
           {description}
         </p>
       )}
@@ -40,9 +40,9 @@ export function LoadingState({
   className = '',
 }) {
   return (
-    <div className={`flex flex-col items-center justify-center p-12 text-center text-slate-400 ${className}`}>
-      <Loader2 className="h-7 w-7 animate-spin text-indigo-500 mb-3" aria-hidden="true" />
-      <p className="text-xs font-medium text-slate-400">{text}</p>
+    <div className={`flex flex-col items-center justify-center p-12 text-center text-[var(--color-text-muted)] ${className}`}>
+      <Loader2 className="h-7 w-7 animate-spin text-[var(--color-brand-500)] mb-3" aria-hidden="true" />
+      <p className="text-xs font-medium text-[var(--color-text-muted)]">{text}</p>
     </div>
   )
 }
@@ -53,7 +53,7 @@ export function Skeleton({
   height,
   className = '',
 }) {
-  const baseClasses = 'animate-pulse bg-slate-800 rounded dark:bg-slate-800 light:bg-slate-200'
+  const baseClasses = 'animate-pulse bg-[var(--color-bg-tertiary)] rounded'
 
   const variantClasses = {
     text: 'h-4 w-full rounded',
@@ -78,9 +78,9 @@ export function ErrorState({
   return (
     <div
       role="alert"
-      className={`flex flex-col items-center justify-center p-8 text-center rounded-xl border border-rose-900/30 bg-rose-950/20 text-rose-300 dark:bg-rose-950/20 light:bg-rose-50 light:border-rose-200 light:text-rose-700 ${className}`}
+      className={`flex flex-col items-center justify-center p-8 text-center rounded-xl border border-[var(--color-danger-border)] bg-[var(--color-danger-bg)] text-[var(--color-danger-text)] ${className}`}
     >
-      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/20 text-rose-400 mb-3">
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-danger)]/15 text-[var(--color-danger-text)] mb-3">
         <AlertCircle className="h-5 w-5" aria-hidden="true" />
       </div>
       <h3 className="text-sm font-bold">{title}</h3>
@@ -92,7 +92,7 @@ export function ErrorState({
             size="sm"
             onClick={onRetry}
             icon={RefreshCw}
-            className="border-rose-800/60 text-rose-300 hover:bg-rose-900/30 dark:border-rose-800/60 light:border-rose-300 light:text-rose-700 light:hover:bg-rose-100"
+            className="border-[var(--color-danger-border)] text-[var(--color-danger-text)] hover:bg-[var(--color-danger-bg)]"
           >
             重新加载
           </Button>

@@ -13,18 +13,18 @@ export function Badge({
 
   const variantClasses = {
     brand:
-      'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20 light:bg-indigo-50 light:text-indigo-700 light:border-indigo-200',
+      'bg-[var(--color-brand-subtle)] text-[var(--color-brand-text)] border border-[var(--color-brand-300)]',
     neutral:
-      'bg-slate-800 text-slate-300 border border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 light:bg-slate-100 light:text-slate-700 light:border-slate-200',
+      'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] border border-[var(--color-border-default)]',
     success:
-      'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 light:bg-emerald-50 light:text-emerald-700 light:border-emerald-200',
+      'bg-[var(--color-success-bg)] text-[var(--color-success-text)] border border-[var(--color-success-border)]',
     warning:
-      'bg-amber-500/10 text-amber-400 border border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20 light:bg-amber-50 light:text-amber-700 light:border-amber-200',
+      'bg-[var(--color-warning-bg)] text-[var(--color-warning-text)] border border-[var(--color-warning-border)]',
     danger:
-      'bg-rose-500/10 text-rose-400 border border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20 light:bg-rose-50 light:text-rose-700 light:border-rose-200',
+      'bg-[var(--color-danger-bg)] text-[var(--color-danger-text)] border border-[var(--color-danger-border)]',
     info:
-      'bg-sky-500/10 text-sky-400 border border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-400 dark:border-sky-500/20 light:bg-sky-50 light:text-sky-700 light:border-sky-200',
-  }[variant] || 'bg-slate-800 text-slate-300 border border-slate-700'
+      'bg-[var(--color-info-bg)] text-[var(--color-info-text)] border border-[var(--color-info-border)]',
+  }[variant] || 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] border border-[var(--color-border-default)]'
 
   return (
     <span
@@ -45,12 +45,12 @@ export function StatusBadge({
   ...props
 }) {
   const dotClasses = {
-    success: 'bg-emerald-400',
-    warning: 'bg-amber-400',
-    danger: 'bg-rose-400',
-    info: 'bg-sky-400',
-    neutral: 'bg-slate-400',
-  }[status] || 'bg-slate-400'
+    success: 'bg-[var(--color-success)]',
+    warning: 'bg-[var(--color-warning)]',
+    danger: 'bg-[var(--color-danger)]',
+    info: 'bg-[var(--color-info)]',
+    neutral: 'bg-[var(--color-text-muted)]',
+  }[status] || 'bg-[var(--color-text-muted)]'
 
   return (
     <Badge variant={status} className={className} {...props}>

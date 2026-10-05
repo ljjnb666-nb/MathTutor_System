@@ -10,20 +10,20 @@ export function Card({
 }) {
   return (
     <div
-      className={`rounded-xl border border-slate-800 bg-slate-900/90 shadow-sm transition-all dark:bg-slate-900/90 dark:border-slate-800 light:bg-white light:border-slate-200 ${
-        hoverable ? 'hover:border-slate-700 hover:shadow-md' : ''
+      className={`rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-sm transition-all ${
+        hoverable ? 'hover:border-[var(--color-border-strong)] hover:shadow-md' : ''
       } ${className}`}
     >
       {(title || subtitle || actions) && (
-        <div className="flex items-center justify-between border-b border-slate-800/80 px-5 py-4 dark:border-slate-800/80 light:border-slate-200">
+        <div className="flex items-center justify-between border-b border-[var(--color-border-default)] px-5 py-4">
           <div>
             {title && (
-              <h3 className="text-sm font-bold text-slate-100 dark:text-slate-100 light:text-slate-900">
+              <h3 className="text-sm font-bold text-[var(--color-text-primary)]">
                 {title}
               </h3>
             )}
             {subtitle && (
-              <p className="mt-0.5 text-xs text-slate-400">{subtitle}</p>
+              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">{subtitle}</p>
             )}
           </div>
           {actions && <div className="flex items-center gap-2">{actions}</div>}
@@ -31,7 +31,7 @@ export function Card({
       )}
       <div className={`p-5 ${contentClassName}`}>{children}</div>
       {footer && (
-        <div className="border-t border-slate-800/80 px-5 py-3 bg-slate-900/40 rounded-b-xl dark:border-slate-800/80 dark:bg-slate-900/40 light:border-slate-200 light:bg-slate-50">
+        <div className="border-t border-[var(--color-border-default)] px-5 py-3 bg-[var(--color-bg-subtle)] rounded-b-xl">
           {footer}
         </div>
       )}
@@ -50,17 +50,17 @@ export function Metric({
 }) {
   return (
     <div
-      className={`rounded-xl border border-slate-800 bg-slate-900/80 p-4 transition-colors dark:bg-slate-900/80 dark:border-slate-800 light:bg-white light:border-slate-200 ${className}`}
+      className={`rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 transition-colors ${className}`}
     >
-      <div className="flex items-center justify-between text-slate-400">
-        <span className="text-xs font-medium text-slate-400">{label}</span>
-        {Icon && <Icon className="h-4 w-4 text-slate-500" aria-hidden="true" />}
+      <div className="flex items-center justify-between text-[var(--color-text-muted)]">
+        <span className="text-xs font-medium">{label}</span>
+        {Icon && <Icon className="h-4 w-4 text-[var(--color-text-muted)]" aria-hidden="true" />}
       </div>
       <div className="mt-2 flex items-baseline gap-2">
         {loading ? (
-          <span className="h-7 w-20 animate-pulse rounded bg-slate-800" />
+          <span className="h-7 w-20 animate-pulse rounded bg-[var(--color-bg-tertiary)]" />
         ) : (
-          <span className="text-2xl font-bold tracking-tight text-slate-100 dark:text-slate-100 light:text-slate-900">
+          <span className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">
             {value !== undefined && value !== null ? value : '-'}
           </span>
         )}
@@ -71,16 +71,16 @@ export function Metric({
             <span
               className={`font-semibold ${
                 trend.direction === 'up'
-                  ? 'text-emerald-400'
+                  ? 'text-[var(--color-success)]'
                   : trend.direction === 'down'
-                  ? 'text-rose-400'
-                  : 'text-slate-400'
+                  ? 'text-[var(--color-danger)]'
+                  : 'text-[var(--color-text-muted)]'
               }`}
             >
               {trend.value}
             </span>
           )}
-          {hint && <span className="text-slate-500">{hint}</span>}
+          {hint && <span className="text-[var(--color-text-muted)]">{hint}</span>}
         </div>
       )}
     </div>

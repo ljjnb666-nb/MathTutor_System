@@ -9,6 +9,7 @@ html[data-theme="dark"] {
   /* ========== 颜色系统 - 深色主题 (Dark Mode) ========== */
 
   /* 基础背景层级 (Canvas & Surfaces) */
+  --color-bg-app: #090D16;              /* 全局应用背景 (同 canvas) */
   --color-bg-canvas: #090D16;           /* 画布深底色 (Clean Slate Navy) */
   --color-bg-primary: #0F172A;          /* 主界面底色 */
   --color-bg-secondary: #162032;        /* 次级底色 */
@@ -112,6 +113,7 @@ html[data-theme="dark"] {
 /* ========== 浅色主题 (Light Mode) ========== */
 html[data-theme="light"] {
   /* 基础背景层级 */
+  --color-bg-app: #F8FAFC;              /* 全局应用背景 (同 canvas) */
   --color-bg-canvas: #F8FAFC;           /* 画布底色 (Cool Light Slate) */
   --color-bg-primary: #FFFFFF;          /* 主界面底色 */
   --color-bg-secondary: #F1F5F9;        /* 次级底色 */

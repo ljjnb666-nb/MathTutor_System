@@ -39,8 +39,8 @@ export default function LoginPage() {
 
   if (restoring) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-[var(--color-bg-canvas)] text-slate-400">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-500" aria-hidden="true" />
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-[var(--color-bg-canvas)] text-[var(--color-text-muted)]">
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--color-brand-500)]" aria-hidden="true" />
         <p className="text-xs font-medium">正在恢复登录状态…</p>
       </div>
     )
@@ -75,21 +75,21 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg-canvas)] px-4 py-8 select-none transition-colors">
       <div className="w-full max-w-sm">
         {/* 卡片容器 */}
-        <div className="rounded-2xl border border-slate-800 bg-[#0E1524] p-7 shadow-xl dark:bg-[#0E1524] dark:border-slate-800 light:bg-white light:border-slate-200 light:shadow-lg">
+        <div className="rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-7 shadow-xl">
           {/* TutorPro 品牌头部 */}
           <div className="flex flex-col items-center text-center mb-7">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm shadow-indigo-500/25 mb-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--color-brand-600)] text-white shadow-sm shadow-indigo-500/25 mb-3">
               <GraduationCap className="h-6 w-6" aria-hidden="true" />
             </div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold tracking-tight text-white dark:text-white light:text-slate-900">
+              <h1 className="text-xl font-bold tracking-tight text-[var(--color-text-primary)]">
                 TutorPro
               </h1>
-              <span className="rounded bg-indigo-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-400 border border-indigo-500/20">
+              <span className="rounded bg-[var(--color-brand-subtle)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-brand-text)] border border-[var(--color-border-subtle)]">
                 AI Workspace
               </span>
             </div>
-            <p className="mt-1 text-xs text-slate-400 font-medium dark:text-slate-400 light:text-slate-500">
+            <p className="mt-1 text-xs text-[var(--color-text-muted)] font-medium">
               全学科 AI 教学工作台
             </p>
           </div>
@@ -99,12 +99,12 @@ export default function LoginPage() {
             <div>
               <label
                 htmlFor="username"
-                className="block text-xs font-semibold text-slate-300 mb-1.5 dark:text-slate-300 light:text-slate-700"
+                className="block text-xs font-semibold text-[var(--color-text-secondary)] mb-1.5"
               >
                 用户名
               </label>
               <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-[var(--color-text-muted)]">
                   <User className="h-4 w-4" aria-hidden="true" />
                 </div>
                 <input
@@ -116,7 +116,7 @@ export default function LoginPage() {
                   onChange={(e) => setUsername(e.target.value)}
                   disabled={loading}
                   placeholder="请输入您的账号"
-                  className="w-full rounded-lg border border-slate-700 bg-slate-900/80 pl-9 pr-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-900/80 dark:border-slate-700 dark:text-slate-100 light:bg-slate-50 light:border-slate-300 light:text-slate-900"
+                  className="w-full rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-input)] pl-9 pr-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-[var(--color-brand-500)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-500)]/20 disabled:cursor-not-allowed disabled:opacity-60"
                 />
               </div>
             </div>
@@ -124,12 +124,12 @@ export default function LoginPage() {
             <div>
               <label
                 htmlFor="password"
-                className="block text-xs font-semibold text-slate-300 mb-1.5 dark:text-slate-300 light:text-slate-700"
+                className="block text-xs font-semibold text-[var(--color-text-secondary)] mb-1.5"
               >
                 密码
               </label>
               <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-[var(--color-text-muted)]">
                   <Lock className="h-4 w-4" aria-hidden="true" />
                 </div>
                 <input
@@ -140,12 +140,12 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={loading}
                   placeholder="请输入登录密码"
-                  className="w-full rounded-lg border border-slate-700 bg-slate-900/80 pl-9 pr-10 py-2 text-sm text-slate-100 placeholder:text-slate-500 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-900/80 dark:border-slate-700 dark:text-slate-100 light:bg-slate-50 light:border-slate-300 light:text-slate-900"
+                  className="w-full rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-input)] pl-9 pr-10 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-[var(--color-brand-500)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-500)]/20 disabled:cursor-not-allowed disabled:opacity-60"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-200 transition-colors dark:hover:text-slate-200 light:hover:text-slate-700"
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
                   aria-label={showPassword ? '隐藏密码' : '显示密码'}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -156,7 +156,7 @@ export default function LoginPage() {
             {error && (
               <div
                 role="alert"
-                className="rounded-lg border border-rose-900/40 bg-rose-950/30 p-2.5 text-xs font-medium text-rose-400 dark:bg-rose-950/30 dark:border-rose-900/40 light:bg-rose-50 light:border-rose-200 light:text-rose-600"
+                className="rounded-lg border border-[var(--color-danger-border)] bg-[var(--color-danger-bg)] p-2.5 text-xs font-medium text-[var(--color-danger-text)]"
               >
                 {error}
               </div>
@@ -165,7 +165,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 rounded-lg bg-indigo-600 py-2.5 px-4 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 active:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all mt-2"
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-[var(--color-brand-600)] py-2.5 px-4 text-sm font-semibold text-white shadow-sm hover:bg-[var(--color-brand-500)] active:bg-[var(--color-brand-700)] disabled:opacity-60 disabled:cursor-not-allowed transition-all mt-2"
             >
               {loading ? (
                 <>
@@ -179,8 +179,8 @@ export default function LoginPage() {
           </form>
 
           {/* 底部版权与定位 */}
-          <div className="mt-6 pt-4 border-t border-slate-800/80 text-center dark:border-slate-800/80 light:border-slate-200">
-            <p className="text-[11px] text-slate-500">
+          <div className="mt-6 pt-4 border-t border-[var(--color-border-default)] text-center">
+            <p className="text-[11px] text-[var(--color-text-muted)]">
               TutorPro · 面向教师与学生的全学科智能教学平台
             </p>
           </div>

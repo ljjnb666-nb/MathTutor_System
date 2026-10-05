@@ -8,7 +8,7 @@ export function Tabs({
   return (
     <div
       role="tablist"
-      className={`flex items-center gap-1 border-b border-slate-800 p-1 dark:border-slate-800 light:border-slate-200 ${className}`}
+      className={`flex items-center gap-1 border-b border-[var(--color-border-default)] p-1 ${className}`}
     >
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id
@@ -21,8 +21,8 @@ export function Tabs({
             onClick={() => onChange(tab.id)}
             className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all ${
               isActive
-                ? 'bg-slate-800 text-white shadow-sm dark:bg-slate-800 dark:text-white light:bg-slate-200 light:text-slate-900'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 dark:text-slate-400 dark:hover:text-slate-200 light:text-slate-600 light:hover:text-slate-900 light:hover:bg-slate-100'
+                ? 'bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)] shadow-sm'
+                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]'
             } ${tabClassName}`}
           >
             {tab.icon && <tab.icon className="h-4 w-4" aria-hidden="true" />}
@@ -31,8 +31,8 @@ export function Tabs({
               <span
                 className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${
                   isActive
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-slate-800 text-slate-400 dark:bg-slate-800 light:bg-slate-200 light:text-slate-600'
+                    ? 'bg-[var(--color-brand-600)] text-white'
+                    : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)]'
                 }`}
               >
                 {tab.count}
@@ -61,7 +61,7 @@ export function SegmentedControl({
   return (
     <div
       role="radiogroup"
-      className={`inline-flex items-center rounded-lg bg-slate-900 border border-slate-800 select-none dark:bg-slate-900 dark:border-slate-800 light:bg-slate-100 light:border-slate-200 ${sizeClasses} ${className}`}
+      className={`inline-flex items-center rounded-lg bg-[var(--color-bg-input)] border border-[var(--color-border-default)] select-none ${sizeClasses} ${className}`}
     >
       {options.map((option) => {
         const isSelected = value === option.value
@@ -75,8 +75,8 @@ export function SegmentedControl({
             onClick={() => onChange(option.value)}
             className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-1 font-medium transition-all ${
               isSelected
-                ? 'bg-indigo-600 text-white shadow-sm font-semibold'
-                : 'text-slate-400 hover:text-slate-200 dark:text-slate-400 dark:hover:text-slate-200 light:text-slate-600 light:hover:text-slate-900'
+                ? 'bg-[var(--color-brand-600)] text-white shadow-sm font-semibold'
+                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
             } ${option.disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
           >
             {option.icon && <option.icon className="h-3.5 w-3.5" aria-hidden="true" />}
