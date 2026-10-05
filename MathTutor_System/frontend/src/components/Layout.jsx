@@ -4,6 +4,7 @@ import { Menu, GraduationCap } from 'lucide-react'
 import Sidebar from './Sidebar'
 import TopHeader from './TopHeader'
 import ErrorBoundary from './ErrorBoundary'
+import { Drawer } from './ui/Modal'
 import { getLayoutMode } from '../config/route-meta'
 
 export default function Layout() {
@@ -67,19 +68,12 @@ export default function Layout() {
           onClick={() => setIsMobileMenuOpen(true)}
           className="flex h-8 w-8 items-center justify-center text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-secondary)] rounded-lg transition-colors"
           aria-label="打开导航菜单"
+          aria-expanded={isMobileMenuOpen}
+          aria-controls="mobile-navigation"
         >
           <Menu className="h-5 w-5" />
         </button>
       </header>
-
-      {/* 移动端抽屉遮罩 (Mobile Overlay) */}
-      {isMobileMenuOpen && (
-        <div
-          className="md:hidden fixed inset-0 z-40 bg-[var(--color-bg-overlay)] backdrop-blur-sm transition-opacity"
-          onClick={() => setIsMobileMenuOpen(false)}
-          aria-hidden="true"
-        />
-      )}
 
       {/* 桌面端固定侧边栏容器 */}
       <div
@@ -93,14 +87,18 @@ export default function Layout() {
         />
       </div>
 
-      {/* 移动端侧边抽屉容器 */}
-      <div
-        className={`md:hidden fixed inset-y-0 left-0 z-50 w-[min(18rem,80vw)] transform transition-transform duration-200 ease-out shadow-2xl ${
-          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+      {/* 移动端侧边抽屉容器 (复用 Drawer 规范与焦点管理) */}
+      <Drawer
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+        position="left"
+        size="sm"
+        showHeader={false}
+        id="mobile-navigation"
+        className="md:hidden w-[min(18rem,80vw)] max-w-[80vw] !border-r !border-l-0 !p-0"
       >
         <Sidebar onCloseDrawer={() => setIsMobileMenuOpen(false)} />
-      </div>
+      </Drawer>
 
       {/* 主工作区画布 (Main Canvas) */}
       <main

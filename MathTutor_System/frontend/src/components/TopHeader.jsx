@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Search, Bell, Sun, Moon } from 'lucide-react'
+import { Search, Sun, Moon } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { getPageTitle } from '../config/route-meta'
 import { getSearchableFeatures } from '../config/navigation'
@@ -13,7 +13,6 @@ export default function TopHeader() {
   const { user } = useAuth()
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [notificationOpen, setNotificationOpen] = useState(false)
   const [currentTheme, setCurrentTheme] = useState(() => {
     return document.documentElement.dataset.theme || localStorage.getItem('ui_theme') || 'dark'
   })
@@ -149,31 +148,6 @@ export default function TopHeader() {
           )}
         </button>
 
-        {/* 通知中心 */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setNotificationOpen(!notificationOpen)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
-            aria-label="消息通知"
-          >
-            <Bell className="h-4 w-4" />
-          </button>
-
-          {notificationOpen && (
-            <div className="absolute right-0 top-full mt-2 w-72 rounded-xl border border-[var(--color-border-strong)] bg-[var(--color-bg-surface-raised)] p-3 shadow-xl z-50">
-              <div className="flex items-center justify-between border-b border-[var(--color-border-default)] pb-2 mb-2">
-                <span className="text-xs font-bold text-[var(--color-text-primary)]">
-                  系统通知
-                </span>
-                <span className="text-[10px] text-[var(--color-text-muted)]">已是最新</span>
-              </div>
-              <div className="py-4 text-center text-xs text-[var(--color-text-muted)]">
-                暂无新消息通知
-              </div>
-            </div>
-          )}
-        </div>
 
         {/* 用户信息简卡 */}
         <div className="flex items-center gap-2 pl-1 border-l border-[var(--color-border-default)]">

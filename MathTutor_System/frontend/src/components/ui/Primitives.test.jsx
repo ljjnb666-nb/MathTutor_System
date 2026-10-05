@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import {
   Button,
   IconButton,
@@ -287,6 +288,71 @@ describe('TutorPro UI Primitives', () => {
     expect(handleDrawerClose).toHaveBeenCalledTimes(1)
   })
 
+  it('OVERLAY-A11Y-07: parent rerender with new callback identity MUST NOT reset focus', () => {
+    // 1. Modal regression test
+    function ModalRerenderHarness() {
+      const [, setDummy] = useState(0)
+      return (
+        <div>
+          <button data-testid="rerender-btn" onClick={() => setDummy((c) => c + 1)}>
+            重渲染父组件
+          </button>
+          <Modal
+            isOpen={true}
+            // Passing a fresh inline closure each render tests onClose reference decoupling
+            onClose={() => {}}
+            title="重渲染测试弹窗"
+          >
+            <input data-testid="modal-first-control" placeholder="第一控件" />
+            <input data-testid="modal-second-control" placeholder="第二控件" />
+          </Modal>
+        </div>
+      )
+    }
+
+    const { unmount: unmountModal } = render(<ModalRerenderHarness />)
+    const modalSecond = screen.getByTestId('modal-second-control')
+    modalSecond.focus()
+    expect(document.activeElement).toBe(modalSecond)
+
+    // Trigger parent rerender which provides a new inline onClose identity
+    fireEvent.click(screen.getByTestId('rerender-btn'))
+
+    // Focus MUST remain on the second control and NOT reset to the first control
+    expect(document.activeElement).toBe(modalSecond)
+    unmountModal()
+
+    // 2. Drawer regression test
+    function DrawerRerenderHarness() {
+      const [, setDummy] = useState(0)
+      return (
+        <div>
+          <button data-testid="drawer-rerender-btn" onClick={() => setDummy((c) => c + 1)}>
+            重渲染父组件
+          </button>
+          <Drawer
+            isOpen={true}
+            onClose={() => {}}
+            title="重渲染测试抽屉"
+          >
+            <input data-testid="drawer-first-control" placeholder="抽屉第一控件" />
+            <input data-testid="drawer-second-control" placeholder="抽屉第二控件" />
+          </Drawer>
+        </div>
+      )
+    }
+
+    render(<DrawerRerenderHarness />)
+    const drawerSecond = screen.getByTestId('drawer-second-control')
+    drawerSecond.focus()
+    expect(document.activeElement).toBe(drawerSecond)
+
+    fireEvent.click(screen.getByTestId('drawer-rerender-btn'))
+
+    // Focus MUST remain on the second control
+    expect(document.activeElement).toBe(drawerSecond)
+  })
+
   it('renders Card with header and content', () => {
     render(
       <Card title="今日备课计划" subtitle="3项待办">
@@ -333,17 +399,48 @@ describe('TutorPro UI Primitives', () => {
 
   it('renders PageHeader with title and breadcrumbs', () => {
     render(
-      <PageHeader
-        title="题库管理"
-        description="管理与检索全学科教学题卡与试卷资产"
-        breadcrumbs={[
-          { label: '首页', to: '/' },
-          { label: '题库管理' },
-        ]}
-      />
+      <MemoryRouter>
+        <PageHeader
+          title="题库管理"
+          description="管理与检索全学科教学题卡与试卷资产"
+          breadcrumbs={[
+            { label: '首页', to: '/' },
+            { label: '题库管理' },
+          ]}
+        />
+      </MemoryRouter>
     )
 
     expect(screen.getByRole('heading', { level: 1, name: '题库管理' })).toBeInTheDocument()
     expect(screen.getByText('管理与检索全学科教学题卡与试卷资产')).toBeInTheDocument()
+  })
+
+  it('PAGEHEADER-SPA-01: click breadcrumb changes router location without native page reload', () => {
+    function LocationDisplay() {
+      const location = useLocation()
+      return <div data-testid="current-pathname">{location.pathname}</div>
+    }
+
+    render(
+      <MemoryRouter initialEntries={['/questions/edit/123']}>
+        <PageHeader
+          title="编辑题目"
+          breadcrumbs={[
+            { label: '题库列表', to: '/questions' },
+            { label: '题目详情', to: '/questions/123' },
+            { label: '编辑' },
+          ]}
+        />
+        <LocationDisplay />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByTestId('current-pathname')).toHaveTextContent('/questions/edit/123')
+
+    const breadcrumbLink = screen.getByRole('link', { name: '题库列表' })
+    expect(breadcrumbLink).toHaveAttribute('href', '/questions')
+    fireEvent.click(breadcrumbLink)
+
+    expect(screen.getByTestId('current-pathname')).toHaveTextContent('/questions')
   })
 })
