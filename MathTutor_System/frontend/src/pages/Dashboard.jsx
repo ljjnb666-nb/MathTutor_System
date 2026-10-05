@@ -1,6 +1,18 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Database, Users, FileText, Sparkles, BookOpen, UserPlus, BookMarked, AlertCircle, CreditCard, CalendarCheck } from 'lucide-react'
+import {
+  Sparkles,
+  Bot,
+  Calendar,
+  Users,
+  BookOpen,
+  ArrowRight,
+  Database,
+  FileText,
+  AlertCircle,
+  CreditCard,
+  CalendarCheck,
+} from 'lucide-react'
 import {
   BarChart,
   Bar,
@@ -10,160 +22,21 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
-import { getDashboardStats, getMistakes, getStudentTrend } from '../services/api'
+import { getDashboardStats, getMistakes } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import { useStudent } from '../contexts/StudentContext'
 import { useSubscription } from '../contexts/SubscriptionContext'
-import { EmptyState, ErrorState, MetricCard, PageHero, PageShell, SectionCard, StatusBadge } from '../components/UiV2'
+import {
+  Button,
+  Card,
+  Badge,
+  StatusBadge,
+  EmptyState,
+  ErrorState,
+  Skeleton,
+} from '../components/ui'
 import { normalizeApiError } from '../utils/normalizeApiError'
-
-function formatDate(iso) {
-  if (!iso) return '—'
-  try {
-    const d = new Date(iso)
-    return d.toLocaleDateString('zh-CN', {
-      month: 'numeric',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  } catch {
-    return String(iso)
-  }
-}
-
-function StatCardSkeleton() {
-  return (
-    <div className="h-28 animate-pulse rounded-xl" style={{ backgroundColor: 'var(--color-bg-card-hover)' }} />
-  )
-}
-
-function ChartSkeleton() {
-  return (
-    <div className="h-64 w-full animate-pulse rounded-xl" style={{ backgroundColor: 'var(--color-bg-card-hover)' }} />
-  )
-}
-
-function ListSkeleton() {
-  return (
-    <div className="space-y-3">
-      {[1, 2, 3, 4, 5].map((i) => (
-        <div key={i} className="h-12 animate-pulse rounded-lg" style={{ backgroundColor: 'var(--color-bg-card-hover)' }} />
-      ))}
-    </div>
-  )
-}
-
-const MOCK_STATS = {
-  total_questions: 0,
-  total_exams: 0,
-  total_students: 0,
-  today_review_count: 0,
-  recent_exams: [],
-  knowledge_distribution: [],
-}
-
-function SubscriptionCard({ subscription, isTeacher, onNavigate }) {
-  if (!subscription?.plan) return null
-  const periodEnd = subscription.period_end
-  const periodEndDate = periodEnd ? (typeof periodEnd === 'string' ? new Date(periodEnd) : periodEnd) : null
-  const daysLeft = periodEndDate
-    ? Math.ceil((periodEndDate.getTime() - Date.now()) / (24 * 60 * 60 * 1000))
-    : null
-  const isExpiringSoon = daysLeft != null && daysLeft >= 0 && daysLeft <= 7
-  const formatDate = (d) => (d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : '')
-
-  return (
-    <button
-      type="button"
-      onClick={onNavigate}
-      className="pro-glass-card group relative overflow-hidden rounded-2xl p-5 text-left active:scale-[0.99]"
-    >
-      <div className="flex items-center gap-3.5">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-600 ring-1 ring-indigo-500/20 group-hover:scale-105 transition-transform">
-          <CreditCard className="h-6 w-6" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>当前订阅套餐</p>
-          <p className="text-base font-extrabold truncate" style={{ color: 'var(--color-text-primary)' }}>
-            {subscription.plan.name} · {subscription.student_count}/{subscription.max_students} 学生
-          </p>
-          {isTeacher && periodEndDate && (
-            <p className={`mt-0.5 text-xs ${isExpiringSoon ? 'font-bold text-amber-600' : ''}`} style={!isExpiringSoon ? { color: 'var(--color-text-secondary)' } : {}}>
-              到期 {formatDate(periodEndDate)}
-              {isExpiringSoon && daysLeft >= 0 && ` · ${daysLeft} 天后到期`}
-            </p>
-          )}
-          {isTeacher && !periodEndDate && subscription.plan.code !== 'free' && (
-            <p className="mt-0.5 text-xs" style={{ color: 'var(--color-text-secondary)' }}>长期有效</p>
-          )}
-        </div>
-      </div>
-    </button>
-  )
-}
-
-function PendingMistakeCard({ count, loading, hasStudent, onNavigate }) {
-  const isClear = count === 0
-  const isZeroOrNum = count !== null && count !== undefined
-  const displayValue = isZeroOrNum ? String(count) : '—'
-  const statusText = isZeroOrNum ? (isClear ? '知识掌握 100% 🎉' : '需重点突破') : (hasStudent ? '加载中…' : '请先选择学生')
-  const bgIcon = isZeroOrNum && !isClear ? 'bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/20' : 'bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20'
-  const statusCls = isZeroOrNum && !isClear ? 'text-amber-600' : 'text-emerald-600'
-
-  return (
-    <button
-      type="button"
-      onClick={onNavigate}
-      className="pro-glass-card group relative overflow-hidden rounded-2xl p-5 text-left active:scale-[0.99]"
-    >
-      <div className="flex items-center gap-3.5">
-        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${bgIcon} group-hover:scale-105 transition-transform`}>
-          {loading ? (
-            <span className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-          ) : (
-            <AlertCircle className="h-6 w-6" />
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>待攻克错题</p>
-          <p className="text-2xl font-black tabular-nums" style={{ color: 'var(--color-text-primary)' }}>{displayValue}</p>
-          <p className={`text-xs font-bold ${statusCls}`}>{statusText}</p>
-        </div>
-      </div>
-    </button>
-  )
-}
-
-function TodayReviewCard({ count, loading, onNavigate }) {
-  const n = count != null && Number.isFinite(count) ? Number(count) : 0
-  const hasDue = n > 0
-
-  return (
-    <button
-      type="button"
-      onClick={onNavigate}
-      className="pro-glass-card group relative overflow-hidden rounded-2xl p-5 text-left active:scale-[0.99]"
-    >
-      <div className="flex items-center gap-3.5">
-        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${hasDue ? 'bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/20' : 'bg-slate-100 text-slate-500'} group-hover:scale-105 transition-transform`}>
-          {loading ? (
-            <span className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-          ) : (
-            <CalendarCheck className="h-6 w-6" />
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>今日待复习</p>
-          <p className="text-2xl font-black tabular-nums" style={{ color: 'var(--color-text-primary)' }}>{loading ? '—' : n}</p>
-          <p className={`text-xs font-bold ${hasDue ? 'text-amber-600' : ''}`} style={!hasDue ? { color: 'var(--color-text-secondary)' } : {}}>
-            {hasDue ? '点击立即复习' : '保持完美记录'}
-          </p>
-        </div>
-      </div>
-    </button>
-  )
-}
+import { getTimeOfDayGreeting, formatCurrentDate, formatDateTime } from '../utils/date'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -171,335 +44,628 @@ export default function Dashboard() {
   const { currentStudent } = useStudent()
   const { subscription, loading: subscriptionLoading } = useSubscription()
   const isTeacher = user?.role !== 'admin'
-  const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState(MOCK_STATS)
-  const [error, setError] = useState(null)
+
+  const [stats, setStats] = useState(null)
+  const [loadingStats, setLoadingStats] = useState(true)
+  const [statsError, setStatsError] = useState(null)
+
   const [pendingMistakeCount, setPendingMistakeCount] = useState(null)
   const [loadingMistakes, setLoadingMistakes] = useState(false)
-  const [trendWeeks, setTrendWeeks] = useState([])
-  const [loadingTrend, setLoadingTrend] = useState(false)
+  const [mistakesError, setMistakesError] = useState(null)
 
-  useEffect(() => {
-    setLoading(true)
-    setError(null)
-    getDashboardStats()
-      .then((res) => setStats(res.data || MOCK_STATS))
-      .catch((err) => setError(normalizeApiError(err, '加载失败')))
-      .finally(() => setLoading(false))
+  // Stale request guard for student switching
+  const studentReqSeq = useRef(0)
+
+  const fetchStats = useCallback(async () => {
+    setLoadingStats(true)
+    setStatsError(null)
+    try {
+      const res = await getDashboardStats()
+      setStats(res.data || null)
+    } catch (err) {
+      setStatsError(normalizeApiError(err, '工作台统计数据加载失败'))
+    } finally {
+      setLoadingStats(false)
+    }
   }, [])
 
-  const fetchPendingMistakes = useCallback(async () => {
-    if (currentStudent?.id == null) {
+  useEffect(() => {
+    fetchStats()
+  }, [fetchStats])
+
+  useEffect(() => {
+    const seq = ++studentReqSeq.current
+    if (!currentStudent?.id) {
       setPendingMistakeCount(null)
-      return
-    }
-    setLoadingMistakes(true)
-    try {
-      const res = await getMistakes({ student_id: currentStudent.id, status: 'pending' })
-      const list = Array.isArray(res.data) ? res.data : []
-      setPendingMistakeCount(list.length)
-    } catch {
-      setPendingMistakeCount(null)
-    } finally {
+      setMistakesError(null)
       setLoadingMistakes(false)
-    }
-  }, [currentStudent?.id])
-
-  useEffect(() => {
-    fetchPendingMistakes()
-  }, [fetchPendingMistakes])
-
-  useEffect(() => {
-    if (currentStudent?.id == null) {
-      setTrendWeeks([])
       return
     }
-    setLoadingTrend(true)
-    getStudentTrend(currentStudent.id, 8)
-      .then((data) => setTrendWeeks(Array.isArray(data?.weeks) ? data.weeks : []))
-      .catch(() => setTrendWeeks([]))
-      .finally(() => setLoadingTrend(false))
+
+    setPendingMistakeCount(null)
+    setMistakesError(null)
+    setLoadingMistakes(true)
+
+    getMistakes({ student_id: currentStudent.id, status: 'pending' })
+      .then((res) => {
+        if (seq !== studentReqSeq.current) return
+        const list = Array.isArray(res.data) ? res.data : []
+        setPendingMistakeCount(list.length)
+        setMistakesError(null)
+      })
+      .catch((err) => {
+        if (seq !== studentReqSeq.current) return
+        setPendingMistakeCount(null)
+        setMistakesError(err)
+      })
+      .finally(() => {
+        if (seq === studentReqSeq.current) {
+          setLoadingMistakes(false)
+        }
+      })
   }, [currentStudent?.id])
 
-  const today = new Date().toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long',
-  })
-
-  const chartData = (stats.knowledge_distribution || []).map(({ tag, count }) => ({
+  const chartData = (stats?.knowledge_distribution || []).map(({ tag, count }) => ({
     name: tag || '未分类',
     count,
   }))
 
-  const reloadDashboard = () => {
-    setError(null)
-    setLoading(true)
-    getDashboardStats()
-      .then((res) => setStats(res.data || MOCK_STATS))
-      .catch((err) => setError(normalizeApiError(err, '加载失败')))
-      .finally(() => setLoading(false))
-  }
+  const greeting = getTimeOfDayGreeting()
+  const todayText = formatCurrentDate()
+
+  // Subscription expiry calculation
+  const periodEnd = subscription?.period_end
+  const periodEndDate = periodEnd ? (typeof periodEnd === 'string' ? new Date(periodEnd) : periodEnd) : null
+  const daysLeft = periodEndDate
+    ? Math.ceil((periodEndDate.getTime() - Date.now()) / (24 * 60 * 60 * 1000))
+    : null
+  const isExpiringSoon = daysLeft != null && daysLeft >= 0 && daysLeft <= 7
 
   return (
-    <PageShell>
-      <PageHero
-        title={`欢迎回来，${user?.username || '老师'}`}
-        description={`今天是 ${today}。优先处理待办、关注学生状态，并从常用教学入口继续工作。`}
-        stats={[
-          { label: '当前学生', value: currentStudent?.name || '未选择', icon: <Users className="h-4 w-4 text-emerald-300" /> },
-          { label: '今日待复习', value: loading ? '...' : stats.today_review_count ?? 0, icon: <CalendarCheck className="h-4 w-4 text-blue-300" /> },
-          { label: '待攻克错题', value: loadingMistakes ? '...' : pendingMistakeCount ?? '待选择', icon: <AlertCircle className="h-4 w-4 text-amber-300" /> },
-        ]}
-        actions={
-          <>
-            <Link to="/smart-gen" className="v2-btn-primary">
-              <Sparkles className="h-4 w-4" />
-              智能出题
-            </Link>
-            <Link to="/chat" className="v2-btn-secondary">
-              AI 对话
-            </Link>
-          </>
-        }
-      />
-
-      <div className={`grid grid-cols-1 gap-4 md:grid-cols-2 ${isTeacher ? 'xl:grid-cols-5' : 'xl:grid-cols-4'}`}>
-        {isTeacher && (
-          subscription?.plan ? (
-            <SubscriptionCard
-              subscription={subscription}
-              isTeacher={isTeacher}
-              onNavigate={() => navigate('/pricing')}
-            />
-          ) : subscriptionLoading ? (
-            <StatCardSkeleton />
-          ) : (
-            <button
-              type="button"
-              onClick={() => navigate('/pricing')}
-              className="pro-glass-card group relative overflow-hidden rounded-2xl p-5 text-left active:scale-[0.99]"
-            >
-              <div className="flex items-center gap-3.5">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-600 ring-1 ring-indigo-500/20 group-hover:scale-105 transition-transform">
-                  <CreditCard className="h-6 w-6" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>套餐与定价</p>
-                  <p className="text-base font-extrabold" style={{ color: 'var(--color-text-primary)' }}>查看当前套餐与升级</p>
-                </div>
-              </div>
-            </button>
-          )
-        )}
-        {loading ? (
-          <>
-            <StatCardSkeleton />
-            <StatCardSkeleton />
-            <StatCardSkeleton />
-          </>
-        ) : (
-          <>
-            <MetricCard label="题库总量" value={stats.total_questions ?? 0} hint="真实题库记录" icon={Database} />
-            <MetricCard label="学生档案" value={stats.total_students ?? 0} hint="已录入学生" icon={Users} tone="success" />
-            <MetricCard label="试卷存档" value={stats.total_exams ?? 0} hint="我的试卷" icon={FileText} tone="info" />
-            <PendingMistakeCard
-              count={pendingMistakeCount}
-              loading={loadingMistakes}
-              hasStudent={!!currentStudent}
-              onNavigate={() => navigate('/mistake-book')}
-            />
-            <TodayReviewCard
-              count={stats.today_review_count}
-              loading={loading}
-              onNavigate={() => navigate('/mistake-book?review_due=1')}
-            />
-          </>
-        )}
-      </div>
-
-      {error && (
-        <ErrorState title="首页数据加载失败" description={error} onRetry={reloadDashboard} />
-      )}
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_30rem]">
-        <div className="space-y-4">
-          <SectionCard title="快捷操作" description="只展示当前系统已有入口，避免无效动作">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <Link
-                to="/smart-gen"
-                className="v2-btn-primary"
-              >
-                <Sparkles className="h-4 w-4 shrink-0" />
-                智能出题
-              </Link>
-              <Link
-                to="/mistake-book"
-                className="v2-btn-secondary"
-              >
-                <BookOpen className="h-4 w-4 shrink-0" />
-                错题本
-              </Link>
-              <Link
-                to="/student-mgmt"
-                className="v2-btn-secondary"
-              >
-                <UserPlus className="h-4 w-4 shrink-0" />
-                录入学生档案
-              </Link>
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            title="学情概览"
-            description="基于当前学生的近 8 周趋势"
-            actions={currentStudent && <StatusBadge tone="primary">{currentStudent.name}</StatusBadge>}
-          >
-            {!currentStudent ? (
-              <EmptyState icon={Users} title="未选择学生" description="请先在侧栏选择学生档案" />
-            ) : loadingTrend ? (
-              <ChartSkeleton />
-            ) : trendWeeks.length === 0 ? (
-              <EmptyState icon={Users} title="暂无趋势数据" description="学生完成更多练习后会显示趋势" />
-            ) : (
-              <div className="w-full min-w-0" style={{ height: 260 }}>
-                <ResponsiveContainer width="100%" height={260} minWidth={0}>
-                  <BarChart data={trendWeeks} margin={{ top: 8, right: 8, left: -20, bottom: 8 }}>
-                    <defs>
-                      <linearGradient id="mistakeGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#f59e0b" stopOpacity={1} />
-                        <stop offset="100%" stopColor="#d97706" stopOpacity={0.8} />
-                      </linearGradient>
-                      <linearGradient id="masteredGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#10b981" stopOpacity={1} />
-                        <stop offset="100%" stopColor="#059669" stopOpacity={0.8} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-secondary)" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} axisLine={{ stroke: 'var(--color-border-primary)' }} />
-                    <YAxis tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} allowDecimals={false} axisLine={false} />
-                    <Tooltip
-                      formatter={(value, name) => [value, name === 'new_mistakes' ? '新增错题' : '新掌握']}
-                      labelFormatter={(label) => `第 ${label} 周`}
-                      contentStyle={{ backgroundColor: 'var(--color-bg-card)', color: 'var(--color-text-primary)', borderRadius: '16px', border: '1px solid var(--color-border-primary)', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}
-                    />
-                    <Bar dataKey="new_mistakes" fill="url(#mistakeGradient)" radius={[6, 6, 0, 0]} name="新增错题" />
-                    <Bar dataKey="new_mastered" fill="url(#masteredGradient)" radius={[6, 6, 0, 0]} name="新掌握" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </SectionCard>
-
-          <SectionCard title="题库知识点热度" description="来自当前题库知识点分布">
-            {loading ? (
-              <ChartSkeleton />
-            ) : chartData.length === 0 ? (
-              <EmptyState icon={Database} title="暂无题目数据" description="题库有数据后会显示知识点热度" />
-            ) : (
-              <div className="w-full min-w-0" style={{ height: 280 }}>
-                <ResponsiveContainer width="100%" height={280} minWidth={0}>
-                  <BarChart data={chartData} margin={{ top: 8, right: 8, left: -20, bottom: 8 }}>
-                    <defs>
-                      <linearGradient id="indigoBarGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#6366f1" stopOpacity={1} />
-                        <stop offset="100%" stopColor="#4338ca" stopOpacity={0.8} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-secondary)" vertical={false} />
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }}
-                      axisLine={{ stroke: 'var(--color-border-primary)' }}
-                      tickFormatter={(v) => (v.length > 6 ? v.slice(0, 6) + '…' : v)}
-                    />
-                    <YAxis tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} allowDecimals={false} axisLine={false} />
-                    <Tooltip
-                      formatter={(value) => [value, '题目数']}
-                      labelFormatter={(label) => `知识点: ${label}`}
-                      contentStyle={{ backgroundColor: 'var(--color-bg-card)', color: 'var(--color-text-primary)', borderRadius: '16px', border: '1px solid var(--color-border-primary)', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}
-                    />
-                    <Bar dataKey="count" fill="url(#indigoBarGradient)" radius={[6, 6, 0, 0]} name="题目数" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </SectionCard>
+    <div className="space-y-6 v2-page-shell">
+      {/* 1. 工作台顶栏：克制、专业的问候与工作状态提示 */}
+      <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5 sm:p-6 shadow-sm">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">
+            {greeting}，{user?.username || '老师'}
+          </h1>
+          <p className="mt-1 text-xs text-[var(--color-text-muted)] leading-relaxed">
+            今天是 {todayText} · 全学科 AI 教学工作台
+          </p>
         </div>
 
-        <aside className="space-y-4">
-          <SectionCard title="今日待办" description="基于当前可用数据汇总">
-            <div className="space-y-2">
-              <button type="button" onClick={() => navigate('/mistake-book?review_due=1')} className="v2-mobile-row w-full text-left">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-bold text-slate-100">复习到期错题</span>
-                  <StatusBadge tone={(stats.today_review_count ?? 0) > 0 ? 'warning' : 'success'}>
-                    {stats.today_review_count ?? 0} 题
-                  </StatusBadge>
+        {/* 订阅套餐状态简卡 (降级为 secondary utility，不干扰主教学视觉) */}
+        {isTeacher && (
+          <div className="flex items-center gap-3 self-start sm:self-auto">
+            {subscriptionLoading ? (
+              <Skeleton width="180px" height="36px" className="rounded-xl" />
+            ) : subscription?.plan ? (
+              <button
+                type="button"
+                onClick={() => navigate('/pricing')}
+                className="flex items-center gap-2.5 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-3.5 py-2 text-left hover:border-[var(--color-border-strong)] hover:bg-[var(--color-bg-secondary)] transition-all select-none"
+                aria-label={`当前套餐：${subscription.plan.name}，点击管理订阅`}
+              >
+                <CreditCard className="h-4 w-4 text-[var(--color-brand-600)] shrink-0" aria-hidden="true" />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-[var(--color-text-primary)] truncate">
+                      {subscription.plan.name}
+                    </span>
+                    {isExpiringSoon && (
+                      <Badge variant="warning" size="sm">
+                        {daysLeft}天后到期
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-[var(--color-text-muted)]">
+                    学生容量 {subscription.student_count ?? 0}/{subscription.max_students ?? 0}
+                  </p>
                 </div>
               </button>
-              <button type="button" onClick={() => navigate('/mistake-book')} className="v2-mobile-row w-full text-left">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-bold text-slate-100">待攻克错题</span>
-                  <StatusBadge tone={pendingMistakeCount ? 'warning' : 'neutral'}>
-                    {pendingMistakeCount ?? '待选择'}
-                  </StatusBadge>
-                </div>
-              </button>
-            </div>
-          </SectionCard>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                icon={CreditCard}
+                onClick={() => navigate('/pricing')}
+              >
+                套餐与方案
+              </Button>
+            )}
+          </div>
+        )}
+      </section>
 
-          <SectionCard
-            title="最近存档试卷"
-            description="真实试卷记录"
+      {/* 2. 统计加载失败时的错误横幅 (不影响快捷导航和学生上下文继续操作) */}
+      {statsError && (
+        <ErrorState
+          title="工作台统计加载受阻"
+          message={statsError}
+          onRetry={fetchStats}
+        />
+      )}
+
+      {/* 3. 核心工作入口 (Primary Actions) */}
+      <section aria-labelledby="section-primary-actions">
+        <h2 id="section-primary-actions" className="sr-only">
+          核心工作入口
+        </h2>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+          {/* AI 教师助手：核心中枢工作台入口 */}
+          <div className="lg:col-span-5 rounded-2xl border border-[var(--color-brand-300)] bg-[var(--color-brand-subtle)] p-6 flex flex-col justify-between shadow-sm relative overflow-hidden">
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-brand-600)] text-white shadow-sm">
+                  <Bot className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <Badge variant="brand" size="sm">核心中枢</Badge>
+              </div>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">
+                AI 教师助手
+              </h3>
+              <p className="mt-1.5 text-xs text-[var(--color-text-secondary)] leading-relaxed">
+                基于教学目标、学生记录与现有资料辅助规划下一步教学任务，智能梳理教案与教研要点。
+              </p>
+            </div>
+            <div className="mt-5">
+              <Button
+                variant="primary"
+                size="sm"
+                icon={ArrowRight}
+                iconPosition="right"
+                onClick={() => navigate('/teacher-agent')}
+                className="w-full sm:w-auto"
+              >
+                进入助教工作区
+              </Button>
+            </div>
+          </div>
+
+          {/* 4 大常用教学动作快速启动网格 */}
+          <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <Link
+              to="/smart-gen"
+              className="flex items-start gap-3.5 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 hover:border-[var(--color-brand-400)] hover:shadow-sm transition-all text-left group"
+            >
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--color-brand-subtle)] text-[var(--color-brand-text)] group-hover:scale-105 transition-transform">
+                <Sparkles className="h-4 w-4" aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <h4 className="text-sm font-bold text-[var(--color-text-primary)] group-hover:text-[var(--color-brand-text)] transition-colors">
+                  智能出题
+                </h4>
+                <p className="mt-0.5 text-xs text-[var(--color-text-muted)] line-clamp-2">
+                  快速生成全学科练习题与教研测评题卡
+                </p>
+              </div>
+            </Link>
+
+            <Link
+              to="/mistake-book"
+              className="flex items-start gap-3.5 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 hover:border-[var(--color-brand-400)] hover:shadow-sm transition-all text-left group"
+            >
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 group-hover:scale-105 transition-transform">
+                <BookOpen className="h-4 w-4" aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <h4 className="text-sm font-bold text-[var(--color-text-primary)] group-hover:text-[var(--color-brand-text)] transition-colors">
+                  错题巩固
+                </h4>
+                <p className="mt-0.5 text-xs text-[var(--color-text-muted)] line-clamp-2">
+                  追踪薄弱知识点，安排错题针对性巩固
+                </p>
+              </div>
+            </Link>
+
+            <Link
+              to="/schedule"
+              className="flex items-start gap-3.5 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 hover:border-[var(--color-brand-400)] hover:shadow-sm transition-all text-left group"
+            >
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 group-hover:scale-105 transition-transform">
+                <Calendar className="h-4 w-4" aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <h4 className="text-sm font-bold text-[var(--color-text-primary)] group-hover:text-[var(--color-brand-text)] transition-colors">
+                  排课日程
+                </h4>
+                <p className="mt-0.5 text-xs text-[var(--color-text-muted)] line-clamp-2">
+                  查看与安排课时日程与每周授课规划
+                </p>
+              </div>
+            </Link>
+
+            <Link
+              to="/student-mgmt"
+              className="flex items-start gap-3.5 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 hover:border-[var(--color-brand-400)] hover:shadow-sm transition-all text-left group"
+            >
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 group-hover:scale-105 transition-transform">
+                <Users className="h-4 w-4" aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <h4 className="text-sm font-bold text-[var(--color-text-primary)] group-hover:text-[var(--color-brand-text)] transition-colors">
+                  学生管理
+                </h4>
+                <p className="mt-0.5 text-xs text-[var(--color-text-muted)] line-clamp-2">
+                  检索学生名册、建档录入与基础信息维护
+                </p>
+              </div>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* 3.5 今日工作：教师级全局状态（today_review_count 是当前教师全部学生合计，
+          必须以"全部学生"口径展示，不得暗示与当前聚焦学生相关） */}
+      <section aria-labelledby="section-today-work">
+        <h2 id="section-today-work" className="sr-only">
+          今日工作
+        </h2>
+        <button
+          type="button"
+          data-testid="today-work-strip"
+          onClick={() => navigate('/mistake-book?review_due=1')}
+          className="w-full flex items-center gap-4 rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-5 py-4 hover:border-[var(--color-brand-400)] hover:shadow-sm transition-all text-left group"
+        >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600">
+            <CalendarCheck className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-[var(--color-text-muted)]">
+              今日工作 · 全部学生待复习
+            </p>
+            <div className="mt-0.5 flex items-baseline gap-2">
+              {loadingStats ? (
+                <Skeleton width="40px" height="26px" />
+              ) : statsError ? (
+                <span className="text-sm font-semibold text-[var(--color-danger)]">
+                  暂不可用
+                </span>
+              ) : (
+                <>
+                  <span className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] tabular-nums">
+                    {stats?.today_review_count ?? 0}
+                  </span>
+                  {(stats?.today_review_count ?? 0) === 0 && (
+                    <span className="text-xs text-[var(--color-text-muted)]">
+                      今日暂无学生到期复习
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+          <div className="ml-auto hidden sm:flex items-center gap-1 text-xs font-semibold text-[var(--color-brand-600)] group-hover:text-[var(--color-brand-500)] transition-colors shrink-0">
+            前往错题巩固
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </div>
+        </button>
+      </section>
+
+      {/* 4. 教学业务工作区：当前关注学生 + 最近试卷存档 */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
+        {/* 左栏：当前学生上下文卡片 (Current Student Panel) */}
+        <div className="lg:col-span-5" data-testid="current-student-panel">
+          <Card
+            title="当前聚焦学生"
+            subtitle="针对选定学生的真实学习记录与待处理项"
             actions={
-              <Link to="/exams" className="text-xs font-bold text-indigo-400 hover:text-indigo-300">
+              currentStudent && (
+                <StatusBadge status="info" label="已锁定档案" />
+              )
+            }
+          >
+            {currentStudent ? (
+              <div className="space-y-4">
+                {/* 学生基础属性 */}
+                <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] pb-3.5">
+                  <div>
+                    <h4 className="text-base font-bold text-[var(--color-text-primary)]">
+                      {currentStudent.name}
+                    </h4>
+                    <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                      {[currentStudent.grade, currentStudent.class_name].filter(Boolean).join(' · ') || '未分班级'}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate('/student-mgmt')}
+                  >
+                    切换学生
+                  </Button>
+                </div>
+
+                {/* 针对该学生的真实可用操作指标（仅展示 student-scoped 数据：
+                    stats.today_review_count 是教师全体学生合计，不得出现在此卡片） */}
+                <button
+                  type="button"
+                  onClick={() => navigate('/mistake-book')}
+                  className="w-full flex flex-col justify-between rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-3.5 text-left hover:border-[var(--color-border-strong)] hover:bg-[var(--color-bg-secondary)] transition-all"
+                >
+                  <div className="flex items-center justify-between text-[var(--color-text-muted)] w-full">
+                    <span className="text-xs font-medium">待巩固错题</span>
+                    <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                  </div>
+                  <div className="my-2">
+                    {loadingMistakes ? (
+                      <Skeleton width="48px" height="28px" />
+                    ) : mistakesError ? (
+                      <span className="text-sm font-semibold text-[var(--color-danger)]">
+                        暂不可用
+                      </span>
+                    ) : (
+                      <span className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)] tabular-nums">
+                        {pendingMistakeCount ?? 0}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-[var(--color-text-muted)]">
+                    {loadingMistakes
+                      ? '正在查询…'
+                      : mistakesError
+                      ? '数据加载异常'
+                      : pendingMistakeCount === 0
+                      ? '当前暂无待巩固错题'
+                      : '点击前往错题本攻克'}
+                  </p>
+                </button>
+              </div>
+            ) : (
+              <EmptyState
+                icon={Users}
+                title="尚未选择学生"
+                description="从左下角学生选择器切换，或前往学生管理查看完整档案与学情。"
+                actionLabel="前往学生管理"
+                onAction={() => navigate('/student-mgmt')}
+              />
+            )}
+          </Card>
+        </div>
+
+        {/* 右栏：最近试卷存档 (Recent Exams) */}
+        <div className="lg:col-span-7" data-testid="recent-exams-panel">
+          <Card
+            title="最近试卷存档"
+            subtitle="真实保存的教学测评与试卷资产"
+            actions={
+              <Link
+                to="/exams"
+                className="text-xs font-semibold text-[var(--color-brand-600)] hover:text-[var(--color-brand-500)] inline-flex items-center gap-1 transition-colors"
+              >
                 全部试卷
+                <ArrowRight className="h-3 w-3" aria-hidden="true" />
               </Link>
             }
           >
-            {loading ? (
-              <ListSkeleton />
-            ) : !stats.recent_exams?.length ? (
-              <EmptyState icon={FileText} title="暂无试卷记录" description="保存试卷后会出现在这里" />
+            {loadingStats ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} height="52px" className="rounded-xl" />
+                ))}
+              </div>
+            ) : statsError ? (
+              /* stats 失败时禁止用空态冒充"没有试卷"，必须是区域级错误态 */
+              <ErrorState
+                title="最近试卷暂不可用"
+                message="统计数据加载失败，试卷列表暂时无法展示，请稍后重试。"
+              />
+            ) : !stats?.recent_exams?.length ? (
+              <EmptyState
+                icon={FileText}
+                title="暂无试卷记录"
+                description="通过智能出题或导入试卷保存后，最新试卷会展示在此处。"
+                actionLabel="去智能出题"
+                onAction={() => navigate('/smart-gen')}
+              />
             ) : (
-              <ul className="space-y-2.5 min-w-0">
+              <ul className="space-y-2.5" aria-label="最近试卷列表">
                 {stats.recent_exams.map((exam) => (
                   <li key={exam.id}>
                     <button
                       type="button"
                       onClick={() => navigate(`/exams/${exam.id}`)}
-                      className="v2-mobile-row w-full text-left transition-all active:scale-[0.99]"
+                      className="w-full flex items-center justify-between gap-4 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-3.5 hover:border-[var(--color-border-strong)] hover:bg-[var(--color-bg-secondary)] transition-all text-left group"
                     >
-                      <p className="truncate text-sm font-extrabold" style={{ color: 'var(--color-text-primary)' }} title={exam.title}>
-                        {exam.title || '未命名试卷'}
-                      </p>
-                      <p className="mt-1 truncate text-[11px] font-medium" style={{ color: 'var(--color-text-secondary)' }}>
-                        {formatDate(exam.created_at)}
-                        {exam.student_name ? ` · ${exam.student_name}` : ''}
-                      </p>
-                      {exam.student_id != null && (
-                        <div className="mt-2">
-                          {exam.graded_at ? (
-                            <StatusBadge tone="success">
-                              已批改
-                              {exam.grade_summary?.total != null &&
-                                ` ${exam.grade_summary.correct}/${exam.grade_summary.total}`}
-                            </StatusBadge>
-                          ) : (
-                            <StatusBadge tone="warning">未批改</StatusBadge>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-[var(--color-text-primary)] truncate group-hover:text-[var(--color-brand-text)] transition-colors">
+                          {exam.title || '未命名试卷'}
+                        </p>
+                        <div className="mt-1 flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                          <span>{formatDateTime(exam.created_at)}</span>
+                          {exam.student_name && (
+                            <>
+                              <span>·</span>
+                              <span className="truncate max-w-[120px]">
+                                {exam.student_name}
+                              </span>
+                            </>
                           )}
                         </div>
-                      )}
+                      </div>
+                      <div className="shrink-0">
+                        {/* 权威状态规则（backend RF01 契约）：
+                            graded_at != null → 已批改
+                            student_id != null && graded_at == null → 待批改
+                            student_id == null && graded_at == null → 已归档
+                            grade_summary 不用于事实计数展示 */}
+                        {exam.graded_at ? (
+                          <StatusBadge status="success" label="已批改" />
+                        ) : exam.student_id != null ? (
+                          <StatusBadge status="warning" label="待批改" />
+                        ) : (
+                          <Badge variant="neutral" size="sm">已归档</Badge>
+                        )}
+                      </div>
                     </button>
                   </li>
                 ))}
               </ul>
             )}
-          </SectionCard>
-        </aside>
+          </Card>
+        </div>
       </div>
-    </PageShell>
+
+      {/* 5. 教学资产总览与题库内容分布 (Secondary Assets & Distribution) */}
+      <section aria-labelledby="section-assets-distribution" className="space-y-4">
+        <h2 id="section-assets-distribution" className="text-base font-bold text-[var(--color-text-primary)]">
+          教学资产与题库分布
+        </h2>
+
+        {/* 教学资产概览：小型 Secondary Metrics */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          <button
+            type="button"
+            onClick={() => navigate('/question-bank')}
+            className="flex items-center gap-3.5 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 hover:border-[var(--color-border-strong)] transition-all text-left"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 shrink-0">
+              <Database className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-[var(--color-text-muted)]">题库题目</p>
+              {loadingStats ? (
+                <p className="text-xl font-bold text-[var(--color-text-primary)] tabular-nums">—</p>
+              ) : statsError ? (
+                <p className="text-sm font-semibold text-[var(--color-danger)]">暂不可用</p>
+              ) : (
+                <p className="text-xl font-bold text-[var(--color-text-primary)] tabular-nums">
+                  {stats?.total_questions ?? 0}
+                </p>
+              )}
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate('/student-mgmt')}
+            className="flex items-center gap-3.5 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 hover:border-[var(--color-border-strong)] transition-all text-left"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 shrink-0">
+              <Users className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-[var(--color-text-muted)]">学生档案</p>
+              {loadingStats ? (
+                <p className="text-xl font-bold text-[var(--color-text-primary)] tabular-nums">—</p>
+              ) : statsError ? (
+                <p className="text-sm font-semibold text-[var(--color-danger)]">暂不可用</p>
+              ) : (
+                <p className="text-xl font-bold text-[var(--color-text-primary)] tabular-nums">
+                  {stats?.total_students ?? 0}
+                </p>
+              )}
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate('/exams')}
+            className="flex items-center gap-3.5 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 hover:border-[var(--color-border-strong)] transition-all text-left"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 shrink-0">
+              <FileText className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-[var(--color-text-muted)]">试卷归档</p>
+              {loadingStats ? (
+                <p className="text-xl font-bold text-[var(--color-text-primary)] tabular-nums">—</p>
+              ) : statsError ? (
+                <p className="text-sm font-semibold text-[var(--color-danger)]">暂不可用</p>
+              ) : (
+                <p className="text-xl font-bold text-[var(--color-text-primary)] tabular-nums">
+                  {stats?.total_exams ?? 0}
+                </p>
+              )}
+            </div>
+          </button>
+        </div>
+
+        {/* 题库内容分布 (Knowledge Distribution) */}
+        <Card
+          title="题库内容分布"
+          subtitle="按知识点统计个人题库题目数量（Top 5 真实题库记录）"
+        >
+          {loadingStats ? (
+            <div className="h-56 w-full animate-pulse rounded-xl bg-[var(--color-bg-subtle)]" />
+          ) : statsError ? (
+            /* stats 失败时禁止用空态冒充"题库为空"，必须是区域级错误态 */
+            <ErrorState
+              title="题库分布暂不可用"
+              message="统计数据加载失败，知识点分布暂时无法展示，请稍后重试。"
+            />
+          ) : chartData.length === 0 ? (
+            <EmptyState
+              icon={Database}
+              title="暂无题库分布数据"
+              description="录入或生成题目后，这里将按知识点展示题目数量分布。"
+              actionLabel="录入新题目"
+              onAction={() => navigate('/smart-gen')}
+            />
+          ) : (
+            <div>
+              {/* 无障碍文本对照表格（满足 WCAG 2.1 规范） */}
+              <div className="sr-only">
+                <table>
+                  <caption>题库内容分布统计</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">知识点名称</th>
+                      <th scope="col">题目数量</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {chartData.map((d) => (
+                      <tr key={d.name}>
+                        <td>{d.name}</td>
+                        <td>{d.count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Recharts 纯语义化主题渲染 */}
+              <div className="w-full min-w-0" style={{ height: 240 }}>
+                <ResponsiveContainer width="100%" height={240} minWidth={0}>
+                  <BarChart data={chartData} margin={{ top: 12, right: 12, left: -16, bottom: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" vertical={false} />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }}
+                      axisLine={{ stroke: 'var(--color-border-default)' }}
+                      tickFormatter={(v) => (v.length > 8 ? v.slice(0, 8) + '…' : v)}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }}
+                      allowDecimals={false}
+                      axisLine={false}
+                    />
+                    <Tooltip
+                      formatter={(value) => [value, '题目数量']}
+                      labelFormatter={(label) => `知识点：${label}`}
+                      contentStyle={{
+                        backgroundColor: 'var(--color-bg-surface-raised)',
+                        borderColor: 'var(--color-border-default)',
+                        borderRadius: '12px',
+                        color: 'var(--color-text-primary)',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+                        fontSize: '12px',
+                      }}
+                    />
+                    <Bar
+                      dataKey="count"
+                      fill="var(--color-brand-600)"
+                      radius={[6, 6, 0, 0]}
+                      name="题目数量"
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </Card>
+      </section>
+    </div>
   )
 }
